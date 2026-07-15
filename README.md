@@ -5996,9 +5996,1751 @@ Der Öl-MVP gilt fachlich als funktionsfähig, wenn:
 
 ---
 
-# 13. Weitere geplante Systeme
+# 13. Cops-&-Robbers-, Polizei- und Ermittlungssystem
 
-## 13.1 Legale Berufe
+Der Cops-&-Robbers-Kern verbindet kriminelle Vorbereitung, Tatdurchführung, Polizeireaktion und langfristige Ermittlungen. Eine Straftat endet nicht automatisch am Ausgang eines Zielgebäudes. Beute muss transportiert und verwertet werden, Spuren können zu späteren Maßnahmen führen und die Polizei muss Informationen tatsächlich erarbeiten.
+
+Das System soll Konflikt und Spannung erzeugen, ohne in Deathmatch, automatische Tätererkennung oder folgenloses Markerfarming abzurutschen.
+
+## 13.1 Leitprinzipien
+
+- Jede größere Straftat besitzt Vorbereitung, Durchführung und Nachspiel.
+- Belohnungen entstehen durch Ziele, Beute und Verwertung, nicht durch getötete Spieler.
+- Polizeiarbeit wird durch Informationen unterstützt, aber nicht automatisch gelöst.
+- Der Server kennt technische Wahrheiten; die Polizei kennt nur rechtmäßig oder spielerisch erlangte Informationen.
+- Täteridentität, exakter Standort und Beweiswert werden nicht als magisches Wissen verteilt.
+- Gewalt ist eine mögliche Vorgehensweise, aber normalerweise die lauteste und riskanteste.
+- Scheitern, Teilfortschritt, Abbruch und spätere Ermittlungen sind gültige Ergebnisse.
+- Kriminalität verwendet echte Gegenstände, Fahrzeuge, Konten, Gebäude und Warenchargen.
+- Verbrechen dürfen Eigentum und Wirtschaft beeinflussen, aber keine vollständigen Offline-Enteignungen ermöglichen.
+- Sowohl Kriminelle als auch Polizei erhalten nachvollziehbare Regeln, Schutzmechanismen und Auditspuren.
+
+## 13.2 Verantwortliche Module
+
+### `cnr_crime`
+
+Verantwortet:
+
+- Verbrechensdefinitionen;
+- Tatziele;
+- Tatinstanzen;
+- Teilnehmer und Rollen;
+- Tatphasen;
+- Voraussetzungen;
+- Ziel- und Teilnehmer-Cooldowns;
+- Beutezuweisung;
+- kriminelle Verwertung;
+- internen Risikostatus.
+
+### `cnr_dispatch`
+
+Verantwortet:
+
+- Notrufe;
+- automatische Alarme;
+- Leitstellenereignisse;
+- Prioritäten;
+- Ortsgenauigkeit;
+- Aktualisierungen;
+- Einheitenzuweisung;
+- Einsatzstatus.
+
+### `cnr_police`
+
+Verantwortet:
+
+- Polizeiorganisationen;
+- Dienststatus;
+- Einheiten;
+- Einsatzmittel;
+- Maßnahmen;
+- Berichte;
+- Fahndungen;
+- Durchsuchungen;
+- Beschlagnahmungen;
+- Festnahmen;
+- Haftübergaben;
+- MDT-Berechtigungen.
+
+### `cnr_evidence`
+
+Verantwortet:
+
+- physische und digitale Spuren;
+- Tatortbeweise;
+- Proben;
+- Beweismittelbeutel;
+- Kontamination;
+- Analysen;
+- Beweiskette;
+- Asservatenzugriffe;
+- Kamera- und Messdatensätze.
+
+Zusätzlich beteiligt sind `cnr_inventory`, `cnr_items`, `cnr_vehicles`, `cnr_properties`, `cnr_banking`, `cnr_contracts`, `cnr_progression`, `cnr_reputation`, `cnr_medical`, `cnr_admin` und `cnr_analytics`.
+
+## 13.3 Kein globaler Kriminellenjob
+
+Kriminalität ist kein festes Joblabel. Ein Charakter wird durch Handlungen, Kontakte, Ruf, Fähigkeiten und Besitz zu einem kriminellen Akteur.
+
+Mögliche Organisationsformen:
+
+- Einzeltäter;
+- spontane Gruppe;
+- feste Crew;
+- Gang;
+- kriminelles Unternehmen;
+- Insider in einem legalen Unternehmen;
+- Auftragnehmer einer Unterweltorganisation.
+
+Ein legales Unternehmen kann einzelne illegale Geschäfte betreiben, ohne dass seine gesamte Identität automatisch als kriminell markiert wird. Die Polizei kann interne Systemklassifikationen nicht im Charakterprofil sehen.
+
+## 13.4 Kriminalitätsklassen
+
+### Opportunistische Kriminalität
+
+- einfacher Diebstahl;
+- Taschendiebstahl;
+- kleiner Ladenraub;
+- Aufbruch eines Automaten;
+- Diebstahl ungesicherter Fracht.
+
+### Eigentums- und Fahrzeugkriminalität
+
+- Einbruch;
+- Fahrzeugdiebstahl;
+- Teilediebstahl;
+- Lagerdiebstahl;
+- Hehlerei;
+- Aufbrechen von Safes.
+
+### Organisierte Überfälle
+
+- Tankstellen- oder Geschäftsüberfall;
+- Lager- und Transportüberfall;
+- Geldtransport;
+- Bankfiliale;
+- Raffinerie oder Industrieanlage;
+- Gefängnisbefreiung;
+- große Spezialziele.
+
+### Wirtschaftskriminalität
+
+- Betrug;
+- gefälschte Lieferungen;
+- Unterschlagung;
+- Geldwäsche;
+- Scheinfirmen;
+- manipulierte Rechnungen;
+- Insiderdiebstahl;
+- illegale Entsorgung.
+
+### Illegale Märkte
+
+- Schmuggel;
+- Drogen;
+- Waffen;
+- gestohlene Fahrzeuge und Teile;
+- gestohlene Waren;
+- gefälschte Dokumente;
+- illegale Dienstleistungen.
+
+Nicht jede Klasse ist Teil des ersten MVP. Alle verwenden jedoch denselben Grundrahmen für Instanzen, Beute, Beweise, Cooldowns und Auditierung.
+
+## 13.5 Risikostufen und Polizei-Anforderungen
+
+Tatziele werden einer konfigurierbaren Risikostufe zugeordnet.
+
+| Stufe | Beispiele | Grundidee |
+|---|---|---|
+| niedrig | einfacher Diebstahl, kleiner Ladenraub | auch bei geringer Polizeibesetzung möglich |
+| mittel | Tankstelle, Lager, Automat, Fahrzeugauftrag | benötigt Vorbereitung und angemessene Reaktionsmöglichkeit |
+| hoch | Bankfiliale, Geldtransport, Raffinerie | benötigt mehrere verfügbare Polizeieinheiten |
+| spezial | Zentralbank, Gefängnisausbruch, Großtransport | Ereignischarakter und dynamische Freigabe |
+
+Die konkreten Mindestwerte bleiben dynamisch konfigurierbar. Kleine Straftaten werden bei geringer Besetzung nicht vollständig abgeschaltet. Hochwertige Ziele benötigen dagegen eine realistische Reaktionsmöglichkeit.
+
+Als verfügbar zählen nur Polizeikräfte, die:
+
+- aktiv im Dienst sind;
+- ihre Dienstsitzung ordnungsgemäß begonnen haben;
+- nicht bewusstlos oder in Haft sind;
+- nicht als AFK erkannt wurden;
+- für Einsätze grundsätzlich verfügbar sind;
+- eine Mindestdienstzeit erfüllt haben, um kurzfristige Zweitaccount-Manipulation zu erschweren.
+
+Sinkt die Polizeizahl nach einem gültigen Tatstart, wird die Tat nicht rückwirkend ungültig oder die Beute gelöscht.
+
+## 13.6 Dauerhafte Tatziele
+
+Ein Tatort oder Tatobjekt besitzt:
+
+- interne ID;
+- öffentliche UUID;
+- Definition und Konfigurationsversion;
+- Zieltyp;
+- Weltobjekt, Immobilie, Fahrzeug oder Unternehmen;
+- räumliche Zonen und Interaktionspunkte;
+- Sicherheitsstufe;
+- Alarmprofil;
+- Beutequelle und Maximalbestand;
+- Beweisprofil;
+- aktuellen Zustand;
+- Ziel-Cooldown;
+- letzte Tatinstanz;
+- Betreiber und möglichen Geschädigten.
+
+Koordinaten, Netzwerk-IDs und sichtbare Modellnamen sind niemals die dauerhafte Identität eines Tatobjekts.
+
+## 13.7 Zielzustände
+
+Mögliche Zustände:
+
+- `available`;
+- `reserved`;
+- `casing`;
+- `active`;
+- `alarm`;
+- `lockdown`;
+- `recovering`;
+- `cooldown`;
+- `maintenance`;
+- `disabled`;
+- `incident_hold`;
+- `archived`.
+
+Nur der Server ändert den verbindlichen Zielzustand. Ein Ziel kann nicht von zwei Gruppen gleichzeitig als unabhängige Beutequelle verwendet werden.
+
+## 13.8 Gemeinsamer Lebenszyklus eines Verbrechens
+
+1. Ziel oder Auftrag finden.
+2. Informationen sammeln.
+3. Vorgehensweise auswählen.
+4. Team, Fahrzeuge, Werkzeuge und Lager vorbereiten.
+5. Voraussetzungen serverseitig prüfen lassen.
+6. Ziel und mögliche Beute reservieren.
+7. Tat beginnen.
+8. Sicherheitsstufen oder Teilziele überwinden.
+9. Alarm, Zeugen und Beweise erzeugen.
+10. Beute sichern.
+11. Tatort verlassen.
+12. Fahndungs- und Abkühlphase überstehen.
+13. Beute lagern, aufteilen oder transportieren.
+14. Ware verkaufen oder Geld waschen.
+15. mögliche Ermittlungen, Durchsuchungen und Festnahmen behandeln.
+16. Tatinstanz fachlich abschließen, ohne Ermittlungsdaten zu löschen.
+
+Eine Tat kann in jeder Phase scheitern, kontrolliert abgebrochen werden oder nur teilweise erfolgreich sein.
+
+## 13.9 Tatinstanz als Zustandsmaschine
+
+| Zustand | Bedeutung |
+|---|---|
+| `planned` | Gruppe und Ziel sind vorbereitet, aber noch nicht gesperrt |
+| `validating` | Voraussetzungen und Beutequelle werden geprüft |
+| `reserved` | Ziel, Konfiguration und maximale Beute sind reserviert |
+| `initiated` | erste unumkehrbare Tathandlung wurde ausgeführt |
+| `active` | Teilziele werden bearbeitet |
+| `alarm` | Alarm oder bestätigter Notruf ist aktiv |
+| `escape` | Täter haben das unmittelbare Ziel verlassen |
+| `hot` | Beute und Teilnehmer befinden sich in der Fahndungsphase |
+| `cooling` | unmittelbare Verfolgung ist beendet, Spuren bleiben relevant |
+| `resolved` | Beute wurde verwertet, sichergestellt oder dauerhaft zugeordnet |
+| `aborted` | Tat wurde kontrolliert beendet |
+| `failed` | Tat ist durch Sicherung, Fehler oder vollständiges Scheitern beendet |
+| `invalidated` | nur administrative Korrektur bei nachgewiesenem technischen Fehler |
+
+`resolved` bedeutet nicht, dass ein Strafverfahren oder eine Fahndung automatisch beendet ist.
+
+## 13.10 Teilnehmer und Rollen
+
+Eine Tatinstanz speichert:
+
+- Teilnehmercharakter;
+- Rolle;
+- Beitrittszeit;
+- aktive Phase;
+- bestätigte Aktionen;
+- erhaltene Beute;
+- verwendete Fahrzeuge;
+- verwendete Werkzeuge;
+- Verletzungs- und Festnahmestatus;
+- Verbindungsabbrüche;
+- Ausscheiden oder Ausschluss.
+
+Mögliche Rollen:
+
+- Planer;
+- Fahrer;
+- Aufklärer;
+- Zugangsspezialist;
+- Hacker;
+- Sicherung;
+- Beuteträger;
+- Insider;
+- Geldwäscher oder Hehler.
+
+Eine Tat kann spontane Beteiligte erhalten. Beute, Erfahrung und Risiko entstehen jedoch nur aus nachvollziehbaren Beiträgen. Ein kurz vor Abschluss beigetretener Charakter erhält nicht automatisch vollen Fortschritt.
+
+## 13.11 Aufklärung und Informationen
+
+Vorbereitung kann Informationen liefern über:
+
+- Öffnungszeiten;
+- mögliche Sicherheitsstufe;
+- Kamerapositionen;
+- Wachpersonal;
+- Lieferzeiten;
+- Zugänge;
+- Alarmtypen;
+- benötigte Werkzeuge;
+- mögliche Beutearten;
+- Fluchtwege;
+- temporäre Schwachstellen.
+
+Informationen besitzen:
+
+- Quelle;
+- Genauigkeit;
+- Erstellungszeit;
+- Ablaufzeit;
+- Ziel- und Versionsbezug;
+- mögliche Falsch- oder Teilinformation.
+
+Ein Client kann nicht direkt vollständige Zielkonfigurationen auslesen. Sichtbare Hinweise werden bewusst vom Server freigegeben.
+
+## 13.12 Vorgehensweisen
+
+Je nach Ziel sind möglich:
+
+- Schleichen;
+- Täuschung;
+- gefälschte Berechtigung;
+- Insiderhilfe;
+- Schlossknacken;
+- mechanischer Aufbruch;
+- elektronische Manipulation;
+- Hacking;
+- Sabotage;
+- Erpressung;
+- bewaffneter Überfall.
+
+Vorgehensweisen unterscheiden sich in:
+
+- Vorbereitungskosten;
+- Zeit;
+- benötigten Fähigkeiten;
+- Werkzeugverbrauch;
+- Lautstärke;
+- Alarmwahrscheinlichkeit;
+- Beweisarten;
+- Gewaltpotential;
+- möglicher Beute;
+- Abbruchmöglichkeiten.
+
+Es soll nicht für jedes Ziel nur ein austauschbares Minispiel geben. Dieselbe Sicherheitskomponente darf aber technisch wiederverwendbare Aufgabenmodule verwenden.
+
+## 13.13 Werkzeuge und Zugangsmittel
+
+Werkzeuge sind normale serverseitige Items oder persistente Assets.
+
+Beispiele:
+
+- Dietrich;
+- Bolzenschneider;
+- Bohrgerät;
+- Brechwerkzeug;
+- Sprengmittel;
+- Störsender;
+- Hackinggerät;
+- gefälschte Zugangskarte;
+- geklonter Schlüssel;
+- Glas- oder Thermowerkzeug;
+- Behälter und Beutetaschen.
+
+Mögliche Eigenschaften:
+
+- Qualität;
+- Haltbarkeit;
+- Serien- oder Chargennummer;
+- erlaubte Ziele;
+- Spurenprofil;
+- Besitzerhistorie;
+- illegale Herkunft;
+- verbleibende Nutzungen.
+
+Der Client meldet nur den gewünschten Einsatz. Besitz, Eignung, Verbrauch, Ergebnis und Spuren werden serverseitig ermittelt.
+
+## 13.14 Prüfung vor Tatbeginn
+
+Der Server prüft mindestens:
+
+1. gültige Charakter- und Spielsitzung;
+2. Position und Routing Bucket;
+3. Zielzustand und Konfigurationsversion;
+4. Ziel-, Teilnehmer- und globalen Cooldown;
+5. erforderliche verfügbare Polizeikräfte;
+6. Gruppen- und Teilnehmergrenzen;
+7. benötigte Informationen, Fähigkeiten oder Lizenzen;
+8. Werkzeuge und deren Zustand;
+9. mögliche Aufträge oder Unterweltkontakte;
+10. Beutequelle und reservierbaren Maximalbestand;
+11. geschützte Zustände des Ziels;
+12. konkurrierende Tat- oder Wartungsinstanzen.
+
+Erst danach werden Ziel, Tatversion und maximale Beute atomar reserviert.
+
+## 13.15 Tatstufen und Teilziele
+
+Eine Tat kann aus einer gerichteten Folge oder einem kleinen Abhängigkeitsgraphen bestehen:
+
+- äußeren Zugang schaffen;
+- Alarmleitung beeinflussen;
+- Personal oder Zeugen kontrollieren;
+- innere Tür öffnen;
+- Terminal bedienen;
+- Zeitverriegelung abwarten;
+- Safe, Kasse oder Container öffnen;
+- Beute in physische Behälter übertragen;
+- Fluchtweg freigeben.
+
+Jede Stufe besitzt:
+
+- eindeutige Stufen-ID;
+- Voraussetzungen;
+- erlaubte Aktionen;
+- Zeit- und Distanzregeln;
+- Werkzeuganforderungen;
+- Erfolgs- und Fehlerzustände;
+- Alarmwirkung;
+- Beweisauswirkung;
+- Teilbeute;
+- Abbruchregel.
+
+Laufende Tatinstanzen behalten ihre veröffentlichte Stufenversion.
+
+## 13.16 Alarme und Zeugen
+
+Alarmquellen:
+
+- stiller Alarm;
+- hörbarer Alarm;
+- Panikknopf;
+- Tür- oder Glasbruch;
+- Kameraanalyse;
+- Fahrzeugalarm;
+- GPS- oder Plombenalarm;
+- automatischer Anlagenalarm;
+- Notruf eines Spielers;
+- glaubwürdiger NPC-Zeuge.
+
+Ein Alarm enthält:
+
+- Quelle;
+- Tat- oder Zielbezug;
+- Zeitpunkt;
+- gemeldeten Ereignistyp;
+- Ortsgenauigkeit;
+- Vertrauensstufe;
+- bekannte Beschreibung;
+- letzte Aktualisierung.
+
+Ein Alarm meldet nicht automatisch Tätername, VIN oder exakte Liveposition. Ein fest installierter Alarm darf den Tatort genau melden; eine flüchtende Person oder ein Fahrzeug bleibt dagegen nur so genau bekannt wie die letzte Beobachtung.
+
+## 13.17 Dispatch und Informationsqualität
+
+Dispatch-Ereignisse unterscheiden:
+
+- bestätigter Alarm;
+- ungeprüfter Notruf;
+- automatische Sensorwarnung;
+- Zeugenmeldung;
+- Beamtenanforderung;
+- Fahndungstreffer;
+- nachträglicher Ermittlungsfund.
+
+Mögliche Ortsdarstellung:
+
+- exakter fester Tatort;
+- Straßenabschnitt;
+- Gebiet;
+- letzte bekannte Position;
+- Fahrtrichtung;
+- unsichere oder veraltete Meldung.
+
+Updates können die Qualität verbessern oder verschlechtern. Ein Blip darf auslaufen und folgt Verdächtigen nicht ohne eine tatsächliche technische Quelle wie einen aktiven Peilsender.
+
+## 13.18 Cooldowns und Gleichzeitigkeit
+
+Es gibt getrennte Begrenzungen:
+
+- Ziel-Cooldown;
+- Charakter-Cooldown;
+- Crew-Cooldown;
+- Tatklassen-Cooldown;
+- globales Limit gleichzeitig aktiver Großereignisse;
+- Wiederholungsgrenze zwischen denselben Beteiligten;
+- wirtschaftliche Wiederauffüllzeit.
+
+Cooldowns schützen Verfügbarkeit und Balance, ersetzen jedoch nicht die tatsächliche Beutequelle. Ein leerer Safe wird nicht allein durch Ablauf eines Timers wieder voll.
+
+Administratoren können Cooldowns nicht unbemerkt für einzelne Spieler umgehen. Manuelle Freigaben sind begründet und auditiert.
+
+## 13.19 Beutequelle und Mengenreservierung
+
+Beute stammt aus einer definierten Quelle:
+
+- Kassenbestand;
+- Safebestand;
+- Warenlager;
+- Fahrzeugladung;
+- Bankfilialreserve;
+- Versicherungs- oder Ereigniskonto;
+- physisches Zielinventar;
+- reservierter Systembestand.
+
+Spielereinlagen auf Bankkonten werden bei einem Bankraub nicht direkt reduziert. Bankbeute stammt aus einem getrennten Filial-, Bargeld- oder Versicherungskonto im Hauptbuch.
+
+Beim Tatstart wird eine maximale verfügbare Menge reserviert. Tatsächlich entnommene Beute kann darunter liegen. Abbruch und Wiederholung derselben Anfrage erzeugen keine zweite Reservierung.
+
+## 13.20 Physische Beute
+
+Mögliche Beute:
+
+- Bargeldbündel;
+- markierte Geldscheine;
+- Wertsachen;
+- Warenchargen;
+- Dokumente;
+- Fahrzeugteile;
+- digitale Datenträger;
+- Zugangsmittel;
+- Rohstoffe;
+- versiegelte Behälter.
+
+Beute besitzt:
+
+- Herkunft;
+- Tatinstanz;
+- Charge oder Seriennummer;
+- Eigentümer vor der Tat;
+- Risikoklasse;
+- möglichen Markierungsstatus;
+- Gewicht und Volumen;
+- aktuellen Besitzer oder Lagerort;
+- möglichen Verfalls- oder Sperrstatus.
+
+Beute wird nicht als sofortige Bankgutschrift ausgezahlt. Transportkapazität, Gewicht, Lagerung und Verwertung bleiben relevant.
+
+## 13.21 Markiertes Geld und Dye Packs
+
+Banken und Geldtransporte können markierte Geldchargen oder Farbsicherung verwenden.
+
+Mögliche Folgen:
+
+- sichtbare Verfärbung;
+- erhöhte Spurenmenge;
+- Seriennummernbezug;
+- geringerer Hehlerwert;
+- Ablehnung durch normale Einzahlungsstellen;
+- Fahndungshinweis bei späterer Nutzung.
+
+Markierungen verschwinden nicht durch Aufteilen eines Itemstapels. Eine Verarbeitung erzeugt neue nachvollziehbare Chargenbeziehungen.
+
+## 13.22 Beutetransport und Risikophase
+
+Nach Verlassen des Tatorts bleibt eine Tat für einen konfigurierbaren Zeitraum `hot`.
+
+Währenddessen können gelten:
+
+- kein sicherer Charakterwechsel;
+- keine normale Fahrzeug- oder Garagenteleportation;
+- keine sofortige Einlagerung in geschützte Systemlager;
+- eingeschränkte Schnellreise;
+- erhöhte Bedeutung von Kontrollen und Zeugen;
+- fortbestehende Tat- und Beutereferenz.
+
+Dieser interne Risikostatus ist kein automatisch sichtbarer Polizeistatus. Polizei benötigt weiterhin Beobachtung, Fahndung, Beweis oder eine technische Ortungsquelle.
+
+## 13.23 Hehlerei
+
+Gestohlene Waren werden über konkrete Hehlerangebote oder Unterweltaufträge verwertet.
+
+Ein Hehler berücksichtigt:
+
+- Warenart;
+- Herkunftsrisiko;
+- Menge;
+- Zustand und Qualität;
+- aktuellen Unterweltbedarf;
+- Ruf;
+- wiederholte Verkäufe;
+- Polizeidruck;
+- eigene Verarbeitungskapazität.
+
+Ein Hehlervorgang:
+
+1. prüft und reserviert die Ware;
+2. erzeugt ein Angebot;
+3. überträgt angenommene Ware;
+4. zahlt aus einem definierten Unterwelt- oder Exportkonto;
+5. erzeugt illegale oder belastete Erlöse;
+6. protokolliert Herkunft und Risiko.
+
+Hehler besitzen Limits und kaufen nicht unbegrenzt dieselbe Ware.
+
+## 13.24 Geldwäsche
+
+Geldwäsche verarbeitet belastetes Bargeld oder illegale Erlöse in zeitlich begrenzten Chargen.
+
+Ein Vorgang enthält:
+
+- Betreiber;
+- Auftraggeber;
+- Eingangscharge;
+- Herkunftsrisiko;
+- Methode;
+- Kapazität;
+- Dauer;
+- Gebühr und Verlust;
+- Ausgangskonto oder Ausgangscharge;
+- mögliche auffällige Buchungen;
+- Status.
+
+Methoden können Scheinfirmen, manipulierte Umsätze, Glücksspiel, Fahrzeughandel oder gefälschte Rechnungen verwenden. Sie benötigen passende wirtschaftliche Aktivität und besitzen unterschiedliche Ermittlungsrisiken.
+
+Geldwäsche ist kein Knopf, der `black_money` verlustfrei in Bankgeld verwandelt.
+
+## 13.25 Interner Risikowert und Polizeiwissen
+
+Das System kann einen internen Risikowert verwenden für:
+
+- Cooldowns;
+- Hehlerpreise;
+- Unterweltkontakte;
+- Kontrollwahrscheinlichkeiten;
+- Balancing;
+- Analyse von Wiederholungsfarming.
+
+Dieser Wert ist keine polizeiliche Akte und wird im MDT nicht angezeigt.
+
+Polizeiliches Wissen entsteht aus:
+
+- Notrufen;
+- eigenen Beobachtungen;
+- Zeugenaussagen;
+- Beweisen;
+- Kameradaten;
+- Fahndungen;
+- rechtmäßig erlangten Konto-, Fahrzeug- oder Vertragsdaten;
+- Geständnissen;
+- verknüpften Fällen.
+
+## 13.26 Spielerüberfall und Durchsuchung durch Täter
+
+Ein Spieler kann nicht jederzeit das vollständige Inventar eines anderen Charakters öffnen.
+
+Voraussetzungen für einen Raubzugriff können sein:
+
+- nachvollziehbare RP-Eskalation;
+- gültige Raub- oder Konfliktinstanz;
+- Nähe;
+- Opfer ergibt sich, ist kontrolliert oder handlungsunfähig;
+- Täter ist selbst handlungsfähig;
+- keine geschützte Spawn- oder Einführungsphase;
+- serverseitige Entnahmegrenzen.
+
+Entnehmbar sind nur tatsächlich mitgeführte und nicht ausdrücklich geschützte Gegenstände. Bankkonten, Immobilien, Firmenanteile, dauerhafte Fahrzeugidentität und rein serverseitige Berechtigungen können nicht über eine Inventardurchsuchung übertragen werden.
+
+Physische Schlüssel oder Zugangskarten können je nach Regel gestohlen werden. Sie übertragen nur Zugriff und können gesperrt werden.
+
+## 13.27 Geiseln
+
+Geiseln können Spieler oder systemseitige NPCs sein.
+
+Schutzregeln:
+
+- keine automatische Belohnung allein für die Anzahl der Geiseln;
+- keine erzwungene Übertragung von Bankguthaben, Immobilien oder Firmen;
+- neue Spieler und geschützte Zustände können ausgeschlossen werden;
+- wiederholte Geiselkonstellationen werden erkannt;
+- vorab abgesprochene Zweitaccount-Geiseln erzeugen keinen Vorteil;
+- Tod oder Disconnect der Geisel dupliziert keine Forderung;
+- Missbrauch bleibt administrativ überprüfbar.
+
+Geiseln erweitern Verhandlungsmöglichkeiten, sind aber kein Freibrief für grenzenlose Forderungen oder Regelverstöße.
+
+## 13.28 Einbruch und Offline-Schutz
+
+Private Wohnräume sind standardmäßig besonders geschützt.
+
+Empfehlung:
+
+- vollständige Wohnungsplünderung nur bei aktiven Bewohnern oder ausdrücklich freigegebenem Ereignis;
+- bei vollständig offline befindlichen Bewohnern höchstens begrenzte, konfigurierbare Einbruchsmöglichkeiten;
+- geschützte persönliche und unverzichtbare Gegenstände;
+- Entnahmegrenzen pro Tat und Zeitraum;
+- Alarm-, Kamera- und Versicherungsmöglichkeiten;
+- keine Löschung des verbleibenden Inventars;
+- Wiederherstellungs- und Streitprotokolle.
+
+Wirtschaftliche Lager und Unternehmensanlagen können stärker angreifbar sein, benötigen aber Sicherheitsstufen, Zeitfenster, Versicherungen, Limits und echte Beute. Eine längere Abwesenheit darf nicht zu einer vollständigen Enteignung führen.
+
+## 13.29 Fahrzeugdiebstahl und Verwertung
+
+Mögliche Schritte:
+
+1. Ziel auswählen oder Auftrag erhalten.
+2. Schloss, Schlüssel oder Elektronik überwinden.
+3. Alarm und Wegfahrsperre behandeln.
+4. Fahrzeug bewegen.
+5. Fahndung und mögliche Ortung vermeiden.
+6. Kennzeichen, Erscheinung oder Teile verändern.
+7. Fahrzeug abliefern, zerlegen oder illegal weiterverkaufen.
+
+Eigentum, Zugriff, Kennzeichen, VIN und Diebstahlstatus bleiben getrennt. Ein Kennzeichenwechsel entfernt weder VIN noch Eigentum.
+
+Ein Chop-Shop kann:
+
+- verwertbare Teile erzeugen;
+- Fahrzeugzustand und Identität prüfen;
+- Auftragsfahrzeuge annehmen;
+- nicht jedes Fahrzeug akzeptieren;
+- Serien- und Herkunftsbezüge der Teile erhalten;
+- das Ursprungsfahrzeug nachvollziehbar in einen Verwertungsstatus überführen.
+
+## 13.30 Laden- und Tankstellenraub
+
+Der kleine Ladenraub ist der erste empfohlene vertikale Cops-&-Robbers-Ablauf.
+
+Mögliche Varianten:
+
+- unbemerkter Kassendiebstahl;
+- Bedrohung eines Mitarbeiters;
+- stiller Safezugriff;
+- gewaltsamer Kassen- oder Safeaufbruch;
+- Ablenkung und Komplize.
+
+Der Zielbestand hängt von tatsächlichen oder kontrolliert aufgebauten Kassen- und Safebeständen ab. Ein Laden besitzt Schutz vor unmittelbarer Wiederholung.
+
+Mögliche Folgen:
+
+- stiller oder verzögerter Alarm;
+- Zeugenbeschreibung;
+- Kameraaufnahme;
+- Fingerabdrücke;
+- Werkzeugspuren;
+- markiertes Bargeld;
+- Fahrzeugbeschreibung;
+- Verletzte und medizinischer Einsatz.
+
+## 13.31 Bankfilialraub
+
+Eine Bankfiliale ist ein hochwertiges mehrstufiges Ziel.
+
+Mögliche Bestandteile:
+
+- Aufklärung;
+- Zugangskarte oder Insider;
+- Kameras und Alarm;
+- äußere und innere Sicherheitstür;
+- Zeitverriegelung;
+- Terminal- oder Tresormechanik;
+- Bargeld- und Wertbehälter;
+- Farbsicherung;
+- Geiseln und Verhandlung;
+- Flucht und Beutetransport.
+
+Die Beute stammt aus einer getrennten Filial- oder Versicherungsreserve. Kundeneinlagen bleiben buchhalterisch bestehen.
+
+Ein Bankraub benötigt konfigurierbar:
+
+- höhere Polizeiverfügbarkeit;
+- begrenzte globale Gleichzeitigkeit;
+- umfangreiche Vorbereitung;
+- relevante Werkzeugkosten;
+- lange Ziel- und Teilnehmer-Cooldowns;
+- mehrere Beweis- und Abbruchmöglichkeiten.
+
+## 13.32 Transport-, Lager- und Industrieüberfälle
+
+Diese Taten greifen die Spielerwirtschaft direkt auf:
+
+- Tanktrailer;
+- Geldtransporter;
+- wertvolle Warenlieferung;
+- Firmenlager;
+- Depot;
+- Raffinerie;
+- Hafen- oder Exportfracht.
+
+Beute wird nicht neu erzeugt, sondern aus einer reservierten Ladung oder einem geschützten Bestand bewegt. Versicherungen können Verluste teilweise ausgleichen, dürfen aber keine Waren duplizieren.
+
+Digitale Plomben, Messstände, Fahrzeugidentität, Frachtauftrag und Warencharge liefern Ermittlungsansätze.
+
+## 13.33 Gruppen, Crews und Organisationen
+
+Eine feste Crew kann besitzen:
+
+- UUID und Name;
+- Rollen und Rechte;
+- Mitglieder;
+- gemeinsamen Ruf;
+- Kontakte;
+- Verstecke und Lagerzugriffe;
+- gemeinsame Aufträge;
+- interne Beutevereinbarung;
+- Aktivitäts- und Sanktionshistorie.
+
+Eine Crew ist nicht automatisch öffentlich oder der Polizei bekannt.
+
+Ad-hoc-Gruppen bleiben möglich. Das System verhindert jedoch, dass dieselbe Person über mehrere Gruppen denselben Tatfortschritt oder Cooldown umgeht.
+
+Territorien, Gangkriege und komplexe Organisationsverwaltung sind spätere Ausbaustufen.
+
+## 13.34 PvP, Eskalation und Konfliktkontext
+
+PvP benötigt einen nachvollziehbaren Rollenspielkontext.
+
+Grundregeln:
+
+- kein wahlloses Töten;
+- keine Belohnung für Kills;
+- Gewalt muss zur Situation passen;
+- Drohung und Reaktionsmöglichkeit werden bevorzugt;
+- Schutz für Spawn, Charaktererstellung und technische Wiederverbindung;
+- keine künstliche Provokation allein zum Erzeugen eines Schusswechsels;
+- kein erneuter Angriff unmittelbar nach Respawn;
+- medizinische und bewusstlose Zustände werden respektiert;
+- Drittparteien erhalten nicht automatisch Tat- oder Beuterechte.
+
+Das System kann einen Konfliktkontext protokollieren, ersetzt aber keine verständlichen Serverregeln und keine administrative Einzelfallprüfung.
+
+## 13.35 Tod, Bewusstlosigkeit und medizinische Folgen
+
+- Bewusstlosigkeit beendet eine Tat nicht automatisch.
+- Beute bleibt physisch beim Charakter, Fahrzeug oder Bodenbehälter.
+- medizinische Maßnahmen verändern keine Eigentums- oder Beweisreferenzen.
+- Respawn darf nicht zur Flucht aus Fahndung, Haft oder Beuteverantwortung dienen.
+- Verletzungen können Blut- oder DNA-Spuren erzeugen.
+- Tod löscht keine Fälle, Beweise, Fahndungen, Cooldowns oder Auditdaten.
+- Permadeath bleibt freiwillig oder genehmigt und ist kein automatisches Strafresultat.
+
+Die genaue Behandlung verwendet den späteren medizinischen Lebenszyklus.
+
+## 13.36 Verbindungsabbruch und Crime-Logging
+
+Ein Disconnect während Tat, Verfolgung, Festnahme oder Beutetransport wird gespeichert.
+
+Vorgesehen:
+
+- kurze Wiederverbindungsfrist;
+- Wiederaufnahme des kritischen Charakterzustands;
+- Sperre des Charakterwechsels;
+- Beute bleibt dem persistenten Inventar oder Fahrzeug zugeordnet;
+- Tatinstanz bleibt aktiv oder geht kontrolliert in einen Wartezustand;
+- keine doppelte Beute beim Wiederverbinden;
+- Protokoll für administrative Prüfung.
+
+Ein technischer Verbindungsfehler wird nicht automatisch wie absichtliches Combat-Logging bestraft. Wiederholung, Zeitpunkt und Kontext liefern Hinweise für eine regelbasierte oder administrative Bewertung.
+
+## 13.37 Polizeiorganisation und Dienst
+
+Polizeifunktionen benötigen:
+
+- aktive Anstellung;
+- Dienstgrad oder Rolle;
+- passende Berechtigungen;
+- aktive Dienstsitzung;
+- gegebenenfalls Ausbildung oder Lizenz;
+- dienstliche Ausrüstung.
+
+Eine Dienstsitzung speichert:
+
+- Beginn und Ende;
+- Dienststelle;
+- Einheit;
+- Partner;
+- Fahrzeug;
+- Rolle;
+- Status;
+- Einsatzzuweisungen;
+- ausgegebene und zurückgegebene Ausrüstung.
+
+Off-Duty-Charaktere erhalten keinen allgemeinen Zugriff auf Dispatch, MDT, Asservate oder polizeiliche Aktionen.
+
+## 13.38 Polizeieinheiten und Status
+
+Mögliche Einheiten:
+
+- Streife;
+- Verkehr;
+- Ermittlungen;
+- Einsatzleitung;
+- taktische Einheit;
+- Luftunterstützung;
+- K9;
+- Tatortermittlung;
+- Gefangenentransport.
+
+Mögliche Statuswerte:
+
+- `available`;
+- `assigned`;
+- `responding`;
+- `on_scene`;
+- `pursuit`;
+- `transporting`;
+- `booking`;
+- `unavailable`;
+- `off_duty`.
+
+Nicht jede Einheit ist im MVP erforderlich. Rollen und Fähigkeiten werden konfigurierbar gehalten.
+
+## 13.39 Leitstelle und Einsatzzuweisung
+
+Ein Dispatch-Einsatz enthält:
+
+- Einsatz-UUID;
+- Quelle und Vertrauensstufe;
+- Kategorie und Priorität;
+- Standort oder Gebiet;
+- bekannte Beschreibung;
+- Zeitstempel;
+- aktuelle Lageupdates;
+- zugewiesene Einheiten;
+- Einsatzleiter;
+- Status;
+- Verknüpfung zu Tat, Fahrzeug, Person oder Fall, falls bekannt.
+
+Einheiten können Einsätze annehmen, zugewiesen werden, Unterstützung anfordern und Status aktualisieren.
+
+Dispatch zeigt gemeldete Informationen. Technische Systemdaten, die keinem Sensor, Zeugen oder Ermittlungszugriff entsprechen, bleiben verborgen.
+
+## 13.40 Polizeilicher Einsatzablauf
+
+1. Alarm oder Notruf empfangen.
+2. Meldung bewerten und priorisieren.
+3. Einheiten zuweisen.
+4. Anfahrt und Lageupdate.
+5. Tatort, Gefahren und mögliche Fluchtwege sichern.
+6. Kontakt, Beobachtung oder Verhandlung herstellen.
+7. Verdächtige verfolgen oder kontrollieren.
+8. Personen und Fahrzeuge rechtmäßig durchsuchen.
+9. Beweise und Beute sichern.
+10. Verletzte versorgen lassen.
+11. Festnahmen und Transport durchführen.
+12. Berichte, Fall und Asservate vervollständigen.
+13. Fahndungen oder weitere Ermittlungen anlegen.
+
+Der Server schreibt keine einzige taktische Vorgehensweise vor, protokolliert aber kritische Maßnahmen und Berechtigungen.
+
+## 13.41 Verhandlung und Einsatzeskalation
+
+Bei Geisel- oder Barrikadenlagen kann eine Verhandlungssitzung angelegt werden.
+
+Sie speichert:
+
+- Einsatz;
+- Verhandler;
+- bekannte Beteiligte;
+- Kommunikationskanal;
+- Forderungen;
+- Zusagen;
+- Fristen;
+- Austauschvorgänge;
+- Abbruch- oder Eskalationsereignisse.
+
+Das System kann sichere Übergaben und Freilassungen unterstützen, entscheidet aber nicht automatisch über taktische Zulässigkeit.
+
+Forderungen bleiben durch Serverregeln begrenzt. Unendliche Geldschöpfung, dauerhafte Immunität oder erzwungene Eigentumsübertragung sind ausgeschlossen.
+
+## 13.42 Verfolgung und Fahrzeugfahndung
+
+Eine Verfolgung besitzt:
+
+- Einsatz-UUID;
+- beteiligte Einheiten;
+- beobachtete Fahrzeuge;
+- Kennzeichen zum Beobachtungszeitpunkt;
+- Beschreibung;
+- letzte bekannte Position und Richtung;
+- Verlustzeitpunkt;
+- mögliche Luft- oder GPS-Quelle;
+- Abbruch- und Wiederaufnahmeereignisse.
+
+Ohne Sichtkontakt, aktiven Peilsender, Luftbeobachtung oder neue Meldung existiert kein dauerhafter Live-Blip.
+
+Kennzeichenfahndung und VIN-Fahndung bleiben getrennt. Ein gefälschtes Kennzeichen kann Sichtkontrollen erschweren, beseitigt aber keinen späteren VIN-Treffer.
+
+## 13.43 Masken, Erkennung und Identität
+
+Eine Maske kann eine unmittelbare Gesichtserkennung verhindern. Sie macht einen Täter nicht unsichtbar.
+
+Mögliche Beschreibungsmerkmale:
+
+- Kleidung;
+- Körperbau;
+- Stimme als Rollenspielhinweis;
+- sichtbare Tattoos oder Merkmale;
+- verwendete Ausrüstung;
+- Bewegungsmuster;
+- Fahrzeug;
+- Kennzeichen;
+- Begleiter;
+- Fluchtrichtung.
+
+Das System zeigt maskierten Personen nicht automatisch den Charakternamen. Eine Kameraaufnahme liefert nur Informationen, die Sichtwinkel, Licht, Verdeckung und Technik plausibel erlauben.
+
+Fingerabdrücke oder DNA ergeben nur dann eine Identität, wenn ein rechtmäßig verfügbarer Vergleichsdatensatz existiert.
+
+## 13.44 Polizeivorgang, Fall und Bericht
+
+Begriffe bleiben getrennt:
+
+- Einsatz: unmittelbare Reaktion auf ein Ereignis;
+- Vorgang: polizeiliche Maßnahme oder Sachverhalt;
+- Fall: zusammenhängende Ermittlung;
+- Bericht: unveränderlich versioniertes Dokument eines Bearbeiters;
+- Tatinstanz: serverseitiger Gameplayvorgang;
+- Strafverfahren: rechtliche Bearbeitung von Beschuldigungen.
+
+Ein Fall kann mehrere Tatinstanzen, Einsätze, Personen, Fahrzeuge, Unternehmen und Beweise verbinden.
+
+Berichte werden nach Einreichung nicht still überschrieben. Ergänzungen und Korrekturen erfolgen als neue Version oder Nachtrag.
+
+## 13.45 Beweisarten
+
+Physische Spuren:
+
+- Fingerabdrücke;
+- DNA;
+- Blut;
+- Haare oder Fasern;
+- Patronenhülsen;
+- Projektil- und Waffenmerkmale;
+- Werkzeugspuren;
+- Schuhabdrücke;
+- Reifenspuren;
+- Lack- oder Glasspuren;
+- zurückgelassene Gegenstände;
+- beschädigte Plomben.
+
+Digitale und dokumentarische Spuren:
+
+- Kameraaufnahme;
+- Zutrittsprotokoll;
+- Alarmereignis;
+- Bank- oder Kassenvorgang;
+- Fahrzeug- und Messdaten;
+- Telefon- oder Kommunikationsmetadaten im erlaubten Rahmen;
+- Vertrag;
+- Liefernachweis;
+- GPS-Daten aus tatsächlich vorhandenem Gerät;
+- Zeugenaussage.
+
+Nicht jede Spur identifiziert direkt eine Person. Viele Beweise verbinden zunächst nur Tatort, Gegenstand, Fahrzeug oder unbekanntes Profil.
+
+## 13.46 Beweiserzeugung
+
+Beweise entstehen serverseitig aus tatsächlichen Aktionen.
+
+Beispiele:
+
+- ungeschützte Berührung kann Fingerabdrücke hinterlassen;
+- Verletzung kann Blut oder DNA hinterlassen;
+- Schuss kann Hülse und Projektilbezug erzeugen;
+- Werkzeugnutzung kann Werkzeugspur erzeugen;
+- beschädigte Tür erzeugt Bruch- und Interaktionsspuren;
+- Fahrzeugkontakt kann Lack- oder Reifenspuren erzeugen;
+- Nutzung eines Terminals erzeugt digitales Protokoll;
+- Öffnen einer Plombe erzeugt ein Ereignis;
+- Kamera kann innerhalb ihres Sichtbereichs eine Aufnahme erzeugen.
+
+Handschuhe, Reinigung, Schalldämpfer oder Spurenvermeidung reduzieren bestimmte Spuren, verhindern aber nicht automatisch alle anderen Beweisarten.
+
+Kriminelle erhalten keine vollständige Liste der tatsächlich erzeugten Beweise.
+
+## 13.47 Tatort, Spurensicherung und Kontamination
+
+Eine Spur besitzt:
+
+- Beweis-UUID;
+- Typ;
+- Tatort und Position;
+- Entstehungszeit;
+- mögliche Tatinstanz;
+- Zustand;
+- Sichtbarkeit;
+- Verfallsprofil;
+- Kontaminationsstatus;
+- Entdecker;
+- Sicherungszeit;
+- Beweismittelbeutel;
+- Fallreferenz.
+
+Sicherung benötigt:
+
+- aktive Polizeiberechtigung;
+- passende Ausrüstung;
+- Nähe;
+- freie und geeignete Verpackung;
+- gültigen Tatort- oder Vorgangsbezug.
+
+Falsche Verpackung, unnötiges Berühren, Wetter, Zeit oder unberechtigter Zugriff können Qualität und Beweiswert beeinflussen.
+
+## 13.48 Beweismittelbeutel und Beweiskette
+
+Ein Beweismittelbeutel besitzt:
+
+- eindeutige Nummer und UUID;
+- Versiegelungsstatus;
+- Inhalt;
+- sichernde Person;
+- Ort und Zeit;
+- Fall;
+- Übergaben;
+- Öffnungen;
+- Neuversiegelungen;
+- Lagerort;
+- Analyseaufträge.
+
+Jede Übergabe wird protokolliert. Ein versiegelter Beutel kann nicht unbemerkt verändert werden.
+
+Die Beweiskette macht einen Beweis nicht automatisch schuldigkeitsbeweisend. Sie dokumentiert Integrität, Herkunft und Umgang.
+
+## 13.49 Labor und Analyse
+
+Mögliche Analysen:
+
+- Fingerabdruckvergleich;
+- DNA-Vergleich;
+- Ballistik;
+- Werkzeugspurenvergleich;
+- Stoff- oder Drogenanalyse;
+- Kraftstoff- und Qualitätsanalyse;
+- Dokumentenprüfung;
+- digitale Auswertung.
+
+Eine Analyse benötigt:
+
+- geeignete Probe;
+- Analyseauftrag;
+- Laborzugriff;
+- Zeit;
+- mögliche Vergleichsdaten;
+- protokolliertes Ergebnis.
+
+Ergebnisse sind Fakten und Wahrscheinlichkeiten, keine automatische Verurteilung. Ein unbekanntes Profil bleibt unbekannt, bis ein zulässiger Vergleich vorliegt.
+
+## 13.50 Kameras, Dashcam und Bodycam
+
+Kameras besitzen:
+
+- Standort;
+- Blickrichtung und Sichtbereich;
+- Aktivstatus;
+- Betreiber;
+- Aufzeichnungsqualität;
+- Speicherfrist;
+- Zeitquelle;
+- Zugriffsrechte;
+- mögliche Manipulation oder Störung.
+
+Aufnahmen werden ereignisbezogen und zeitlich begrenzt gespeichert. Es entsteht keine permanente vollständige Videoaufzeichnung der gesamten Welt.
+
+Bodycam und Dashcam benötigen dienstliche Ausrüstung und einen aktiven Zustand. Zugriffe, Exporte und Löschfristen werden protokolliert.
+
+## 13.51 MDT und Informationsrechte
+
+Das MDT kann abhängig von Rolle und Berechtigung enthalten:
+
+- Personenstammdaten;
+- Fahrzeugregister;
+- Führerscheine und Lizenzen;
+- Fahndungen;
+- Einsätze;
+- Vorgänge und Berichte;
+- Fälle;
+- Beweisreferenzen;
+- Durchsuchungs- und Haftbeschlüsse;
+- Festnahmen;
+- Vorladungen und Auflagen;
+- Asservatenstatus.
+
+Nicht enthalten:
+
+- interner Kriminellenruf;
+- unsichtbarer Risikowert;
+- kompletter Bank- oder Inventarinhalt ohne Berechtigung;
+- Liveposition eines Charakters ohne technische und rechtliche Quelle;
+- Administratorwissen;
+- verdeckte Informationen ohne passende Rolle.
+
+Jede sensible Abfrage wird mit Benutzer, Zweck, Zeitpunkt und Ziel protokolliert.
+
+## 13.52 Durchsuchungs- und Haftbeschlüsse
+
+Ein Beschluss besitzt:
+
+- UUID;
+- Typ;
+- beantragende Person;
+- genehmigende Rolle;
+- Begründung;
+- Zielperson, Fahrzeug, Konto oder Immobilie;
+- erlaubten Umfang;
+- Fall und Beweisgrundlage;
+- Beginn und Ablauf;
+- Status;
+- Ausführungshistorie.
+
+Mögliche Statuswerte:
+
+- `draft`;
+- `submitted`;
+- `approved`;
+- `rejected`;
+- `active`;
+- `executed`;
+- `expired`;
+- `revoked`;
+- `appealed`;
+- `archived`.
+
+Genehmigungsrollen sind konfigurierbar. Richter oder Justiz werden bevorzugt. Für geringe Serverbesetzung können eng begrenzte richterliche Vertretungen oder Eilmaßnahmen vorgesehen werden; diese benötigen kurze Laufzeit, Begründung und nachträgliche Prüfung.
+
+## 13.53 Durchsuchungen
+
+Mögliche Durchsuchungsgründe:
+
+- Einwilligung;
+- unmittelbare Gefahrenlage;
+- Festnahme und zulässige Personendurchsuchung;
+- aktiver Beschluss;
+- Fahrzeugmaßnahme;
+- definierte Kontrollbefugnis;
+- administrative Maßnahme außerhalb des Rollenspiels.
+
+Eine Durchsuchungssitzung speichert:
+
+- durchsuchende Person;
+- Ziel;
+- Rechts- oder RP-Grundlage;
+- Umfang;
+- Beginn und Ende;
+- eingesehene Bereiche;
+- entnommene Gegenstände;
+- Zeugen;
+- Abbruch.
+
+Der Server öffnet nur die vom Umfang gedeckten Inventare, Räume oder Daten. Eine Personendurchsuchung gewährt keinen automatischen Zugriff auf Wohnung, Firma oder Bankkonto.
+
+## 13.54 Beschlagnahmung und Asservate
+
+Eine Beschlagnahmung verschiebt einen Gegenstand oder eine Warenmenge in ein eindeutiges Asservateninventar.
+
+Gespeichert werden:
+
+- ursprünglicher Besitzer und Lagerort;
+- sicherstellende Person;
+- Grund;
+- Fall oder Vorgang;
+- Menge und Zustand;
+- Beweismittelbeutel;
+- Verwahrort;
+- Freigabe- oder Vernichtungsbedingung;
+- Übergaben;
+- endgültiges Ergebnis.
+
+Beschlagnahmte Gegenstände werden nicht kopiert. Freigabe, Rückgabe, Verwertung oder Vernichtung sind protokollierte Bewegungen.
+
+Geld wird über ein Verwahr- oder Beweiskonto im Hauptbuch gebucht.
+
+## 13.55 Festhalten, Fesseln und Transport
+
+Polizeiliche oder kriminelle Fesselaktionen prüfen:
+
+- Nähe;
+- Akteurszustand;
+- Zielzustand;
+- zulässigen Konflikt- oder Maßnahmenkontext;
+- geeignetes Fesselmittel;
+- bestehende Fesselung;
+- Fahrzeug- und Sitzstatus.
+
+Ein gefesselter Zustand speichert:
+
+- Art der Fesselung;
+- anwendende Person;
+- Zeitpunkt;
+- Kontext;
+- erlaubte Interaktionen;
+- Transportstatus.
+
+Fesseln ist keine Eigentums- oder Administrationsfunktion. Missbrauch, extrem lange Inaktivität und Disconnects bleiben überprüfbar.
+
+## 13.56 Festnahme und Booking
+
+Eine Festnahme enthält:
+
+- Festnahme-UUID;
+- betroffenen Charakter;
+- festnehmende Beamte;
+- Ort und Zeitpunkt;
+- Grund;
+- Fall und Einsatz;
+- Rechtebelehrung als protokollierbarer RP-Schritt;
+- persönliche Gegenstände;
+- beschlagnahmte Gegenstände;
+- Gesundheitsstatus;
+- Transport;
+- Bookingstatus.
+
+Booking umfasst:
+
+1. Identität feststellen;
+2. Gesundheitszustand prüfen;
+3. persönliche Gegenstände verwahren;
+4. Beweise und Beschlagnahmungen trennen;
+5. Vorwürfe erfassen;
+6. Fahndungen und Beschlüsse prüfen;
+7. zuständige Freigabe oder Entscheidung einholen;
+8. Freilassung, Auflage, Bußgeld oder Haft umsetzen.
+
+## 13.57 Tatvorwürfe, Bußgelder und Sanktionen
+
+Ein konfigurierbarer Katalog enthält:
+
+- Tatbestand;
+- Kategorie;
+- Beschreibung;
+- empfohlene Geldspanne;
+- empfohlene Haftspanne;
+- mögliche Lizenzfolgen;
+- mögliche Beschlagnahmung;
+- zuständige Rollen;
+- Kombinations- und Obergrenzen.
+
+Beamte wählen keine unbegrenzten freien Geld- oder Haftwerte. Abweichungen benötigen Berechtigung und Begründung.
+
+Geldbußen werden über das Hauptbuch gebucht. Zahlungsunfähigkeit erzeugt keinen negativen Kontostand ohne definierte Forderung oder Ratenregel.
+
+## 13.58 Haft
+
+Haft ist ein persistenter Charakterstatus mit:
+
+- Grundlage;
+- Beginn;
+- Gesamtdauer;
+- bereits verbüßter Dauer;
+- erforderlichem aktiven Anteil;
+- möglichem Offline-Anteil;
+- Haftort;
+- Gegenstandsverwahrung;
+- Entlassungsbedingungen;
+- Änderungen und Gutschriften.
+
+Empfohlen wird ein Hybridmodell:
+
+- kurzfristige Gewahrsams- und Spielsanktionen benötigen überwiegend aktive Zeit;
+- längere Strafen können teilweise in Echtzeit weiterlaufen;
+- ein konfigurierbarer Mindestanteil bleibt aktiv zu verbüßen;
+- Logout setzt Haft nicht vollständig zurück und überspringt sie nicht vollständig.
+
+Haftzeiten sollen Rollenspiel ermöglichen und keine unverhältnismäßige reale Spielaussperre erzeugen.
+
+## 13.59 Fahndungen
+
+Fahndungsarten:
+
+- Person;
+- Fahrzeugkennzeichen;
+- VIN;
+- unbekannte Person mit Beschreibung;
+- gestohlener Gegenstand;
+- Waffen- oder Warencharge;
+- vermisste Person;
+- Zeuge;
+- Haft- oder Durchsuchungsbeschluss.
+
+Eine Fahndung enthält:
+
+- Grund;
+- Informationsquelle;
+- Fall;
+- bekannte Beschreibung;
+- Risikoeinstufung;
+- Beginn und Ablauf;
+- erstellende und freigebende Rolle;
+- Treffer und Aktualisierungen;
+- Status.
+
+Es gibt kein automatisch sichtbares GTA-Fahndungslevel über jedem Täter. Fahndungswissen wird über Dispatch, MDT, Kontrollen und Beobachtungen genutzt.
+
+## 13.60 Polizei-Balance und Missbrauchsschutz
+
+- Polizeigehalt stammt aus Staats- oder Organisationskonto.
+- Es gibt keine direkte Kopfprämie pro Festnahme oder Tötung.
+- Erfahrung entsteht aus plausibler Dienstarbeit, Berichten, Beweissicherung und abgeschlossenen Aufgaben.
+- MDT-, Konto-, Asservaten- und Beschlusszugriffe werden auditiert.
+- Dienstwaffen und Beweismittel besitzen Ausgabe- und Rückgabehistorie.
+- Off-Duty-Zugriffe sind gesperrt.
+- Selbstfreigabe eigener Beschlüsse oder Asservate kann untersagt werden.
+- Fallbearbeiter, Genehmiger und ausführende Person können nach Risiko getrennt werden.
+- Administrative und polizeiliche Befugnisse bleiben technisch getrennt.
+- Korruptionsrollenspiel benötigt ausdrückliche Regeln und umgeht keine Serverberechtigungen.
+
+## 13.61 Fortschritt, Ruf und Lizenzen
+
+Kriminelle Fähigkeiten:
+
+- Einbruch;
+- Schlossknacken;
+- Hacking;
+- Fahrzeugdiebstahl;
+- Spurenvermeidung;
+- Hehlerei;
+- Geldwäsche;
+- Schmuggel.
+
+Polizeiliche Fähigkeiten:
+
+- Ermittlung;
+- Beweissicherung;
+- Einsatzfahren;
+- Verhandlung;
+- Tatortleitung;
+- Observation;
+- Analyse.
+
+Fortschritt verbessert Zuverlässigkeit, Informationsqualität, Werkzeugnutzung und Handlungsoptionen. Er vervielfacht nicht unbegrenzt Beute oder Polizeibefugnisse.
+
+Relevanter Ruf:
+
+- einzelne Unterweltkontakte;
+- Crew oder Organisation;
+- Hehler;
+- Geldwäscher;
+- Polizeiorganisation;
+- Justiz;
+- Öffentlichkeit oder Unternehmen.
+
+Polizeiliche Dienstgrade werden durch Organisation und Freigabe vergeben, nicht automatisch durch Fähigkeitslevel.
+
+## 13.62 Belohnungs- und Fortschrittsregeln
+
+Krimineller Fortschritt kann entstehen durch:
+
+- erfolgreiche Teilziele;
+- verwertete Beute;
+- neue Vorgehensweise;
+- vertragliche Unterweltaufträge;
+- sichere Teamrolle;
+- unentdeckte oder spurenarme Durchführung.
+
+Kein oder reduzierter Fortschritt:
+
+- Töten ohne Zielbezug;
+- wiederholtes Farmen desselben Partners;
+- Abbruch unmittelbar vor Risiko;
+- Tat gegen Zweitaccount oder abgesprochene Opfer;
+- Duplizieren von Werkzeugen oder Beute;
+- reine Anwesenheit ohne Beitrag.
+
+Polizeilicher Fortschritt kann entstehen durch:
+
+- Einsatzbearbeitung;
+- korrekte Beweissicherung;
+- Berichte;
+- Fahndungserfolg;
+- Verhandlung;
+- Wiederbeschaffung;
+- sichere Festnahme;
+- Verkehrs- und Präventionsarbeit.
+
+Festnahmen und Verurteilungen allein dürfen kein lohnendes gegenseitiges Farming ermöglichen.
+
+## 13.63 Dynamischer Crime-Editor
+
+Administratoren können als Entwurf erstellen:
+
+- Tatdefinitionen;
+- Tatziele;
+- Sicherheitskomponenten;
+- Tatstufen und Abhängigkeiten;
+- Aufklärungsinformationen;
+- Werkzeuganforderungen;
+- Alarmprofile;
+- Beweisprofile;
+- Beutequellen und Limits;
+- Polizei-Anforderungen;
+- Ziel-, Teilnehmer- und globale Cooldowns;
+- NPCs und Zeugen;
+- Lade-, Flucht- und Übergabezonen;
+- Hehler;
+- Geldwäschemethoden;
+- Gefängnis- und Bookingbereiche.
+
+Der Editor zeigt eine Vorschau des Tatgraphen, der Weltpunkte, der Abhängigkeiten und der wirtschaftlichen Bilanz.
+
+## 13.64 Validierung vor Veröffentlichung
+
+Vor Veröffentlichung werden geprüft:
+
+- eindeutige UUIDs;
+- gültige Tatstufen ohne unerreichbare Sackgassen;
+- erreichbare Interaktionspunkte;
+- gültige Routing-Bucket-Regeln;
+- vorhandene Beutequelle;
+- maximale Beute und wirtschaftliche Obergrenze;
+- vollständige Alarm- und Dispatchzuordnung;
+- mögliche Abschluss-, Abbruch- und Fehlerpfade;
+- passende Inventare und Gegenstände;
+- gültige Polizei-Anforderungen;
+- Cooldown- und Gleichzeitigkeitsschutz;
+- Beweisprofile;
+- keine ungeschützte Eigentumsübertragung;
+- keine Belohnung ohne nachvollziehbare Quelle.
+
+Eine laufende Tatinstanz behält die veröffentlichte Konfigurationsversion.
+
+## 13.65 Geplante Datenbanktabellen
+
+### Crime
+
+- `cnr_crime_definitions`
+- `cnr_crime_definition_versions`
+- `cnr_crime_targets`
+- `cnr_crime_target_states`
+- `cnr_crime_instances`
+- `cnr_crime_participants`
+- `cnr_crime_stage_definitions`
+- `cnr_crime_stage_events`
+- `cnr_crime_cooldowns`
+- `cnr_crime_intel`
+- `cnr_crime_loot_allocations`
+- `cnr_stolen_assets`
+- `cnr_fence_orders`
+- `cnr_laundering_batches`
+- `cnr_criminal_groups`
+- `cnr_criminal_group_members`
+
+### Dispatch und Polizei
+
+- `cnr_dispatch_calls`
+- `cnr_dispatch_updates`
+- `cnr_dispatch_assignments`
+- `cnr_police_departments`
+- `cnr_police_units`
+- `cnr_police_duty_sessions`
+- `cnr_police_incidents`
+- `cnr_police_cases`
+- `cnr_police_case_links`
+- `cnr_police_reports`
+- `cnr_police_report_versions`
+- `cnr_warrants`
+- `cnr_warrant_executions`
+- `cnr_search_sessions`
+- `cnr_arrests`
+- `cnr_charge_definitions`
+- `cnr_arrest_charges`
+- `cnr_sentences`
+- `cnr_custody_events`
+- `cnr_wanted_records`
+- `cnr_seizures`
+
+### Beweise
+
+- `cnr_evidence_records`
+- `cnr_evidence_samples`
+- `cnr_evidence_bags`
+- `cnr_evidence_custody_events`
+- `cnr_evidence_analysis_orders`
+- `cnr_evidence_analysis_results`
+- `cnr_evidence_storage_locations`
+- `cnr_camera_devices`
+- `cnr_camera_recordings`
+- `cnr_bodycam_sessions`
+
+Bestehende Charakter-, Item-, Inventar-, Fahrzeug-, Immobilien-, Bank- und Auftragstabellen werden referenziert und nicht dupliziert.
+
+## 13.66 Serverautorisierte Regeln
+
+- Tatstart, Zielzustand, Beute und Cooldown werden serverseitig entschieden.
+- Dieselbe Tat- oder Vorgangs-UUID kann keine doppelte Beute oder Zahlung erzeugen.
+- Kein Client bestimmt Alarmempfänger, Täteridentität oder Beweisergebnis.
+- Beute besitzt eine nachvollziehbare Quelle und Menge.
+- Reservierte Beute kann nicht parallel aus einer zweiten Instanz entnommen werden.
+- Physische Beute bleibt als Item, Charge, Fahrzeug oder Lagerbewegung erhalten.
+- Polizei sieht nur freigegebene Dispatch-, MDT- und Falldaten.
+- Durchsuchungen sind auf Ziel, Umfang und Grundlage begrenzt.
+- Beschlagnahmung bewegt Assets und dupliziert sie nicht.
+- Beweise werden aus bestätigten Serveraktionen erzeugt.
+- Masken verbergen keine VIN, Fingerabdrücke oder andere unabhängige Spuren.
+- Routing Bucket, Position, Zustand, Rolle und Berechtigung werden geprüft.
+- Kritische Aktionen besitzen Rate-Limits.
+- Zustandswechsel verwenden erwartete Versionen oder Sperren.
+- Administratives Eingreifen erzeugt Audit- und Korrekturereignisse.
+
+## 13.67 Neustart- und Fehlerwiederherstellung
+
+Nach Resource- oder Serverneustart:
+
+- Tatinstanzen werden aus bestätigten Zuständen geladen;
+- reservierte Beute wird abgeglichen;
+- offene Tatstufen werden fortgesetzt oder sicher abgebrochen;
+- Zielzustände werden nicht blind auf `available` gesetzt;
+- offene Dispatch-Einsätze bleiben bei Relevanz erhalten;
+- persistente Fahndungen, Fälle und Beschlüsse bleiben bestehen;
+- Beweis- und Asservatenketten bleiben unverändert;
+- Fessel-, Haft- und kritische Charakterzustände werden wiederhergestellt;
+- verwaiste Reservierungen werden nur über einen geprüften Recoveryprozess freigegeben.
+
+Unklare Fälle landen in einer administrativen Prüfwarteschlange und werden nicht durch pauschale Auszahlung gelöst.
+
+## 13.68 Kennzahlen und Balancing
+
+Aggregiert werden:
+
+- Tatversuche und Abschlussquote pro Zieltyp;
+- Teilfortschritt und Abbruchgründe;
+- durchschnittliche Beute vor und nach Verwertung;
+- Vorbereitungskosten;
+- Alarm- und Reaktionszeiten;
+- Polizeibesetzung beim Tatstart;
+- Festnahme-, Flucht- und Wiederbeschaffungsquote;
+- Gewalt- und Verletzungsquote;
+- erzeugte und gesicherte Beweise;
+- Verurteilungen und eingestellte Fälle;
+- Ziel- und Teilnehmerwiederholungen;
+- Disconnects in kritischen Phasen;
+- Notwendigkeit administrativer Korrekturen;
+- Geld- und Warenflüsse der Unterwelt.
+
+Kennzahlen dienen dem Balancing und der Missbrauchserkennung. Sie werden nicht als automatische Schuldwertung verwendet.
+
+## 13.69 Administrationsprüfung und Streitfälle
+
+Berechtigte Administratoren können einen Vorgang anhand einer Timeline prüfen:
+
+- Tatstart und Konfigurationsversion;
+- Teilnehmer;
+- Tatstufen;
+- Werkzeuge;
+- Beutequelle und Bewegungen;
+- Alarme und Dispatch;
+- Positions- und Zustandsprüfungen;
+- Kampf-, Verletzungs- und Disconnectereignisse;
+- Beweise;
+- Durchsuchungen;
+- Beschlagnahmungen;
+- Zahlungen;
+- administrative Eingriffe.
+
+Korrekturen verwenden Gegenbewegungen, Rückgaben oder begründete Statusereignisse. Historische Einträge werden nicht still gelöscht.
+
+## 13.70 Cops-&-Robbers-MVP
+
+Im ersten Cops-&-Robbers-MVP enthalten:
+
+- Polizeianstellung, Rollen und Dienstsitzungen;
+- grundlegende Einheiten und Status;
+- Notrufe, automatische Alarme und Dispatchzuweisung;
+- kleiner Laden- oder Tankstellenraub;
+- Fahrzeugdiebstahl mit Fahndungsbezug;
+- ein mehrstufiger Bankfilialraub;
+- ein Transport- oder Lagerüberfall;
+- physische und markierte Beute;
+- ein Hehler;
+- eine grundlegende Geldwäsche-Methode;
+- Ziel-, Teilnehmer- und globale Cooldowns;
+- Polizeiverfügbarkeitsprüfung;
+- Personen-, Kennzeichen- und VIN-Fahndungen;
+- Masken und grundlegende Täterbeschreibungen;
+- Fingerabdrücke, Blut/DNA, Patronenhülsen, Werkzeugspuren und Kameradaten;
+- Tatortsicherung und Beweismittelbeutel;
+- Beweiskette und einfache Analyse;
+- Polizeifälle, Berichte und Basis-MDT;
+- Durchsuchungs- und Haftbeschlüsse;
+- begrenzte Durchsuchung;
+- Beschlagnahmung und Asservatenlager;
+- Fesseln, Festnahme, Booking und persistente Haft;
+- grundlegender Tatbestandskatalog;
+- Disconnect- und Neustartwiederherstellung;
+- Crime-Editor und vollständige Audit-Timeline.
+
+## 13.71 Spätere Ausbaustufen
+
+- komplexe Gangs und Territorien;
+- dynamische Unterweltpolitik;
+- Informantenführung;
+- verdeckte Ermittlungen;
+- tiefere Telekommunikationsauswertung;
+- umfangreiche Gerichtsverhandlungen;
+- Staatsanwaltschaft und Verteidigung;
+- Bewährung und Sozialstunden;
+- komplexe Gefängniswirtschaft;
+- Gefängnisausbrüche;
+- taktische Spezialeinheiten;
+- K9 und Luftunterstützung;
+- umfangreiche Laborrollen;
+- Versicherungsbetrug;
+- Cyberkriminalität;
+- komplexe Drogen- und Waffenmärkte;
+- internationale Schmuggelketten;
+- große Spezialereignisse.
+
+## 13.72 Erster illegaler Referenzablauf
+
+1. Zwei Spieler beschaffen Informationen über einen Laden.
+2. Sie wählen einen stillen Safezugriff statt eines sofortigen Schusswechsels.
+3. Der Server prüft Ziel, Polizei, Werkzeuge, Cooldowns und Safebestand.
+4. Ziel und maximale Beute werden reserviert.
+5. Beim Zugang entsteht eine Werkzeugspur.
+6. Eine Kamera zeichnet Kleidung und Fahrzeugbeschreibung auf.
+7. Der verzögerte Alarm erzeugt einen Dispatch-Einsatz.
+8. Polizeieinheiten werden zugewiesen, erhalten aber keine Täteridentität.
+9. Die Täter entnehmen einen Teil des Bestands als markierte Bargeldcharge.
+10. Ein Täter verletzt sich und hinterlässt Blut.
+11. Die Täter fliehen; Sichtkontakt geht später verloren.
+12. Polizei sichert Tatort, Kamera, Werkzeugspur und Blutprobe.
+13. Ein Zeuge ergänzt eine Kennzeichenbeschreibung.
+14. Das Fahrzeug wird zur Fahndung ausgeschrieben.
+15. Die Täter lagern Beute und verkaufen einen Teil über einen Hehler.
+16. Ein Täter versucht markiertes Bargeld zu waschen.
+17. Ermittlungen verknüpfen Fahrzeug, unbekanntes DNA-Profil und Geldcharge.
+18. Nach einem späteren zulässigen Vergleich entsteht ein konkreter Tatverdacht.
+19. Ein Beschluss ermöglicht eine begrenzte Durchsuchung.
+20. Beute wird sichergestellt oder der Täter entkommt erneut.
+21. Festnahme, Booking, Fallabschluss oder weitere Fahndung folgen aus dem tatsächlichen Verlauf.
+
+## 13.73 Abnahmekriterien für das spätere Scripting
+
+Der Cops-&-Robbers-MVP gilt fachlich als funktionsfähig, wenn:
+
+- eine Tat vom Tatstart bis Beuteverwertung oder Sicherstellung ohne administrative Abkürzung spielbar ist;
+- zwei Gruppen dieselbe Beutequelle nicht gleichzeitig verwenden können;
+- ein Polizeidisconnect nach gültigem Start die Tat nicht ungültig macht;
+- Polizei feste Tatorte genau, flüchtende Täter aber nicht ohne Quelle live verfolgen kann;
+- maskierte Täter nicht automatisch namentlich identifiziert werden;
+- Beute, Geld und beschlagnahmte Gegenstände ihre Mengenbilanz behalten;
+- Durchsuchungen nur erlaubte Ziele und Bereiche öffnen;
+- Beweismittel eine vollständige Sicherungs- und Übergabekette besitzen;
+- ein unbekanntes DNA- oder Fingerabdruckprofil unbekannt bleiben kann;
+- Berichte, Beschlüsse und Beweisergebnisse versioniert statt überschrieben werden;
+- Festnahme und Haft einen Neustart überstehen;
+- ein Disconnect keine Beute dupliziert und keinen kritischen Zustand entfernt;
+- weder Kills noch gegenseitig arrangierte Festnahmen die beste Fortschrittsquelle sind;
+- kleine Straftaten bei niedriger Besetzung möglich bleiben;
+- große Straftaten eine angemessene Polizeireaktion voraussetzen;
+- legale Wirtschaftsgüter geraubt, wiederbeschafft, versichert oder verwertet werden können, ohne Duplikation;
+- die vollständige Ereigniskette für berechtigte Administration nachvollziehbar ist.
+
+---
+
+# 14. Weitere geplante Systeme
+
+## 14.1 Legale Berufe
 
 - Öl-Farmer
 - LKW-Fahrer
@@ -6023,56 +7765,11 @@ Der Öl-MVP gilt fachlich als funktionsfähig, wenn:
 
 Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
 
-## 13.2 Kriminalität
-
-- Laden-, Tankstellen- und Bankraub
-- Geldtransporter
-- Haus- und Lagereinbruch
-- Fahrzeugdiebstahl
-- Schmuggel
-- Drogenproduktion
-- Waffenhandel
-- Geldwäsche
-- Hehlerei
-- Überfälle auf Transporte
-- Sabotage
-- organisierte Kriminalität
-
-## 13.3 Polizeisystem
-
-- Dienstsystem und Dienstgrade
-- Fahrzeuge und Ausrüstung
-- Leitstelle und Notrufe
-- Live-Einsatzkarte
-- Personen- und Kennzeichenabfrage
-- Bußgelder und Festnahmen
-- Durchsuchungen
-- Asservatenkammer
-- Gefängnis
-- Fahndungen
-- Einsatzberichte
-- Bodycam
-- Polizei-MDT
-
-## 13.4 Beweissystem
-
-- Fingerabdrücke
-- DNA
-- Patronenhülsen
-- Blutspuren
-- Schuhabdrücke
-- Fahrzeugspuren
-- Kameraaufnahmen
-- Beweismittelbeutel
-- Laboruntersuchung
-- Beweiskette
-- Kontamination und Verfall
-
 ---
 
-# 14. Dynamische Administration
+# 15. Dynamische Administration
 
-## 14.1 Ingame-Editor
+## 15.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -6095,7 +7792,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 14.2 Externes Control Panel
+## 15.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -6115,7 +7812,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 15. Einheitliches UI-System
+# 16. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -6136,7 +7833,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 16. Sicherheitsgrundsätze
+# 17. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -6151,7 +7848,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 17. Aktuelle verbindliche Entscheidungen
+# 18. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -6221,14 +7918,39 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Notversorgung | teuer, begrenzt, bedarfsabhängig und grundsätzlich als Lieferung |
 | Exportmarkt | mengenbegrenzt und normalerweise unattraktiver als lokaler Handel |
 | öffentliche Industrie | Ölfeld und Raffinerie ermöglichen kleinen Betreibern den Einstieg |
+| Kriminellenstatus | entsteht durch Handlungen, Kontakte und Ruf, nicht durch einen globalen Job |
+| Tatidentität | dauerhafte UUID und versionierte Definition, niemals Koordinate oder Netzwerk-ID |
+| Tatgleichzeitigkeit | Ziel und maximale Beute werden beim Start serverseitig reserviert |
+| Polizeianforderung | nach Risikostufe und tatsächlich verfügbaren Dienstkräften |
+| sinkende Polizeizahl | macht eine gültig gestartete Tat nicht rückwirkend ungültig |
+| kleine Straftaten | bleiben auch bei geringer Polizeibesetzung grundsätzlich möglich |
+| große Straftaten | benötigen eine angemessene reale Reaktionsmöglichkeit |
+| Polizeiwissen | entsteht aus Meldungen, Beobachtungen, Beweisen und freigegebenen Daten |
+| interner Risikowert | dient Balancing und Unterwelt, ist kein sichtbarer Polizeistatus |
+| Liveortung | nur mit Sichtkontakt, Sensor, Peilsender oder anderer tatsächlicher Quelle |
+| Masken | verhindern automatische Namensanzeige, nicht unabhängige Spuren |
+| Beute | physisch, herkunftsbezogen und aus einer definierten Quelle |
+| Bankraub | belastet eine Filial- oder Versicherungsreserve, nicht einzelne Kundeneinlagen |
+| Markiertes Geld | behält Charge, Herkunft und Risiko auch nach Aufteilung |
+| Kills | keine direkte Belohnungs- oder Hauptfortschrittsquelle |
+| Spielerdurchsuchung | nur in gültigem Konfliktkontext und auf mitgeführte Gegenstände begrenzt |
+| Offline-Einbruch | private Vollplünderung standardmäßig ausgeschlossen |
+| Crime-Disconnect | kritischer Zustand, Beute und Tatbezug bleiben persistent |
+| Polizeiberichte | nach Einreichung versioniert oder ergänzt, nicht still überschrieben |
+| Beweise | serverseitig aus Aktionen mit vollständiger Beweiskette |
+| unbekannte Profile | bleiben ohne zulässigen Vergleich unbekannt |
+| Durchsuchungsbeschluss | zeitlich, sachlich und auf ein konkretes Ziel begrenzt |
+| Beschlagnahmung | bewegt ein Asset in Verwahrung und erzeugt keine Kopie |
+| Polizeivergütung | Gehalt statt Kopfprämie pro Festnahme oder Tötung |
+| Haft | persistentes Hybridmodell aus aktivem und möglichem Offline-Anteil |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
 ---
 
-# 18. Planungsreife und Coding-Start
+# 19. Planungsreife und Coding-Start
 
-## 18.1 Aktueller Stand
+## 19.1 Aktueller Stand
 
 Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortgeschritten. Detailliert geplant sind:
 
@@ -6243,15 +7965,18 @@ Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortges
 - Unternehmen, Mitarbeiter, Verträge und Aufträge;
 - Grundstücke, Immobilien, Lager und Produktionsanlagen;
 - ein vollständiger Öl- und Kraftstoffkreislauf als Referenzbranche;
+- der vollständige Cops-&-Robbers-Lebenszyklus;
+- Polizeidienst, Dispatch, Fahndung und Einsatzbearbeitung;
+- Beweise, Fälle, Durchsuchungen, Beschlagnahmung, Festnahme und Haft;
 - grundlegende Admin-, UI- und Sicherheitsprinzipien.
 
-Damit steht die RP- und Economy-Grundlage. Das Gesamtprojekt ist jedoch noch nicht bereit für einen ungebremsten Start aller Gameplay-Ressourcen, weil der namensgebende Cops-&-Robbers-Kern bisher nur auf Übersichtsebene definiert ist.
+Damit stehen die RP-, Economy- und Cops-&-Robbers-Grundlagen. Vor dem produktiven Coding fehlen noch ein allgemeines Jobmodell, der technische Implementierungsrahmen und ein verbindlicher MVP-Schnitt.
 
-## 18.2 Noch notwendige Konzeptpakete vor dem Coding
+## 19.2 Noch notwendige Konzeptpakete vor dem Coding
 
-### Paket A – Cops-&-Robbers-Kern
+### Abgeschlossen – Paket A: Cops-&-Robbers-Kern
 
-Vollständig zu planen sind:
+Paket A ist mit Kapitel 13 abgeschlossen. Definiert sind:
 
 - Arten legaler und illegaler Konflikte;
 - Überfall- und Raubabläufe;
@@ -6309,9 +8034,9 @@ Für jedes System wird festgelegt:
 
 Das verhindert, dass beim Scripting gleichzeitig ein Core, eine vollständige Wirtschaft, alle Jobs, alle Verbrechen und ein Control Panel fertiggestellt werden sollen.
 
-## 18.3 Empfohlener Zeitpunkt für den Coding-Start
+## 19.3 Empfohlener Zeitpunkt für den Coding-Start
 
-Der Coding-Start wird nach Abschluss der vier Konzeptpakete A bis D empfohlen.
+Der Coding-Start wird nach Abschluss der verbleibenden Konzeptpakete B bis D empfohlen.
 
 Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kann beginnen, sobald:
 
@@ -6324,7 +8049,7 @@ Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kan
 
 Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Branchen und Zusatzinhalte weiter geplant werden.
 
-## 18.4 Empfohlene erste vertikale Abläufe
+## 19.4 Empfohlene erste vertikale Abläufe
 
 ### Legaler Ablauf
 
@@ -6339,19 +8064,17 @@ Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Br
 
 ### Illegaler Ablauf
 
-Der genaue Ablauf wird mit Paket A festgelegt. Er soll mindestens verbinden:
+1. Zwei Spieler bereiten einen kleinen Ladenraub vor.
+2. Der Server reserviert Ziel und maximale Beute.
+3. Tataktionen erzeugen Alarm, Kamera- und Werkzeugspuren.
+4. Dispatch weist Polizeieinheiten ohne automatische Täteridentität zu.
+5. Die Täter fliehen mit physischer markierter Beute.
+6. Polizei sichert Tatort und legt einen Fall an.
+7. Beute wird gehehlt, gewaschen oder später beschlagnahmt.
+8. Fahndung, Beschluss, Durchsuchung, Festnahme und Haft folgen nur aus dem tatsächlichen Verlauf.
+9. Waren-, Beweis- und Geldspur bleibt vollständig nachvollziehbar.
 
-- vorbereitetes Verbrechen;
-- serverseitiges Ziel und Beute;
-- Alarmierung oder Entdeckungsrisiko;
-- Polizeireaktion;
-- Flucht und Fahndung;
-- physische illegale Ware;
-- Beweise;
-- Verwertung oder Beschlagnahme;
-- finanzielle Buchung und Auditspur.
-
-## 18.5 Definition of Ready für das Repository
+## 19.5 Definition of Ready für das Repository
 
 Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
 
@@ -6368,4 +8091,4 @@ Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird Paket A, der vollständige Cops-&-Robbers-Kern, geplant. Begonnen wird mit dem gemeinsamen Lebenszyklus eines Verbrechens von Vorbereitung und Zielauswahl über Durchführung, Alarmierung und Flucht bis zu Beweisen, Ermittlungen, Festnahme, Beuteverwertung und langfristigen Folgen.
+Als Nächstes wird Paket B, das allgemeine Job- und Aktivitätsmodell, geplant. Es vereinheitlicht Jobangebote, Schichten, Aufgaben, Gruppenarbeit, Fortschritt, Vergütung, Abbruch, Wiederaufnahme und Anti-Farming-Regeln für legale Berufe und öffentliche Dienste.
