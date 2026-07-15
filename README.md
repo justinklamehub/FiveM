@@ -328,7 +328,9 @@ Der Core stellt nur gemeinsame technische Dienste bereit. Geld, Fahrzeuge, Inven
 - `cnr_properties`
 - `cnr_storage`
 - `cnr_businesses`
+- `cnr_employment`
 - `cnr_contracts`
+- `cnr_marketplace`
 - `cnr_fuel`
 
 ### Ebene 5 – Gameplay
@@ -2772,9 +2774,989 @@ Nicht im ersten MVP:
 
 ---
 
-# 10. Öl- und Kraftstoffwirtschaft
+# 10. Unternehmens-, Mitarbeiter-, Vertrags- und Auftragssystem
 
-## 10.1 Förderung
+## 10.1 Verantwortliche Module
+
+### `cnr_businesses`
+
+Verantwortet:
+
+- Unternehmensidentität;
+- Gründung und Status;
+- Eigentümer und Beteiligungen;
+- interne Rollen und Rechte;
+- Standorte und Niederlassungen;
+- Firmenvermögen;
+- Lizenzen;
+- Unternehmenshistorie.
+
+### `cnr_employment`
+
+Verantwortet:
+
+- Arbeitsverträge;
+- Mitarbeiterstatus;
+- Positionen und Rollen;
+- Arbeitszeiterfassung;
+- Lohnmodelle;
+- Lohnabrechnungen;
+- Kündigung und Freistellung.
+
+### `cnr_contracts`
+
+Verantwortet:
+
+- gewerbliche Verträge;
+- Vertragspartner;
+- Leistungen und Waren;
+- Preise und Zahlungsbedingungen;
+- Laufzeiten;
+- Meilensteine;
+- Vertragsänderungen;
+- Vertragsverletzungen und Streitfälle.
+
+### `cnr_marketplace`
+
+Verantwortet:
+
+- öffentliche und private Aufträge;
+- Ausschreibungen;
+- Angebote;
+- Vergabe;
+- Auftragsstatus;
+- automatische Bedarfsaufträge;
+- Bewertung der Vertragserfüllung.
+
+## 10.2 Unternehmensidentität
+
+Jedes Unternehmen erhält:
+
+- interne Unternehmens-ID;
+- öffentliche UUID;
+- eindeutige Registrierungsnummer;
+- rechtlichen Namen;
+- optionalen Handelsnamen;
+- Unternehmensform;
+- Branche;
+- Gründungsdatum;
+- Gründer;
+- aktuellen Status;
+- Hauptsitz oder registrierte Anschrift;
+- zuständige Lizenzen;
+- Versionsnummer.
+
+Unternehmensname, Handelsname und Registrierungsnummer werden getrennt behandelt. Eine Namensänderung verändert nicht die dauerhafte Unternehmensidentität.
+
+## 10.3 Unternehmensformen
+
+Die genauen Bezeichnungen können an das fiktive San-Andreas-Recht angepasst werden.
+
+Geplante Grundformen:
+
+- Einzelunternehmen;
+- Personengesellschaft;
+- Kapitalgesellschaft;
+- gemeinnützige Organisation;
+- staatliches Unternehmen;
+- öffentliche Behörde;
+- kriminelle oder nicht registrierte Organisation als getrennte Struktur.
+
+Für den MVP werden Einzelunternehmen und eine einfache Gesellschaftsform priorisiert. Das System soll wirtschaftliche Unterschiede ermöglichen, aber keine unnötig komplizierte reale Rechtsberatung simulieren.
+
+## 10.4 Unternehmensstatus
+
+- `DRAFT`
+- `PENDING_REGISTRATION`
+- `ACTIVE`
+- `RESTRICTED`
+- `SUSPENDED`
+- `AT_RISK`
+- `INSOLVENT`
+- `IN_LIQUIDATION`
+- `CLOSED`
+- `ARCHIVED`
+
+Ein geschlossenes Unternehmen wird archiviert. Seine Transaktionen, Verträge, Mitarbeiter- und Eigentumsdaten bleiben nachvollziehbar.
+
+## 10.5 Unternehmensgründung
+
+Möglicher Ablauf:
+
+1. Unternehmensform und Branche auswählen.
+2. Unternehmensname prüfen und reservieren.
+3. Gründer und mögliche Beteiligte festlegen.
+4. erforderliches Startkapital nachweisen.
+5. Gründungsgebühr über `cnr_banking` reservieren.
+6. benötigte Lizenzen und Voraussetzungen prüfen.
+7. Satzung beziehungsweise Gründungsdaten bestätigen.
+8. Unternehmen und Registrierungsnummer erzeugen.
+9. Firmenkonto anlegen.
+10. Eigentümer, Geschäftsführung und Standardrollen eintragen.
+11. Gebühr buchen und Unternehmen aktivieren.
+
+Alle Schritte erfolgen kontrolliert. Bei einem Fehler entstehen weder halbfertige Firmen noch verlorene Gründungszahlungen.
+
+## 10.6 Persönliches und geschäftliches Vermögen
+
+Unternehmensvermögen gehört dem Unternehmen und nicht automatisch dem Charakter des Eigentümers.
+
+Getrennt werden:
+
+- persönliches Bankkonto;
+- Firmenkonto;
+- persönliche Fahrzeuge;
+- Firmenfahrzeuge;
+- private Immobilien;
+- Unternehmensstandorte;
+- privates Inventar;
+- Firmenlager;
+- persönliche und geschäftliche Verträge.
+
+Ein Eigentümer darf Firmengeld nicht ohne Buchungsgrund in Privatvermögen umwandeln.
+
+Legale Wege zur privaten Auszahlung:
+
+- Gehalt;
+- Auslagenerstattung;
+- dokumentierte Gewinnausschüttung;
+- Rückzahlung eines Gesellschafterdarlehens;
+- Verkauf eines privaten Vermögenswertes an die Firma;
+- andere definierte und auditierte Buchung.
+
+## 10.7 Eigentümer und Beteiligungen
+
+Ein Unternehmen kann einen oder mehrere Eigentümer besitzen.
+
+Eine Beteiligung enthält:
+
+- Unternehmen;
+- Charakter oder berechtigte Organisation;
+- Anteil in Basispunkten;
+- Stimmrecht;
+- Beginn und Ende;
+- Erwerbsgrund;
+- Kaufpreis oder Einlage;
+- Vertragsreferenz.
+
+Alle Anteile ergeben zusammen 10.000 Basispunkte beziehungsweise 100 Prozent.
+
+Eine Beteiligung verleiht nicht automatisch jede operative Berechtigung. Eigentum, Geschäftsführung und Mitarbeiterrolle bleiben getrennt.
+
+Komplexer Anteilshandel ist nicht Teil des ersten MVP, wird aber im Datenmodell vorbereitet.
+
+## 10.8 Interne Rollen und Rechte
+
+Beispielrollen:
+
+- Eigentümer;
+- Geschäftsführung;
+- Finanzleitung;
+- Personalverwaltung;
+- Disposition;
+- Lagerleitung;
+- Fuhrparkleitung;
+- Niederlassungsleitung;
+- Mitarbeiter;
+- Auszubildender;
+- externer Dienstleister;
+- Nur-Lesen-Zugriff.
+
+Mögliche Berechtigungen:
+
+- `business.view`
+- `business.settings.manage`
+- `business.members.view`
+- `business.members.hire`
+- `business.members.terminate`
+- `business.roles.manage`
+- `business.finance.view`
+- `business.finance.pay`
+- `business.payroll.approve`
+- `business.storage.access`
+- `business.storage.manage`
+- `business.fleet.use`
+- `business.fleet.manage`
+- `business.contracts.create`
+- `business.contracts.sign`
+- `business.orders.assign`
+
+Unternehmen können eigene Rollen aus freigegebenen Berechtigungen zusammenstellen. Sicherheitskritische Rechte benötigen zusätzliche Einschränkungen.
+
+## 10.9 Niederlassungen und Abteilungen
+
+Ein Unternehmen kann mehrere Standorte besitzen:
+
+- Hauptsitz;
+- Büro;
+- Lager;
+- Betriebshof;
+- Werkstatt;
+- Tankstelle;
+- Raffinerie;
+- Verkaufsstelle;
+- Förderstelle;
+- Niederlassung.
+
+Mitarbeiter, Fahrzeuge, Lager und Budgets können einem Standort oder einer Abteilung zugeordnet werden.
+
+Abteilungen können beispielsweise sein:
+
+- Geschäftsführung;
+- Finanzen;
+- Personal;
+- Einkauf;
+- Verkauf;
+- Produktion;
+- Logistik;
+- Wartung;
+- Sicherheit.
+
+## 10.10 Arbeitsverträge
+
+Ein Arbeitsvertrag enthält:
+
+- Unternehmen;
+- Charakter;
+- Position;
+- zugewiesene Rolle;
+- Arbeitsort oder Abteilung;
+- Vertragsbeginn;
+- optionales Vertragsende;
+- Lohnmodell;
+- Lohnhöhe;
+- Probezeit optional;
+- Arbeitszeitregeln;
+- Kündigungsfrist;
+- Vertragsstatus;
+- unterzeichnende Personen.
+
+Mögliche Statuswerte:
+
+- `OFFERED`
+- `PENDING_SIGNATURE`
+- `ACTIVE`
+- `SUSPENDED`
+- `NOTICE_GIVEN`
+- `TERMINATED`
+- `EXPIRED`
+- `CANCELLED`
+
+Ein Charakter kann mehrere Arbeitsverhältnisse besitzen, sofern Verträge, Rollen und mögliche Interessenkonflikte dies erlauben.
+
+## 10.11 Einstellung eines Mitarbeiters
+
+1. berechtigte Person erstellt ein Angebot;
+2. Position, Rechte und Lohn werden festgelegt;
+3. Bewerber prüft den Vertrag;
+4. beide Seiten bestätigen;
+5. Arbeitsvertrag wird aktiv;
+6. Rollen und Zugriffe werden erzeugt;
+7. Firmenstandorte und Arbeitsmittel werden zugewiesen;
+8. Vorgang wird protokolliert.
+
+Ein Mitarbeiter erhält keine pauschalen Zugriffe nur aufgrund eines sichtbaren Jobnamens.
+
+## 10.12 Lohnmodelle
+
+Unterstützte Modelle:
+
+- Stundenlohn;
+- Festlohn pro Abrechnungsperiode;
+- Vergütung pro abgeschlossenem Auftrag;
+- Provision;
+- Kombination aus Grundlohn und Provision;
+- Auszubildenden- oder Praktikumsvergütung;
+- unbezahlte Eigentümer- oder Ehrenamtsrolle.
+
+Alle Löhne werden über `cnr_banking` aus einem Firmen- oder Staatskonto gebucht.
+
+Bei unzureichendem Guthaben:
+
+- entsteht keine Geldschöpfung;
+- Zahlung erhält einen Fehler- oder Rückstandsstatus;
+- Mitarbeiter erhält eine ausstehende Lohnforderung;
+- Unternehmen und berechtigte Personen werden informiert;
+- wiederholte Ausfälle können Unternehmensstatus und Ruf beeinflussen.
+
+## 10.13 Arbeitszeiterfassung
+
+Eine Arbeitssitzung enthält:
+
+- Mitarbeiter;
+- Unternehmen;
+- Position;
+- Startzeit;
+- Endzeit;
+- Pausen;
+- Standort oder Auftrag;
+- Aktivitätsstatus;
+- Freigabestatus;
+- Korrekturhistorie.
+
+Arbeitszeit entsteht nicht allein dadurch, dass ein Spieler online ist.
+
+Mögliche Prüfungen:
+
+- Einstempeln an einem erlaubten Ort oder über eine freigegebene Funktion;
+- aktive Auftrags- oder Tätigkeitszuordnung;
+- automatische Pausen- oder Timeout-Erkennung;
+- kontrolliertes Ausstempeln bei Disconnect;
+- maximale plausible Schichtdauer;
+- Freigabe auffälliger Zeiten durch Vorgesetzte;
+- vollständige Historie manueller Korrekturen.
+
+## 10.14 Lohnabrechnung
+
+Eine Lohnabrechnung verarbeitet:
+
+- freigegebene Arbeitszeit;
+- Festlohn;
+- Auftragsvergütung;
+- Provision;
+- Zuschläge;
+- Abzüge;
+- Steuern;
+- Vorschüsse;
+- offene Forderungen;
+- Nettobetrag.
+
+Möglicher Ablauf:
+
+1. Abrechnungsperiode schließen.
+2. Arbeitszeiten und Aufträge prüfen.
+3. Bruttolohn berechnen.
+4. Steuer und Abzüge berechnen.
+5. Firmenliquidität prüfen.
+6. Lohnzahlungen als zusammengehörigen Payroll-Vorgang buchen.
+7. Lohnabrechnungen ausstellen.
+8. Fehler und Rückstände melden.
+
+## 10.15 Firmenkonten und Budgets
+
+Firmenkonten werden durch `cnr_banking` geführt. Das Unternehmensmodul liefert die fachlichen Rollen und Berechtigungen.
+
+Mögliche Funktionen:
+
+- Hauptkonto;
+- Lohnkonto;
+- Steuerkonto;
+- Standortkonto;
+- Projektbudget;
+- Ausgabenlimit;
+- Vier-Augen-Freigabe;
+- Kostenstellen;
+- Zahlungsreferenzen.
+
+Das Unternehmen erhält Übersichten über:
+
+- Umsatz;
+- Wareneinkauf;
+- Löhne;
+- Mieten;
+- Fahrzeuge;
+- Wartung;
+- Steuern;
+- offene Rechnungen;
+- Forderungen und Verbindlichkeiten;
+- verfügbare und reservierte Beträge.
+
+## 10.16 Firmenvermögen
+
+Mögliche Unternehmenswerte:
+
+- Bankkonten;
+- Bargeldbestände;
+- Fahrzeuge und Trailer;
+- Immobilien;
+- gemietete oder eigene Lager;
+- Maschinen;
+- Produktionsanlagen;
+- Warenbestände;
+- Lizenzen;
+- Vertragsrechte;
+- Forderungen;
+- Marken- und Handelsnamen.
+
+Vermögenswerte werden über die jeweiligen Fachmodule verwaltet und im Unternehmensdashboard zusammengeführt.
+
+Ein Assetwechsel zwischen Charakter und Firma benötigt immer Kauf, Einlage, Ausschüttung oder einen anderen dokumentierten Vorgang.
+
+## 10.17 Firmenfuhrpark
+
+Firmenfahrzeuge werden `cnr_vehicles` zugeordnet.
+
+Fuhrparkfunktionen:
+
+- Fahrzeugübersicht;
+- Standort und Garagenstatus;
+- Fahrerzuweisung;
+- temporäre Schlüssel;
+- Schichtzugriffe;
+- Kilometerstand;
+- Kraftstoffkosten;
+- Wartung und Schäden;
+- Anhängerzuordnung;
+- Miet- oder Finanzierungsstatus;
+- Einsatzbereich;
+- Stilllegung.
+
+Mitarbeiterzugriffe können automatisch mit Schicht, Rolle oder Arbeitsvertrag beginnen und enden.
+
+## 10.18 Firmenlager
+
+Firmenlager werden durch `cnr_storage` und `cnr_inventory` geführt.
+
+Unternehmensfunktionen:
+
+- Lagerzuordnung;
+- Mitarbeiterrechte;
+- Wareneingang und Warenausgang;
+- Mindest- und Höchstbestand;
+- Reservierungen für Aufträge;
+- Chargen und Qualität;
+- Inventur;
+- Bestandskorrekturen mit Grund;
+- automatische Nachbestellung;
+- Bewertung des Warenbestands.
+
+Ein Unternehmensadministrator kann keinen Bestand ohne protokollierten Fachvorgang erzeugen.
+
+## 10.19 Vertragstypen
+
+Geplante gewerbliche Vertragstypen:
+
+- Kaufvertrag;
+- Liefervertrag;
+- Rahmenvertrag;
+- Dienstleistungsvertrag;
+- Transportvertrag;
+- Miet- oder Pachtvertrag;
+- Wartungsvertrag;
+- Lagervertrag;
+- Subunternehmervertrag;
+- exklusiver Abnahmevertrag;
+- staatlicher Auftrag.
+
+Arbeits-, Fahrzeugmiet- und Kreditverträge besitzen eigene Fachmodule, können aber auf gemeinsame Vertragsgrundlagen und Signaturen zurückgreifen.
+
+## 10.20 Vertragsinhalt
+
+Ein gewerblicher Vertrag enthält:
+
+- Vertragsnummer;
+- Vertragspartner;
+- Vertragstyp;
+- Waren oder Leistungen;
+- Menge und Einheit;
+- Qualitätsanforderungen;
+- Preis oder Preisformel;
+- Steuerregeln;
+- Liefer- oder Leistungsort;
+- Beginn und Ende;
+- Fristen;
+- Zahlungsbedingungen;
+- Kaution oder Treuhand;
+- Vertragsstrafen;
+- Kündigungsregeln;
+- erlaubte Subunternehmer;
+- Signaturen;
+- Versionsnummer.
+
+## 10.21 Vertragsstatus
+
+- `DRAFT`
+- `OFFERED`
+- `IN_NEGOTIATION`
+- `PENDING_SIGNATURE`
+- `ACTIVE`
+- `FULFILLED`
+- `BREACHED`
+- `DISPUTED`
+- `TERMINATED`
+- `EXPIRED`
+- `CANCELLED`
+
+Ein unterzeichneter Vertrag wird nicht nachträglich überschrieben. Änderungen erfolgen durch eine neue Vertragsversion oder einen Nachtrag, den die betroffenen Parteien erneut bestätigen.
+
+## 10.22 Digitale Signaturen
+
+Eine Signatur enthält:
+
+- Vertrag;
+- Vertragsversion;
+- unterzeichnender Charakter;
+- vertretenes Unternehmen;
+- verwendete Firmenberechtigung;
+- Zeitpunkt;
+- Signaturstatus;
+- technische Bestätigung.
+
+Eine Signatur ist nur gültig, wenn der Charakter zum Zeitpunkt der Unterzeichnung die erforderliche Vertretungsberechtigung besitzt.
+
+Der spätere Verlust der Rolle macht bereits rechtmäßig abgeschlossene Verträge nicht automatisch ungültig.
+
+## 10.23 Unterschied zwischen Vertrag und Auftrag
+
+Ein Vertrag definiert die längerfristigen Regeln. Ein Auftrag ist ein konkreter ausführbarer Vorgang.
+
+Beispiel:
+
+- Liefervertrag: Eine Raffinerie darf zwölf Wochen Kraftstoff an eine Tankstelle liefern.
+- Auftrag: Lieferung von 8.000 Litern Diesel bis Mittwoch um 18:00 Uhr.
+
+Ein Rahmenvertrag kann viele einzelne Aufträge erzeugen.
+
+## 10.24 Auftragstypen
+
+- einmalige Lieferung;
+- wiederkehrende Lieferung;
+- Transportauftrag;
+- Produktionsauftrag;
+- Beschaffungsauftrag;
+- Lagerumlagerung;
+- Reparaturauftrag;
+- Abschleppauftrag;
+- Sicherheitsauftrag;
+- staatlicher Auftrag;
+- Notversorgungsauftrag.
+
+## 10.25 Auftragsstatus
+
+- `DRAFT`
+- `PUBLISHED`
+- `RESERVED`
+- `ACCEPTED`
+- `IN_PROGRESS`
+- `PARTIALLY_DELIVERED`
+- `DELIVERED`
+- `UNDER_INSPECTION`
+- `COMPLETED`
+- `FAILED`
+- `DISPUTED`
+- `CANCELLED`
+- `EXPIRED`
+
+Statuswechsel erfolgen nur über erlaubte Übergänge und werden als Auftragsevents gespeichert.
+
+## 10.26 Dynamische Bedarfsaufträge
+
+Aufträge entstehen bevorzugt aus tatsächlichem Bedarf.
+
+Beispiele:
+
+- Tankstelle unterschreitet ihren Diesel-Mindestbestand.
+- Raffinerie benötigt Rohöl.
+- Werkstatt benötigt Ersatzteile.
+- Lager besitzt zu viel Ware und benötigt eine Umlagerung.
+- Unternehmen benötigt einen Abschleppdienst.
+- staatliche Stelle schreibt eine Versorgung aus.
+
+Ein Bedarfsauftrag enthält echte Zielmenge, Qualitätsanforderung, Zielort und verfügbares Budget.
+
+Ist kein Spielerunternehmen verfügbar, kann eine teure oder weniger profitable NPC-Notversorgung einspringen.
+
+## 10.27 Auftragsmarktplatz
+
+Sichtbarkeitsarten:
+
+- öffentlich;
+- nur eingeladene Unternehmen;
+- nur bestimmte Branchen;
+- ab bestimmtem Ruf;
+- mit bestimmter Lizenz;
+- nur bestehende Vertragspartner;
+- intern innerhalb eines Unternehmens.
+
+Filtermöglichkeiten:
+
+- Branche;
+- Auftragstyp;
+- Start- und Zielort;
+- Ware;
+- Menge;
+- Frist;
+- Vergütung;
+- benötigte Fahrzeuge;
+- Lizenzanforderung;
+- Rufanforderung.
+
+## 10.28 Ausschreibungen und Angebote
+
+Eine Ausschreibung kann enthalten:
+
+- Leistungsbeschreibung;
+- Mengen und Qualitätswerte;
+- Zeitraum;
+- maximales Budget;
+- erforderliche Lizenzen;
+- Mindest-Ruf;
+- Sicherheitsleistung;
+- Bewertungskriterien;
+- Angebotsfrist;
+- öffentliche oder eingeladene Bieter.
+
+Unternehmen reichen Angebote mit Preis, Lieferzeit, Kapazität und Bedingungen ein.
+
+Mögliche Vergabearten:
+
+- direkte Auswahl;
+- niedrigster gültiger Preis;
+- beste Gesamtbewertung;
+- automatisch nach definierter Formel;
+- verdeckte Angebote bis Fristende.
+
+## 10.29 Auftragsannahme
+
+Vor der Annahme werden geprüft:
+
+- Unternehmen aktiv;
+- Benutzer vertretungsberechtigt;
+- Auftrag noch verfügbar;
+- benötigte Lizenz vorhanden;
+- ausreichender Ruf;
+- Kapazität und mögliche Sicherheitsleistung;
+- kein unzulässiger Interessenkonflikt;
+- Auftrag nicht bereits exklusiv vergeben;
+- Vertragsbedingungen bestätigt.
+
+Ein Auftrag kann danach Mitarbeitern, Fahrzeugen, Trailern und Warenchargen zugewiesen werden.
+
+## 10.30 Erfüllung und Abnahme
+
+Bei einer Lieferung prüft der Server:
+
+- Auftrag und Vertrag aktiv;
+- richtige Quelle und richtiges Ziel;
+- tatsächliches Fahrzeug und Trailer;
+- tatsächliche Warencharge;
+- Produktart;
+- Menge;
+- Qualität;
+- Frist;
+- Beschädigung oder Kontamination;
+- berechtigte Fahrer und Mitarbeiter.
+
+Teillieferungen sind möglich, wenn der Auftrag sie erlaubt.
+
+Nach Lieferung folgt je nach Vertrag:
+
+1. automatische oder manuelle Eingangskontrolle;
+2. Annahme, Teilannahme oder Ablehnung;
+3. Bestandsbuchung;
+4. Rechnung oder automatische Zahlung;
+5. Steuerbuchung;
+6. Ruf- und Statistikänderung;
+7. Abschluss des Auftrags.
+
+## 10.31 Vertragsstrafen und Abweichungen
+
+Mögliche Abweichungen:
+
+- verspätete Lieferung;
+- Unterlieferung;
+- falsches Produkt;
+- unzureichende Qualität;
+- beschädigte Ware;
+- fehlende Dokumente;
+- unzulässiger Subunternehmer;
+- Abbruch nach Annahme.
+
+Automatische Vertragsstrafen sind nur zulässig, wenn sie vorab klar vereinbart wurden.
+
+Mögliche Folgen:
+
+- reduzierte Zahlung;
+- Nachlieferung;
+- Vertragsstrafe;
+- Rückabwicklung;
+- Rufverlust;
+- Streitfall;
+- Kündigung des Rahmenvertrags.
+
+## 10.32 Streitfälle
+
+Ein Streitfall enthält:
+
+- Vertrag oder Auftrag;
+- beteiligte Parteien;
+- beanstandete Leistung;
+- Belege und Ereignisse;
+- Waren-, Fahrzeug- und Zahlungsdaten;
+- Forderungen der Parteien;
+- Status;
+- Entscheidung oder Einigung.
+
+Mögliche Lösungswege:
+
+- direkte Einigung;
+- vertraglich definierte Schlichtung;
+- staatliche oder gerichtliche Entscheidung;
+- administrative Korrektur nur bei technischem Fehler.
+
+Administratoren sollen wirtschaftliche Rollenspielkonflikte nicht automatisch außerhalb des Spiels entscheiden.
+
+## 10.33 Subunternehmer
+
+Ein Vertrag kann Subunternehmer erlauben, begrenzen oder verbieten.
+
+Bei erlaubter Weitergabe:
+
+- Hauptauftragnehmer bleibt gegenüber dem Auftraggeber verantwortlich;
+- Subauftrag erhält eigene Vergütung und Bedingungen;
+- Waren- und Leistungskette bleibt nachvollziehbar;
+- benötigte Lizenzen gelten weiterhin;
+- versteckte Weitergabe kann als Vertragsverletzung gelten.
+
+## 10.34 Unternehmensruf
+
+Unternehmensruf ist vom persönlichen Ruf eines Eigentümers getrennt.
+
+Bewertungsfaktoren:
+
+- Vertragstreue;
+- Pünktlichkeit;
+- Warenqualität;
+- Schadensquote;
+- Zahlungszuverlässigkeit;
+- Stornoquote;
+- Streitfälle;
+- behördliche Maßnahmen;
+- Kunden- und Partnerhistorie.
+
+Es wird keine leicht manipulierbare einfache Fünf-Sterne-Bewertung verwendet. Das System berechnet nachvollziehbare Rufwerte aus tatsächlichen Vorgängen.
+
+## 10.35 Inaktive Unternehmen
+
+Ein Unternehmen wird nicht allein wegen weniger Onlinezeit sofort gelöscht.
+
+Mögliche Inaktivitätsfolgen:
+
+- Hinweis an Eigentümer;
+- Einschränkung neuer Aufträge;
+- Auslaufen freiwilliger Angebote;
+- fortlaufende vertragliche Kosten;
+- späterer Status `DORMANT` oder `SUSPENDED`;
+- geregelte Reaktivierung;
+- erst langfristig Schließungsprozess.
+
+Kritische Wirtschaftsbetriebe können bei längerer Inaktivität verpachtet, verkauft oder durch NPC-Notversorgung ersetzt werden.
+
+## 10.36 Zahlungsprobleme und Insolvenz
+
+Mögliche Warnsignale:
+
+- wiederholt nicht gezahlte Löhne;
+- überfällige Steuern;
+- unbezahlte Mieten;
+- fällige Kreditraten;
+- negative verfügbare Liquidität;
+- mehrere nicht erfüllte Verträge;
+- Pfändungen oder Beschlagnahmungen.
+
+Geplanter Ablauf:
+
+1. Warnstatus `AT_RISK`;
+2. Benachrichtigung und Karenzzeit;
+3. mögliche Restrukturierung;
+4. Zahlungsplan oder Kapitalzuführung;
+5. Status `INSOLVENT`, wenn keine Lösung erfolgt;
+6. Einschränkung neuer Verpflichtungen;
+7. geordnete Verwertung oder Übernahme;
+8. Begleichung von Forderungen nach definierten Regeln;
+9. Schließung und Archivierung.
+
+Eine Insolvenz löscht keine Schulden, Transaktionen oder Eigentumshistorien.
+
+Komplexe automatische Insolvenzverfahren sind nicht Teil des ersten MVP. Das Datenmodell und die Statuswerte werden dennoch vorbereitet.
+
+## 10.37 Schutz vor Firmenmissbrauch
+
+- Gründungsgebühr und mögliches Mindestkapital;
+- Begrenzung aktiver Unternehmensgründungen pro Charakter;
+- keine direkte Übertragung von Firmenvermögen ohne Fachvorgang;
+- Protokollierung verbundener Parteien;
+- Überprüfung ungewöhnlicher Eigentümerzahlungen;
+- keine kostenlose Nutzung von Firmen als Item- oder Geldtransfer;
+- serverseitige Rechteprüfung bei jeder Aktion;
+- Vier-Augen-Prinzip für konfigurierbare Großzahlungen;
+- Versionsprüfung bei Rollen- und Vertragsänderungen;
+- vollständige Historie von Gründung, Eigentum und Schließung;
+- Geldwäsche- und Sicherheitsflags ohne automatische Verurteilung.
+
+## 10.38 Beispiel: Öl-Lieferkette zwischen Unternehmen
+
+1. Eine Tankstelle unterschreitet ihren Mindestbestand.
+2. Das Tankstellenunternehmen erzeugt automatisch einen Lieferauftrag.
+3. Raffinerien oder Lieferunternehmen erhalten den Auftrag im Marktplatz.
+4. Ein berechtigtes Unternehmen gibt ein Angebot ab.
+5. Nach Vergabe wird der Zahlungsbetrag reserviert.
+6. Disponent weist Fahrer, Zugmaschine und Tanktrailer zu.
+7. Raffinerie reserviert eine passende Kraftstoffcharge.
+8. Fahrer belädt den Trailer.
+9. Lieferung wird zur Tankstelle transportiert.
+10. Menge und Qualität werden beim Abladen geprüft.
+11. Tankstellenbestand wird erhöht.
+12. Zahlung, Steuer, Lohnanteile und Vertragsstatus werden gebucht.
+13. Unternehmen und Fahrer erhalten Ruf beziehungsweise Erfahrung.
+
+Die Vergütung stammt aus dem Tankstellenunternehmen und nicht aus einer beliebigen Markerbelohnung.
+
+## 10.39 Benutzeroberflächen
+
+### Unternehmensdashboard
+
+- Stammdaten;
+- Status und Lizenzen;
+- Eigentümer;
+- Standorte;
+- Finanzen;
+- Mitarbeiter;
+- Lager;
+- Fuhrpark;
+- Verträge;
+- Aufträge;
+- Unternehmensruf;
+- Warnungen und Fristen.
+
+### Personalverwaltung
+
+- Bewerber und Angebote;
+- Arbeitsverträge;
+- Rollen und Berechtigungen;
+- Arbeitszeiten;
+- Lohnabrechnungen;
+- Abwesenheiten;
+- Kündigungen.
+
+### Auftragsverwaltung
+
+- Marktplatz;
+- Ausschreibungen;
+- Angebote;
+- aktive Aufträge;
+- Fahrer- und Fahrzeugzuweisung;
+- Warenreservierung;
+- Lieferstatus;
+- Abnahme und Streitfälle.
+
+Alle Oberflächen verwenden `cnr_ui` und zeigen nur Daten entsprechend der Unternehmensberechtigungen.
+
+## 10.40 Vorgesehene Tabellen
+
+- `cnr_business_types`
+- `cnr_businesses`
+- `cnr_business_name_history`
+- `cnr_business_owners`
+- `cnr_business_shares`
+- `cnr_business_locations`
+- `cnr_business_departments`
+- `cnr_business_roles`
+- `cnr_business_role_permissions`
+- `cnr_business_members`
+- `cnr_employment_contracts`
+- `cnr_work_sessions`
+- `cnr_payroll_runs`
+- `cnr_payroll_items`
+- `cnr_business_assets`
+- `cnr_business_licenses`
+- `cnr_commercial_contracts`
+- `cnr_contract_parties`
+- `cnr_contract_line_items`
+- `cnr_contract_milestones`
+- `cnr_contract_versions`
+- `cnr_contract_signatures`
+- `cnr_contract_events`
+- `cnr_orders`
+- `cnr_order_assignments`
+- `cnr_order_deliveries`
+- `cnr_tenders`
+- `cnr_tender_bids`
+- `cnr_contract_disputes`
+- `cnr_insolvency_cases`
+- `cnr_creditor_claims`
+
+## 10.41 Sicherheit und Auditierung
+
+- serverseitige Unternehmensberechtigungen;
+- keine Rechte allein anhand eines Client-Rangs;
+- Verträge nach Signatur unveränderlich;
+- Änderungen nur als neue Version oder Nachtrag;
+- eindeutige `operation_uuid` für Gründung, Lohn und Auftrag;
+- Zahlungen ausschließlich über `cnr_banking`;
+- Warenbewegungen ausschließlich über Inventar und Lager;
+- Fahrzeuge ausschließlich über `cnr_vehicles`;
+- atomare Auftragsannahme und Zahlungsreservierung;
+- Versionsprüfung bei Rollen, Angeboten und Verträgen;
+- serverseitige Prüfung von Lieferung, Menge und Qualität;
+- vollständige Historie manueller Korrekturen;
+- Rate-Limits für Einladungen, Angebote und Rollenänderungen.
+
+## 10.42 Control-Panel-Konfiguration
+
+Dynamisch einstellbar:
+
+- Unternehmensformen;
+- Branchen;
+- Gründungsgebühren;
+- Mindestkapital;
+- maximale aktive Firmen pro Charakter;
+- Standardrollen und erlaubte Rechte;
+- Lohnmodelle;
+- Abrechnungsperioden;
+- Vertragsvorlagen;
+- Auftragsarten;
+- Marktplatzsichtbarkeit;
+- Ausschreibungsregeln;
+- Sicherheitsleistungen;
+- Vertragsstrafen;
+- Rufberechnung;
+- Inaktivitätsgrenzen;
+- Insolvenzschwellen;
+- NPC-Notversorgung;
+- Feature Flags für komplexe Funktionen.
+
+Über den Ingame-Editor können Firmenstandorte, Büros, Zeiterfassungspunkte, Betriebshöfe, Niederlassungen und Auftragsbereiche erstellt werden.
+
+## 10.43 MVP-Umfang
+
+- Einzelunternehmen und einfache Gesellschaft;
+- Firmengründung;
+- Registrierungsnummer;
+- Firmenkonto;
+- Trennung von Firmen- und Privatvermögen;
+- Standard- und benutzerdefinierte Rollen;
+- Mitarbeiter und Arbeitsverträge;
+- Stunden- und Auftragslohn;
+- Arbeitszeiterfassung;
+- einfache Lohnabrechnung;
+- Firmenfahrzeuge und Fahrerzuweisung;
+- Firmenlager und Zugriffsrechte;
+- einfache Liefer- und Transportverträge;
+- öffentlicher und eingeladener Auftragsmarktplatz;
+- Bedarfsaufträge durch reale Lagerbestände;
+- Auftragszuweisung an Mitarbeiter und Fahrzeuge;
+- Teil- und Volllieferung;
+- automatische Abnahme einfacher Waren;
+- Zahlung über Reservierung und Hauptbuch;
+- Unternehmensruf;
+- Status für Einschränkung und Schließung;
+- vollständige Auditierung.
+
+Nicht im ersten MVP:
+
+- komplexer Anteilshandel;
+- Spielerbörsen;
+- vollständige automatische Insolvenzverwaltung;
+- komplexe Gerichtsverfahren;
+- internationale Unternehmensstrukturen;
+- tiefgehende reale Steuerbuchhaltung.
+
+---
+
+# 11. Öl- und Kraftstoffwirtschaft
+
+## 11.1 Förderung
 
 - Öl-Farmer-Job oder Lizenz
 - gemieteter oder gekaufter LKW
@@ -2784,7 +3766,7 @@ Nicht im ersten MVP:
 - Maschinenverschleiß und mögliche Defekte
 - Qualität und Chargenverfolgung
 
-## 10.2 Lagerung
+## 11.2 Lagerung
 
 - mobile Tanks
 - gemietete Lager
@@ -2795,7 +3777,7 @@ Nicht im ersten MVP:
 - Versicherung und Sicherheit
 - Ein- und Auslagerungsprotokolle
 
-## 10.3 Raffinerie
+## 11.3 Raffinerie
 
 - öffentliche Verarbeitung gegen Gebühr
 - mietbare oder kaufbare Raffinerie
@@ -2806,7 +3788,7 @@ Nicht im ersten MVP:
 - verschiedene Qualitätsstufen
 - Benzin, Diesel, Kerosin, Heizöl, Schmiermittel, Bitumen und Nebenprodukte
 
-## 10.4 Tankstellen
+## 11.4 Tankstellen
 
 - getrennte Tanks pro Produkt
 - individuelle Kapazitäten und Bestände
@@ -2820,9 +3802,9 @@ Nicht im ersten MVP:
 
 ---
 
-# 11. Weitere geplante Systeme
+# 12. Weitere geplante Systeme
 
-## 11.1 Legale Berufe
+## 12.1 Legale Berufe
 
 - Öl-Farmer
 - LKW-Fahrer
@@ -2847,25 +3829,7 @@ Nicht im ersten MVP:
 
 Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
 
-## 11.2 Unternehmen
-
-- Unternehmensgründung
-- Firmenkonto
-- Mitarbeiter und Ränge
-- Rechteverwaltung
-- Arbeitsverträge und Löhne
-- Rechnungen
-- Lager
-- Fuhrpark
-- Immobilien
-- Steuern
-- Gewinn- und Verlustübersicht
-- Insolvenz
-- Verkauf oder Übertragung
-- Lizenzen
-- Ausschreibungen und Lieferverträge
-
-## 11.3 Lager und Immobilien
+## 12.2 Lager und Immobilien
 
 - mietbare und kaufbare Lager
 - Gefahrgut- und Kühllager
@@ -2876,7 +3840,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Mietverträge, Nebenkosten und Hypotheken
 - Einbruch und Alarmanlagen
 
-## 11.4 Kriminalität
+## 12.3 Kriminalität
 
 - Laden-, Tankstellen- und Bankraub
 - Geldtransporter
@@ -2891,7 +3855,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Sabotage
 - organisierte Kriminalität
 
-## 11.5 Polizeisystem
+## 12.4 Polizeisystem
 
 - Dienstsystem und Dienstgrade
 - Fahrzeuge und Ausrüstung
@@ -2907,7 +3871,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Bodycam
 - Polizei-MDT
 
-## 11.6 Beweissystem
+## 12.5 Beweissystem
 
 - Fingerabdrücke
 - DNA
@@ -2923,9 +3887,9 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 
 ---
 
-# 12. Dynamische Administration
+# 13. Dynamische Administration
 
-## 12.1 Ingame-Editor
+## 13.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -2948,7 +3912,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 12.2 Externes Control Panel
+## 13.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -2968,7 +3932,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 13. Einheitliches UI-System
+# 14. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -2989,7 +3953,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 14. Sicherheitsgrundsätze
+# 15. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -3004,7 +3968,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 15. Aktuelle verbindliche Entscheidungen
+# 16. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -3044,9 +4008,18 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Fahrzeugmiete | persistenter Vertrag mit Kaution und Zustandsvergleich |
 | Fahrzeugrealismus | Kilometer, Kraftstoff sowie grundlegender Verschleiß und Schaden |
 | Remote-Rückholung | nur als kostenpflichtiger und protokollierter Dienst |
+| Firmenvermögen | vollständig vom Privatvermögen getrennt |
+| Unternehmensrechte | rollen- und berechtigungsbasiert |
+| Löhne | aus realem Firmen- oder Staatskonto |
+| Arbeitszeit | nur durch aktive und plausible Arbeitssitzungen |
+| Verträge | nach Signatur unveränderlich, Änderungen nur als Version oder Nachtrag |
+| Aufträge | konkrete Ausführung innerhalb oder außerhalb eines Rahmenvertrags |
+| Bedarfsaufträge | bevorzugt aus tatsächlichen Beständen und Nachfrage |
+| Unternehmensruf | aus realer Vertragserfüllung statt einfacher Sternebewertung |
+| Insolvenz | geregelter Statusprozess, keine automatische Datenlöschung |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird das Unternehmens-, Mitarbeiter-, Vertrags- und Auftragssystem geplant. Dazu gehören Firmengründung, Rollen, Firmenkonten, Mitarbeiter, Löhne, Lager, Fuhrpark, Lieferverträge, Ausschreibungen und Insolvenzregeln.
+Als Nächstes wird das Immobilien-, Lager-, Grundstücks- und Anlagensystem geplant. Dazu gehören Häuser, Wohnungen, Gewerbeobjekte, Lagerkapazitäten, Zugriffsrechte, Miete, Kauf, Hypotheken, Produktionsanlagen und dynamisch erstellbare Standorte.
