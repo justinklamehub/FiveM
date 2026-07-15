@@ -851,9 +851,523 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 
 ---
 
-# 7. Öl- und Kraftstoffwirtschaft
+# 7. Bargeld-, Banking- und Transaktionssystem
 
-## 7.1 Förderung
+## 7.1 Grundprinzip
+
+`cnr_banking` ist die einzige fachliche Instanz, die Geldbestände und Geldbewegungen verändern darf. Andere Module fordern Zahlungen, Reservierungen oder Auszahlungen über definierte Schnittstellen an.
+
+Alle Geldbewegungen werden in einem doppelten Hauptbuch gespeichert. Eine Transaktion besteht aus mindestens zwei Buchungen, deren Summe immer null ergibt.
+
+Beispiel für einen Kraftstoffkauf über 100 Dollar:
+
+| Beteiligter | Buchung |
+|---|---:|
+| Käufer | -100 |
+| Tankstellenunternehmen | +84 |
+| staatliches Steuerkonto | +16 |
+| Summe | 0 |
+
+Dadurch kann Geld nicht unbemerkt entstehen oder verschwinden. Jede Geldquelle und jede Geldsenke ist messbar.
+
+## 7.2 Geldarten
+
+### Reguläres Bargeld
+
+- wird als serverseitig geführte Charakter-Geldbörse verwaltet;
+- kann übergeben, eingezahlt, abgehoben, beschlagnahmt oder gestohlen werden;
+- verwendet dasselbe Hauptbuch wie Bankkonten;
+- besitzt konfigurierbare Limits für Übergaben und Abhebungen;
+- ist kein frei manipulierbares Clientfeld.
+
+### Bankguthaben
+
+- befindet sich auf persönlichen, geschäftlichen oder staatlichen Konten;
+- kann überwiesen, reserviert, eingefroren oder gepfändet werden;
+- besitzt eine vollständige Transaktionshistorie;
+- bleibt auch bei Offline-Spielern verfügbar.
+
+### Markiertes oder belastetes Bargeld
+
+Beute aus Banken, Geldtransportern oder anderen überwachten Quellen wird nicht als magische zweite Währung gespeichert. Sie besteht aus physischen Geldbündeln mit Charge und Herkunft.
+
+Mögliche Eigenschaften:
+
+- Nennwert
+- Chargennummer
+- Herkunft
+- Markierungsstatus
+- Risikostufe
+- ursprünglicher Besitzer
+- Tat- oder Vorgangsreferenz
+- Zeitpunkt der Entwendung
+
+Markierte Geldbündel können nicht ohne Weiteres auf ein normales Bankkonto eingezahlt werden.
+
+## 7.3 Kontotypen
+
+| Typ | Zweck |
+|---|---|
+| `CASH_WALLET` | Bargeld eines Charakters |
+| `PERSONAL_CHECKING` | persönliches Girokonto |
+| `PERSONAL_SAVINGS` | späteres Sparkonto |
+| `BUSINESS` | Firmenkonto |
+| `GOVERNMENT` | staatliches Konto |
+| `ESCROW` | Treuhand und abgesicherte Geschäfte |
+| `LOAN` | Kredit und Rückzahlung |
+| `SYSTEM_SOURCE` | kontrollierte Geldquelle |
+| `SYSTEM_SINK` | kontrollierte Geldsenke |
+
+Jeder neue Charakter erhält genau ein persönliches Hauptkonto und eine Bargeld-Geldbörse. Weitere Konten können später abhängig von Gebühren, Lizenzen oder Unternehmen eröffnet werden.
+
+## 7.4 Kontostatus
+
+- `ACTIVE`
+- `RESTRICTED`
+- `FROZEN`
+- `BLOCKED`
+- `CLOSED`
+- `PENDING_CLOSURE`
+
+Ein geschlossenes Konto wird archiviert. Seine Transaktionen werden nicht gelöscht.
+
+## 7.5 Kontoinhaber und Zugriffsrechte
+
+Ein Konto kann einem Charakter, einem Unternehmen oder einer staatlichen Stelle gehören.
+
+Mögliche Kontorechte:
+
+- Kontostand ansehen
+- Transaktionen ansehen
+- Überweisungen erstellen
+- Rechnungen bezahlen
+- Bargeld abheben
+- Karten verwalten
+- Mitarbeiter berechtigen
+- hohe Zahlungen freigeben
+- Konto administrieren
+
+Firmenkonten unterstützen:
+
+- mehrere Benutzer;
+- rollenbasierte Rechte;
+- Ausgabenlimits;
+- zeitlich begrenzte Vollmachten;
+- optionales Vier-Augen-Prinzip bei großen Zahlungen.
+
+## 7.6 Transaktionen
+
+Jede Transaktion besitzt:
+
+- öffentliche Transaktionsnummer
+- eindeutige `operation_uuid`
+- Typ
+- Status
+- Betrag und Währung
+- Absender und Empfänger
+- Verwendungszweck
+- auslösendes Modul
+- Erstellungs- und Buchungszeitpunkt
+- optionale Gebühren und Steuern
+- Referenz auf Rechnung, Vertrag oder Kauf
+- technische Korrelationsnummer
+
+Mögliche Statuswerte:
+
+- `PENDING`
+- `POSTED`
+- `FAILED`
+- `CANCELLED`
+- `REVERSED`
+- `HELD`
+
+Gebuchte Transaktionen werden niemals nachträglich verändert oder gelöscht. Eine Korrektur erfolgt über eine eindeutig verknüpfte Gegenbuchung.
+
+## 7.7 Überweisungen
+
+Eine Überweisung benötigt:
+
+- Quellkonto
+- Zielkonto oder Kontonummer
+- Betrag
+- Verwendungszweck
+- optional Empfängername zur Kontrolle
+
+Serverseitige Prüfungen:
+
+- Konto aktiv
+- ausreichendes verfügbares Guthaben
+- Berechtigung des Ausführenden
+- Überweisungslimit
+- Empfängerkonto vorhanden
+- kein gesperrter Empfänger
+- Rate-Limit
+- identische Vorgangsnummer noch nicht verwendet
+- mögliche Sicherheits- oder Geldwäscheprüfung
+
+Hohe oder ungewöhnliche Überweisungen können zunächst den Status `PENDING` erhalten.
+
+## 7.8 Bargeldeinzahlung und Bargeldabhebung
+
+Abhebungen und Einzahlungen sind echte Umbuchungen zwischen Bankkonto und Bargeld-Geldbörse. Es wird dabei kein neues Geld erzeugt.
+
+Mögliche Regeln:
+
+- Tageslimit
+- Einzeltransaktionslimit
+- Geldautomatengebühr
+- nur bestimmte Geldautomaten akzeptieren Einzahlungen
+- Bankfilialen erlauben höhere Beträge
+- gesperrte oder markierte Geldbündel werden abgelehnt
+- große Einzahlungen können eine Prüfung auslösen
+
+Später können Geldautomaten eigene Bargeldbestände besitzen und durch Geldtransporte aufgefüllt werden.
+
+## 7.9 Zahlungskarten
+
+Eine Karte ist ein einzigartiges Item, das auf einen serverseitigen Kartendatensatz verweist.
+
+Eigenschaften:
+
+- Karten-ID
+- verknüpftes Konto
+- Karteninhaber
+- Status
+- tägliches Limit
+- Abhebungslimit
+- optionaler PIN-Hash
+- Ablaufdatum
+- letzte Verwendung
+
+Statuswerte:
+
+- `ACTIVE`
+- `FROZEN`
+- `LOST`
+- `STOLEN`
+- `EXPIRED`
+- `REVOKED`
+
+Eine verlorene Karte ändert nicht die Eigentümerschaft des Kontos. Sie kann gesperrt und ersetzt werden.
+
+## 7.10 Rechnungen
+
+Rechnungen können von Unternehmen, Dienstleistern und berechtigten Behörden erstellt werden.
+
+Eine Rechnung enthält:
+
+- Rechnungsnummer
+- Aussteller
+- Empfänger
+- einzelne Positionen
+- Nettobetrag
+- Steuer
+- Gesamtbetrag
+- Ausstellungsdatum
+- Fälligkeitsdatum
+- Zahlungsstatus
+- Verwendungszweck
+- zugehörige Leistung oder Vertrag
+
+Mögliche Statuswerte:
+
+- `DRAFT`
+- `ISSUED`
+- `PARTIALLY_PAID`
+- `PAID`
+- `OVERDUE`
+- `DISPUTED`
+- `CANCELLED`
+
+Spontane Rechnungen zwischen Spielern müssen vom Empfänger bestätigt werden. Behördliche Gebühren oder gerichtlich bestätigte Forderungen verwenden einen gesonderten Prozess und dürfen nicht als gewöhnliche Spielerrechnung missbraucht werden.
+
+## 7.11 Reservierungen und Treuhand
+
+Eine Zahlungsreservierung blockiert einen Betrag, ohne ihn sofort endgültig zu buchen.
+
+Verwendungszwecke:
+
+- Mietwagenkaution
+- Fahrzeugkauf
+- Auktion
+- Immobilienkauf
+- Transportvertrag
+- Hotel- oder Lagermiete
+- Kartenzahlung
+
+Mögliche Zustände:
+
+- `ACTIVE`
+- `CAPTURED`
+- `PARTIALLY_CAPTURED`
+- `RELEASED`
+- `EXPIRED`
+
+Beispiel Mietwagen:
+
+1. Kaution wird reserviert.
+2. Fahrzeug wird zurückgegeben.
+3. Schäden werden geprüft.
+4. benötigter Teil wird eingezogen.
+5. Restbetrag wird freigegeben.
+
+## 7.12 Wiederkehrende Zahlungen
+
+Geplante wiederkehrende Vorgänge:
+
+- Mieten
+- Versicherungen
+- Kreditraten
+- Mitarbeiterlöhne
+- Lagergebühren
+- Unternehmensgebühren
+- Abonnements
+- Steuervorauszahlungen
+
+Jeder Vorgang besitzt Fälligkeit, Wiederholungsregel, maximale Versuche, Karenzzeit und Fehlerbehandlung.
+
+Fehlgeschlagene Zahlungen erzeugen keine unendlichen Wiederholungen. Sie können Mahnung, Leistungsverlust, Vertragsstatus oder Schulden beeinflussen.
+
+## 7.13 Löhne und Gehälter
+
+Private Unternehmen zahlen Löhne aus ihrem Firmenkonto. Öffentliche Stellen zahlen aus einem staatlichen Konto.
+
+Grundregeln:
+
+- keine unbegrenzten Gehälter aus dem Nichts;
+- Arbeitszeit oder Leistung muss nachvollziehbar sein;
+- Unternehmen können Lohnmodelle und Freigaben verwalten;
+- unzureichendes Firmenvermögen erzeugt ausstehende Lohnforderungen;
+- öffentliche Grundversorgung erhält bei Bedarf eine kontrollierte staatliche Reserve;
+- alle Lohnzahlungen besitzen Steuer- und Arbeitgeberreferenzen.
+
+Rohstoff- und Logistikjobs werden bevorzugt durch tatsächliche Aufträge und Käufer bezahlt statt durch pauschale Markerbelohnungen.
+
+## 7.14 Steuern und Gebühren
+
+Mögliche Steuerarten:
+
+- Verkaufssteuer
+- Unternehmenssteuer
+- Lohnsteuer
+- Fahrzeugsteuer
+- Immobiliensteuer
+- Zulassungs- und Lizenzgebühren
+- Einfuhr- oder Gefahrgutgebühren
+
+Für das MVP wird mit wenigen verständlichen Abgaben begonnen:
+
+- Verkaufssteuer
+- ausgewählte Unternehmensgebühren
+- Fahrzeug- und Lizenzgebühren
+
+Steuersätze, Freibeträge, Grenzen und Empfängerkonten sind dynamisch konfigurierbar. Steuern fließen nachvollziehbar auf staatliche Konten.
+
+## 7.15 Kredite
+
+Kredite sind für eine spätere Ausbaustufe vorgesehen.
+
+Geplante Eigenschaften:
+
+- Kreditgeber
+- Kreditnehmer
+- Darlehensbetrag
+- Zinssatz
+- Laufzeit
+- Ratenplan
+- Sicherheiten
+- Restschuld
+- Mahnstatus
+- Ausfallstatus
+- mögliche Pfändung oder Rücknahme
+
+Kredite werden nicht minütlich verzinst. Zinsen und Raten werden in nachvollziehbaren täglichen oder wöchentlichen Perioden berechnet.
+
+Eine spätere Kreditwürdigkeit kann Einkommen, bestehende Schulden, Zahlungsverhalten, Firmenwert und Sicherheiten berücksichtigen.
+
+## 7.16 Illegales Geld und Geldwäsche
+
+Es gibt keine einfache globale Variable `black_money`. Illegales Geld besitzt Herkunft und Risiko.
+
+Möglicher Geldwäscheablauf:
+
+1. markiertes oder belastetes Bargeld wird zu einer geeigneten Stelle gebracht;
+2. Herkunft und Risikostufe bestimmen Aufwand und Gebühren;
+3. Geldwäscheunternehmen besitzt eine begrenzte Verarbeitungskapazität;
+4. ein Teil des Wertes geht als Gebühr oder Verlust verloren;
+5. der verbleibende Betrag wird über nachvollziehbare Scheinumsätze oder Auszahlungen legalisiert;
+6. auffällige Häufigkeit und Höhe erhöhen das Ermittlungsrisiko.
+
+Mögliche Waschmethoden:
+
+- Scheinfirmen
+- manipulierte Geschäftsumsätze
+- illegale Wechselstuben
+- Glücksspiel
+- Fahrzeughandel
+- gefälschte Rechnungen
+
+Jede Methode besitzt andere Kapazitäten, Kosten, Dauer und Beweisrisiken.
+
+## 7.17 Auffällige Transaktionen
+
+Das System darf verdächtige Spieler nicht automatisch bestrafen. Es erzeugt stattdessen Hinweise für berechtigte Ermittlungen.
+
+Mögliche Auslöser:
+
+- ungewöhnlich hohe Bareinzahlung
+- viele kleine Einzahlungen in kurzer Zeit
+- häufige Zahlungen zwischen denselben Beteiligten
+- Transfers an gesperrte oder auffällige Konten
+- Firmenumsatz ohne passende Warenbewegung
+- Geldbewegungen unmittelbar nach einem Raub
+- Nutzung gestohlener Karten
+
+Schwellenwerte sind dynamisch und dürfen für normale Spieler nicht sichtbar sein.
+
+## 7.18 Offline-Vorgänge
+
+Auch bei abgemeldeten Spielern können folgende Vorgänge stattfinden:
+
+- Überweisungen empfangen
+- Lohn erhalten
+- Rechnung fällig werden
+- Miete abbuchen
+- Kreditrate verarbeiten
+- Konto einfrieren
+- Erstattung erhalten
+
+Beim nächsten Login erhält der Spieler eine zusammengefasste Benachrichtigung. Kritische Vorgänge werden nicht allein durch einen Clienttimer ausgelöst.
+
+## 7.19 Benutzeroberflächen
+
+### Banking-App
+
+- Kontenübersicht
+- verfügbarer und reservierter Betrag
+- Überweisungen
+- Transaktionshistorie
+- Rechnungen
+- Kartenverwaltung
+- wiederkehrende Zahlungen
+- Firmenkonten abhängig von Berechtigung
+
+### Geldautomat
+
+- Bargeld abheben
+- unterstützte Einzahlungen
+- Kontostand
+- kurze Transaktionsübersicht
+- Karten- und PIN-Prüfung
+
+### Bankschalter
+
+- höhere Bargeldbeträge
+- Kontoeröffnung
+- Kartenersatz
+- Kontosperren
+- später Kredite und Beratung
+
+Alle Oberflächen verwenden `cnr_ui` und zeigen keine internen Datenbank-IDs an.
+
+## 7.20 Vorgesehene Tabellen
+
+- `cnr_financial_accounts`
+- `cnr_financial_account_members`
+- `cnr_financial_transactions`
+- `cnr_financial_entries`
+- `cnr_financial_holds`
+- `cnr_payment_cards`
+- `cnr_invoices`
+- `cnr_invoice_items`
+- `cnr_scheduled_payments`
+- `cnr_loans`
+- `cnr_loan_installments`
+- `cnr_cash_batches`
+- `cnr_money_laundering_operations`
+- `cnr_suspicious_transaction_flags`
+
+Der Begriff `financial_accounts` verhindert eine Verwechslung mit den technischen Spieleraccounts in `cnr_accounts`.
+
+## 7.21 Sicherheitsregeln
+
+- Geldwerte ausschließlich als Ganzzahlen
+- keine direkte Veränderung eines Balancefelds durch andere Module
+- Hauptbuchbuchungen müssen je Transaktion null ergeben
+- jede kritische Aktion mit eindeutiger `operation_uuid`
+- atomare Datenbanktransaktionen
+- Kontosperren und Versionsprüfungen bei Parallelzugriffen
+- serverseitige Berechtigungsprüfung
+- serverseitige Betrags- und Limitprüfung
+- Rate-Limits für Zahlungen und Rechnungen
+- gebuchte Transaktionen niemals löschen
+- Korrekturen nur durch Gegenbuchung
+- vollständige Audit- und Sicherheitslogs
+- automatische Erkennung unmöglicher Kontostände
+
+## 7.22 Control-Panel-Konfiguration
+
+Dynamisch einstellbar:
+
+- Startguthaben
+- Bargeld- und Transferlimits
+- Geldautomatengebühren
+- Kartenlimits
+- Kontogebühren
+- Steuersätze
+- Rechnungsfristen
+- Mahn- und Karenzzeiten
+- Reservierungsdauer
+- Lohnregeln
+- Kreditgrenzen und Zinsspannen
+- Geldwäschegebühren und Kapazitäten
+- Schwellenwerte für verdächtige Vorgänge
+- aktivierte Kontotypen und Funktionen
+
+Das Control Panel zeigt zusätzlich:
+
+- gesamte Geldmenge
+- Bargeld und Bankguthaben
+- Firmen- und Staatsvermögen
+- markiertes beziehungsweise belastetes Geld
+- Geldquellen und Geldsenken
+- Steueraufkommen
+- größte Geldflüsse
+- fehlgeschlagene oder auffällige Transaktionen
+
+## 7.23 MVP-Umfang
+
+- Bargeld-Geldbörse
+- persönliches Girokonto
+- doppelte Buchführung
+- Überweisungen
+- Ein- und Auszahlung
+- Geldautomat
+- einfache Zahlungskarte
+- Transaktionshistorie
+- Rechnungen
+- Firmen- und Staatskonten
+- Zahlungsreservierungen
+- grundlegende wiederkehrende Zahlungen
+- einfache Verkaufssteuer
+- markierte Geldbündel
+- erste einfache Geldwäschefunktion
+- vollständige Auditierung
+
+Nicht im ersten MVP:
+
+- komplexe Kredite
+- Kreditwürdigkeit
+- Spielerbanken
+- umfassende Pfändungen
+- mehrere Währungen
+- vollständig physisch befüllte Geldautomaten
+
+---
+
+# 8. Öl- und Kraftstoffwirtschaft
+
+## 8.1 Förderung
 
 - Öl-Farmer-Job oder Lizenz
 - gemieteter oder gekaufter LKW
@@ -863,7 +1377,7 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 - Maschinenverschleiß und mögliche Defekte
 - Qualität und Chargenverfolgung
 
-## 7.2 Lagerung
+## 8.2 Lagerung
 
 - mobile Tanks
 - gemietete Lager
@@ -874,7 +1388,7 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 - Versicherung und Sicherheit
 - Ein- und Auslagerungsprotokolle
 
-## 7.3 Raffinerie
+## 8.3 Raffinerie
 
 - öffentliche Verarbeitung gegen Gebühr
 - mietbare oder kaufbare Raffinerie
@@ -885,7 +1399,7 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 - verschiedene Qualitätsstufen
 - Benzin, Diesel, Kerosin, Heizöl, Schmiermittel, Bitumen und Nebenprodukte
 
-## 7.4 Tankstellen
+## 8.4 Tankstellen
 
 - getrennte Tanks pro Produkt
 - individuelle Kapazitäten und Bestände
@@ -899,9 +1413,9 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 
 ---
 
-# 8. Weitere geplante Systeme
+# 9. Weitere geplante Systeme
 
-## 8.1 Legale Berufe
+## 9.1 Legale Berufe
 
 - Öl-Farmer
 - LKW-Fahrer
@@ -926,7 +1440,7 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 
 Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
 
-## 8.2 Unternehmen
+## 9.2 Unternehmen
 
 - Unternehmensgründung
 - Firmenkonto
@@ -944,7 +1458,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Lizenzen
 - Ausschreibungen und Lieferverträge
 
-## 8.3 Fahrzeuge und Vermietung
+## 9.3 Fahrzeuge und Vermietung
 
 - Neu- und Gebrauchtfahrzeuge
 - Schlüssel
@@ -962,7 +1476,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - verspätete Rückgabe
 - separate Vermietung von Zugmaschine und Trailer
 
-## 8.4 Garagen, Lager und Immobilien
+## 9.4 Garagen, Lager und Immobilien
 
 - öffentliche, private und Firmen-Garagen
 - Abschlepphof und Polizeiverwahrung
@@ -976,7 +1490,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Mietverträge, Nebenkosten und Hypotheken
 - Einbruch und Alarmanlagen
 
-## 8.5 Kriminalität
+## 9.5 Kriminalität
 
 - Laden-, Tankstellen- und Bankraub
 - Geldtransporter
@@ -991,7 +1505,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Sabotage
 - organisierte Kriminalität
 
-## 8.6 Polizeisystem
+## 9.6 Polizeisystem
 
 - Dienstsystem und Dienstgrade
 - Fahrzeuge und Ausrüstung
@@ -1007,7 +1521,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Bodycam
 - Polizei-MDT
 
-## 8.7 Beweissystem
+## 9.7 Beweissystem
 
 - Fingerabdrücke
 - DNA
@@ -1021,7 +1535,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Beweiskette
 - Kontamination und Verfall
 
-## 8.8 Fähigkeiten und Level
+## 9.8 Fähigkeiten und Level
 
 Mögliche Fähigkeiten:
 
@@ -1056,9 +1570,9 @@ Fortschritt soll Komfort, Zuverlässigkeit und neue Möglichkeiten schaffen, abe
 
 ---
 
-# 9. Dynamische Administration
+# 10. Dynamische Administration
 
-## 9.1 Ingame-Editor
+## 10.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -1081,7 +1595,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 9.2 Externes Control Panel
+## 10.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -1101,7 +1615,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 10. Einheitliches UI-System
+# 11. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -1122,7 +1636,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 11. Sicherheitsgrundsätze
+# 12. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -1137,7 +1651,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 12. Aktuelle verbindliche Entscheidungen
+# 13. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -1158,9 +1672,13 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Datenbank | MySQL-kompatibel, UTC, ganzzahlige Geldwerte |
 | Inventar | Kombination aus Slots und Gewicht |
 | Flüssigkeiten | Warenchargen mit Menge und Qualität |
+| Finanzmodell | doppeltes Hauptbuch mit ausgeglichenen Buchungen |
+| Bargeld | serverseitige Geldbörse innerhalb des Hauptbuchs |
+| illegales Geld | physische Chargen mit Herkunft statt `black_money` |
+| Korrekturen | Gegenbuchung statt Löschen gebuchter Transaktionen |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird das Bargeld-, Banking- und Transaktionssystem geplant. Dazu gehören persönliche und geschäftliche Konten, Rechnungen, Steuern, Kredite, markiertes Geld und Geldwäsche.
+Als Nächstes wird das Fähigkeiten-, Level- und Lizenzsystem geplant. Dazu gehören getrennte Fähigkeiten, Erfahrungspunkte, Spezialisierungen, Freischaltungen, Lizenzen und Schutz vor AFK- oder Wiederholungsfarming.
