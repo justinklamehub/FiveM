@@ -4858,49 +4858,1141 @@ Nicht im ersten MVP:
 
 # 12. Öl- und Kraftstoffwirtschaft
 
-## 12.1 Förderung
+Der Ölzweig ist der erste vollständig geplante Wirtschaftskreislauf und dient als Referenz für spätere Branchen wie Bergbau, Holz, Landwirtschaft, Recycling und Chemie.
 
-- Öl-Farmer-Job oder Lizenz
-- gemieteter oder gekaufter LKW
-- gemieteter oder gekaufter Tanktrailer
-- Pumpenausrüstung
-- Fördergeschwindigkeit und Ertrag abhängig von Fähigkeiten
-- Maschinenverschleiß und mögliche Defekte
-- Qualität und Chargenverfolgung
+Das Ziel ist keine einfache Markerroute mit fester Auszahlung. Jeder Liter entsteht aus einer nachvollziehbaren Förder-, Lager-, Verarbeitungs-, Transport- und Verkaufskette. Geld wird grundsätzlich durch Verträge, Warenverkauf oder Dienstleistungen verdient und nicht beim Abschluss eines Markers erzeugt.
 
-## 12.2 Lagerung
+## 12.1 Verantwortliche Module
 
-- mobile Tanks
-- gemietete Lager
-- gekaufte Lager
-- Kapazitätsgrenzen
-- Gebühren
-- Zugriffsrechte
-- Versicherung und Sicherheit
-- Ein- und Auslagerungsprotokolle
+### `cnr_industry`
 
-## 12.3 Raffinerie
+Verantwortet:
 
-- öffentliche Verarbeitung gegen Gebühr
-- mietbare oder kaufbare Raffinerie
-- Produktionsaufträge
-- Produktionsdauer
-- Energieverbrauch
-- Wartung und Ausfälle
-- verschiedene Qualitätsstufen
-- Benzin, Diesel, Kerosin, Heizöl, Schmiermittel, Bitumen und Nebenprodukte
+- Rohstofffelder und Förderpunkte;
+- Förderrechte, Kontingente und Konzessionen;
+- Förderausrüstung;
+- Fördersitzungen;
+- Rohstoffqualität;
+- branchenbezogene Regeln und Kennzahlen.
 
-## 12.4 Tankstellen
+### `cnr_storage`
 
-- getrennte Tanks pro Produkt
-- individuelle Kapazitäten und Bestände
-- Spielerbesitz
-- Verkaufspreise innerhalb konfigurierter Grenzen
-- Lieferverträge
-- automatische Aufträge bei niedrigem Bestand
-- teure NPC-Notversorgung
-- Lieferbelege
-- Unfall-, Leckage- und Brandrisiken
+Verantwortet:
+
+- stationäre Tanks;
+- Tankabteile;
+- Kapazitäten;
+- Produktverträglichkeit;
+- Warenchargen;
+- Reservierungen;
+- Ein-, Aus- und Umlagerungen.
+
+### `cnr_facilities`
+
+Verantwortet:
+
+- Raffinerien;
+- Maschinen;
+- Rezeptversionen;
+- Produktionsaufträge;
+- Energie und Hilfsstoffe;
+- Wartung;
+- Störungen und Produktionsereignisse.
+
+### `cnr_logistics`
+
+Verantwortet:
+
+- Abholungen und Lieferungen;
+- Lade- und Entladevorgänge;
+- Transportaufträge;
+- Frachtzuordnung;
+- Gefahrgutanforderungen;
+- Liefernachweise.
+
+### `cnr_fuel`
+
+Verantwortet:
+
+- Tankstellen;
+- unterirdische Produkttanks;
+- Zapfsäulen und Zapfpistolen;
+- Kraftstoffpreise;
+- Tankvorgänge;
+- Fahrzeug-Kraftstoffarten;
+- Notversorgung und Bestellregeln.
+
+Die kaufmännischen Vorgänge verwenden zusätzlich `cnr_businesses`, `cnr_contracts`, `cnr_banking`, `cnr_marketplace`, `cnr_vehicles`, `cnr_rentals` und `cnr_progression`.
+
+## 12.2 Beteiligte Marktrollen
+
+Der Kreislauf unterstützt mehrere Einstiege:
+
+- angestellter Ölfeldarbeiter;
+- selbstständiger Förderer mit Lizenz und Auftrag;
+- Förderunternehmen mit Konzession;
+- Vermieter von Zugmaschinen, Tanktrailern und Ausrüstung;
+- Lager- oder Tankdepotbetreiber;
+- Tankwagenfahrer;
+- Raffineriemitarbeiter;
+- Raffineriebetreiber;
+- Labor- oder Qualitätsmitarbeiter;
+- Kraftstoffgroßhändler;
+- Tankstellenpächter oder -eigentümer;
+- Tankstellenmitarbeiter;
+- Wartungs- und Abschleppunternehmen;
+- Feuerwehr, Polizei und Aufsichtsbehörden.
+
+Ein Charakter muss nicht die gesamte Kette besitzen. Spezialisierte Firmen können miteinander handeln und langfristige Verträge schließen.
+
+## 12.3 Eigentum, Nutzung und Betriebsrechte
+
+Folgende Dinge bleiben getrennt:
+
+- Eigentum am Grundstück;
+- Eigentum am Gebäude;
+- Eigentum an Tanks und Maschinen;
+- Eigentum an Fahrzeugen und Trailern;
+- Eigentum an Warenchargen;
+- zeitlich begrenztes Nutzungsrecht;
+- Förderrecht für ein Feld oder Kontingent;
+- Betriebslizenz für eine Anlage;
+- Arbeitsberechtigung eines Mitarbeiters.
+
+Der Besitz eines Grundstücks gewährt weder automatisch Förderrechte noch eine Raffinerielizenz. Ebenso gehört eingelagertes Öl nicht automatisch dem Lagerbetreiber.
+
+Förderfelder können dem Staat, dem System oder einem Unternehmen gehören. Im MVP vergibt der Staat zeitlich oder mengenmäßig begrenzte Förderrechte. Später sind Ausschreibungen, Auktionen und private Konzessionen möglich.
+
+## 12.4 Produkte und Mengeneinheiten
+
+Flüssigkeiten werden intern in einer ganzzahligen Basiseinheit gespeichert. Vorgesehen sind Milliliter in `BIGINT`; Benutzeroberflächen zeigen daraus Liter an. Geld bleibt wie im Banksystem in ganzzahligen Minor Units.
+
+Jede relevante Flüssigkeit besitzt:
+
+- Produktdefinition;
+- Kraftstoff- oder Rohstoffklasse;
+- interne Basiseinheit;
+- Dichte- oder Umrechnungsparameter, falls benötigt;
+- erlaubte Behältertypen;
+- Misch- und Kontaminationsregeln;
+- Gefahrgutklasse;
+- Qualitätsanforderungen;
+- Haltbarkeits- oder Alterungsregeln;
+- Steuerkategorie.
+
+Produkte im ersten Kreislauf:
+
+- Rohöl;
+- Normalbenzin;
+- Premiumbenzin;
+- Diesel;
+- verwertbares Nebenprodukt;
+- nicht verkaufsfähiger Produktionsabfall.
+
+Spätere Produkte:
+
+- Kerosin;
+- Heizöl;
+- Schmierstoffe;
+- Bitumen;
+- chemische Ausgangsstoffe;
+- weitere Kraftstoffqualitäten.
+
+## 12.5 Warenchargen und Qualität
+
+Rohöl und Kraftstoffe bleiben über Warenchargen nachvollziehbar. Eine Charge enthält mindestens:
+
+- Charge-UUID;
+- Produkt;
+- Menge;
+- Eigentümer;
+- Herkunftsfeld oder Ursprungsanlage;
+- Erstellungszeit;
+- Qualitätsklasse;
+- Qualitätswert;
+- Kontaminationsstatus;
+- aktuelles Lager oder Fahrzeugabteil;
+- reservierte Menge;
+- verknüpfte Förder- oder Produktionsvorgänge.
+
+Für Rohöl sind im mittleren Realismus unter anderem vorgesehen:
+
+- leicht, mittel oder schwer;
+- grundlegender Schwefel- beziehungsweise Reinheitswert;
+- Wasser- und Schmutzanteil;
+- allgemeiner Qualitätswert.
+
+Die Werte werden serverseitig aus Feld, Förderzustand, Ausrüstung und möglichen Verunreinigungen bestimmt. Der Client übermittelt keine Qualität und keinen Ertrag.
+
+Gleichartige kompatible Chargen dürfen kontrolliert zusammengeführt werden. Dabei entsteht eine neue oder aktualisierte Mischcharge mit berechneter Qualität und vollständiger Herkunftsverknüpfung. Eine Mischung darf ihre Herkunft nicht verschleiern.
+
+## 12.6 Rohstofffelder
+
+Ein Ölfeld besteht aus:
+
+- Felddefinition;
+- räumlicher Zone;
+- einem oder mehreren Förderpunkten;
+- Qualitätsprofil;
+- Druck- oder Leistungsprofil;
+- verfügbarem Förderkontingent;
+- Erholungsrate;
+- aktiven Förderrechten;
+- zugelassenen Ausrüstungstypen;
+- Betriebszeiten und Störstatus.
+
+Felder werden nicht endgültig leer und auch nicht grenzenlos nutzbar. Sie besitzen konfigurierbare Kontingente und Erholungszyklen. Dadurch können Verwaltung und Economy-Team das Angebot steuern, ohne bereits erspielten Besitz willkürlich zu löschen.
+
+Mehrere Felder dürfen unterschiedliche Rohölqualitäten, Fördergeschwindigkeiten, Zugangskosten und Risiken besitzen.
+
+## 12.7 Förderpunkte und Pumpenausrüstung
+
+Ein Förderpunkt ist ein serverseitiges Weltobjekt mit eigener UUID und Zustand.
+
+Mögliche Zustände:
+
+- `available`;
+- `reserved`;
+- `setup`;
+- `pumping`;
+- `paused`;
+- `maintenance`;
+- `depleted_cycle`;
+- `blocked`;
+- `incident`;
+- `inactive`.
+
+Ausrüstung kann:
+
+- fest zum Feld gehören;
+- von einem Betreiber bereitgestellt werden;
+- gemietet werden;
+- einem Unternehmen gehören;
+- als persistente Maschine gewartet werden müssen.
+
+Relevante Eigenschaften:
+
+- Förderleistung;
+- maximaler Betriebsdruck;
+- Verschleiß;
+- Wartungszustand;
+- Energie- oder Treibstoffbedarf;
+- unterstützte Anschlüsse;
+- Sicherheitsklasse;
+- Mietvertrag und Kaution.
+
+## 12.8 Wege in die Förderung
+
+### Angestellter
+
+Ein Unternehmen oder staatlicher Betreiber stellt Auftrag, Förderrecht, Ausrüstung und gegebenenfalls Fahrzeug. Der Mitarbeiter erhält Lohn oder eine vertragliche Leistungsvergütung.
+
+### Selbstständiger Auftragnehmer
+
+Der Spieler benötigt:
+
+- passende Lizenz;
+- aktiven Förderauftrag;
+- gemietete oder eigene Ausrüstung;
+- geeignete Zugmaschine;
+- kompatiblen Tanktrailer oder Zielbehälter;
+- ausreichende finanzielle Mittel für Miete, Kaution und Gebühren.
+
+### Förderunternehmen
+
+Ein Unternehmen kann Kontingente erwerben, Mitarbeiter einteilen, Ausrüstung besitzen, Tanklager betreiben und Rohöl an Raffinerien verkaufen.
+
+## 12.9 Prüfung vor Förderbeginn
+
+Vor dem Start prüft der Server:
+
+1. gültigen Charakter und aktive Spielsitzung;
+2. Entfernung und Routing Bucket;
+3. Förderrecht oder zugewiesenen Auftrag;
+4. Lizenz und Unternehmensberechtigung;
+5. Zustand und Verfügbarkeit des Förderpunkts;
+6. kompatible und funktionsfähige Ausrüstung;
+7. gültigen Mietvertrag, falls gemietet;
+8. Zielbehälter, freie Kapazität und Produktverträglichkeit;
+9. verbleibendes Feld- und Vertragskontingent;
+10. mögliche Sperren, Wartung oder Störfälle.
+
+Erst danach werden Förderpunkt, Kontingent und Zielkapazität für den Vorgang reserviert.
+
+## 12.10 Aktiver Förderablauf
+
+Der grundlegende Ablauf:
+
+1. Auftrag oder Förderrecht auswählen;
+2. Ausrüstung übernehmen und Zustand bestätigen;
+3. Zugmaschine und Tanktrailer bereitstellen;
+4. Förderpunkt sichern;
+5. Schlauch und Zielabteil verbinden;
+6. Sicherheitsprüfung durchführen;
+7. Pumpe starten;
+8. Druck und Förderverlauf überwachen;
+9. Probe beziehungsweise Qualitätsmessung durchführen;
+10. bei Zielmenge oder Kapazitätsgrenze stoppen;
+11. Verbindung trennen und Punkt sichern;
+12. Messstand, Charge, Menge und Zustand bestätigen lassen;
+13. Rohöl einlagern oder zum nächsten Ziel transportieren.
+
+Die aktive Tätigkeit soll aus wenigen sinnvollen Arbeitsschritten bestehen. Sie wird nicht durch ständig wiederholte Zufallstasten künstlich verlängert.
+
+Förderung benötigt im MVP Anwesenheit am Standort. Vollständig unbeaufsichtigte Hintergrundförderung ist zunächst nicht vorgesehen. Stationäre Industrieproduktion in einer Raffinerie kann dagegen serverseitig im Hintergrund weiterlaufen.
+
+## 12.11 Berechnung von Fördermenge und Geschwindigkeit
+
+Ein Fördervorgang berücksichtigt:
+
+- Basisleistung des Förderpunkts;
+- Feldzustand;
+- Pumpenleistung;
+- Wartungszustand;
+- Bedienerfähigkeit;
+- mögliche Spezialisierung;
+- Zielbehälter und Anschluss;
+- Sicherheitsbegrenzung;
+- konfigurierbare Servermultiplikatoren.
+
+Fähigkeiten erzeugen keine Rohstoffe aus dem Nichts. Sie können innerhalb enger Grenzen:
+
+- Rüstzeit verkürzen;
+- sicheren Durchsatz erhöhen;
+- Verluste reduzieren;
+- Qualitätsfehler früher erkennen;
+- Verschleiß senken;
+- etwas mehr nutzbares Produkt aus demselben Kontingent gewinnen.
+
+Jede geförderte Menge reduziert dasselbe serverseitig reservierte Kontingent. Abbruch, Timeout und Neustart dürfen weder doppelte Mengen erzeugen noch bestätigte Mengen verlieren.
+
+## 12.12 Fördersitzung als Zustandsmaschine
+
+| Zustand | Bedeutung |
+|---|---|
+| `created` | Vorgang wurde angelegt |
+| `validated` | Rechte, Kapazität und Ausrüstung wurden geprüft |
+| `connected` | Förderpunkt und Zielbehälter sind verbunden |
+| `pumping` | Menge wird serverseitig fortgeschrieben |
+| `paused` | Vorgang ist sicher unterbrochen |
+| `completing` | Schlussmessung und Charge werden gebucht |
+| `completed` | Menge und Zustände sind endgültig bestätigt |
+| `aborted` | kontrollierter Abbruch mit bestätigter Teilmenge |
+| `failed` | Störung, Regelverstoß oder nicht auflösbarer Fehler |
+
+Zustandswechsel sind idempotent und werden mit einer Vorgangs-UUID protokolliert.
+
+## 12.13 Mobile Behälter und Tanktrailer
+
+Tanktrailer sind eigenständige persistente Fahrzeuge. Ein Trailer kann ein oder mehrere Abteile besitzen.
+
+Jedes Abteil besitzt:
+
+- Kapazität;
+- sichere maximale Füllmenge;
+- aktuellen Füllstand;
+- Produkt oder Leerstatus;
+- Warencharge beziehungsweise Mischcharge;
+- Restmenge;
+- Kontaminationsstatus;
+- Ventil- und Dichtungszustand;
+- Plombenstatus;
+- letzte Reinigung.
+
+Unverträgliche Produkte dürfen nicht ohne geeignete Reinigung eingefüllt werden. Ein Produktwechsel kann Reinigung, Entsorgung der Restmenge und einen dokumentierten Zustandswechsel verlangen.
+
+Das Gewicht der Ladung beeinflusst das Fahrzeuggewicht und kann später Fahrverhalten, Bremsweg und Verschleiß berücksichtigen. Im MVP werden mindestens zulässige Kapazität und Überladung serverseitig geprüft.
+
+## 12.14 Laden, Entladen und Flüssigkeitstransfer
+
+Jeder Flüssigkeitstransfer erfolgt zwischen zwei eindeutigen Quellen:
+
+- Förderpunkt zu Trailer;
+- Trailer zu Tanklager;
+- Tanklager zu Raffinerie;
+- Raffinerie zu Produkttank;
+- Produkttank zu Trailer;
+- Trailer zu Tankstelle;
+- Tankstelle zu Fahrzeug.
+
+Der Server führt für einen Transfer:
+
+- Quell- und Zielobjekt;
+- Quell- und Zielmessstand;
+- Produkt und Charge;
+- reservierte Maximalmenge;
+- tatsächlich bestätigte Menge;
+- Qualitätswert vor und nach Transfer;
+- Verluste im erlaubten Rahmen;
+- Bediener;
+- Auftrag und Vertrag;
+- Zeitpunkte;
+- Vorgangs-UUID.
+
+Die Menge wird nicht vom Client gesetzt. Der Client darf nur Start, Pause oder Ende anfragen und die serverseitigen Werte anzeigen.
+
+## 12.15 Plomben, Messstände und Liefernachweis
+
+Kommerzielle Transporte können beim Beladen eine digitale Plombe erhalten. Die Plombe verknüpft:
+
+- Trailer und Abteil;
+- Produkt;
+- Charge;
+- Ausgangsmenge;
+- Ausgangsqualität;
+- Beladeort;
+- Auftrag;
+- Zeitpunkt.
+
+Öffnen, Beschädigen oder Ersetzen einer Plombe wird protokolliert. Bei Ankunft werden Plombe, Messstand, Qualität und Menge verglichen.
+
+Abweichungen können zu folgenden Ergebnissen führen:
+
+- vollständige Annahme;
+- Teilannahme;
+- Preisabzug;
+- Quarantäne;
+- Ablehnung;
+- Vertragsstreit;
+- Verdachtsmeldung.
+
+## 12.16 Gefahrgut und Transportvoraussetzungen
+
+Je nach Produkt und Serverkonfiguration sind erforderlich:
+
+- passende Fahrerlaubnis;
+- Gefahrgutlizenz;
+- geeignete Zugmaschine;
+- zugelassener Tanktrailer;
+- funktionsfähige Ventile und Reifen;
+- erlaubte Füllmenge;
+- aktiver Liefer- oder Eigentumsnachweis.
+
+Es gibt keine erzwungene starre Route. Verträge können Zeitfenster, Zielort und optionale Kontrollpunkte definieren. Der Fahrer entscheidet grundsätzlich selbst über die Strecke und trägt das Risiko für Verspätung, Schaden oder Überfall.
+
+## 12.17 Tanklager und Depots
+
+Ein Tanklager ist eine `cnr_storage`-Anlage mit einem oder mehreren Tanks.
+
+Jeder Tank besitzt:
+
+- Produktfreigabe;
+- Gesamt- und Sicherheitskapazität;
+- aktuellen Füllstand;
+- reservierte Eingangs- und Ausgangsmenge;
+- Qualitäts- und Kontaminationsstatus;
+- Eigentümer und Betreiber;
+- Zugriffsrechte;
+- Pump- und Anschlussleistung;
+- Wartungszustand;
+- Ein- und Auslagerungsgebühr;
+- Alarm- und Sperrstatus.
+
+Ein Unternehmen kann Tanks besitzen oder Kapazität in einem fremden Depot mieten. Gemietete Kapazität und Warenbesitz bleiben getrennt.
+
+## 12.18 Lagergebühren und Kapazitätsmiete
+
+Mögliche Preismodelle:
+
+- feste Monatsmiete;
+- Preis pro reserviertem Liter;
+- Preis pro tatsächlich belegtem Liter;
+- Ein- und Auslagerungsgebühr;
+- Mindestlaufzeit;
+- Kaution;
+- Zusatzkosten für Gefahrgut, Kühlung oder Überwachung.
+
+Bei Vertragsende werden Waren nicht gelöscht. Sie werden gesperrt, in ein vereinbartes Ersatzlager überführt oder über einen geregelten Herausgabe- und Verwertungsprozess behandelt.
+
+## 12.19 Raffinerietypen
+
+### Öffentliche Raffinerie
+
+- staatlich oder systemseitig betrieben;
+- verarbeitet fremdes Rohöl gegen Gebühr;
+- besitzt begrenzte Kapazität;
+- nimmt Aufträge nach Priorität oder Buchung an;
+- dient als verlässlicher Einstieg für kleine Unternehmen.
+
+### Private Raffinerie
+
+- gehört einem Unternehmen oder wird langfristig gepachtet;
+- benötigt Grundstück, Anlage, Tanks, Betriebslizenz und Wartung;
+- kann eigene Waren verarbeiten;
+- kann Verarbeitung als Dienstleistung anbieten;
+- bestimmt Preise innerhalb wirtschaftlicher und regulatorischer Grenzen.
+
+### Lohnraffination
+
+Der Kunde bleibt Eigentümer des Rohöls und erhält die vertraglich vereinbarten Ausgangsprodukte. Der Raffineriebetreiber erhält eine Gebühr oder einen vereinbarten Produktanteil.
+
+## 12.20 Annahme von Rohöl
+
+Vor Annahme prüft die Raffinerie:
+
+1. Lieferauftrag und Berechtigung;
+2. Rohölprodukt und Charge;
+3. Plombe und Messstände;
+4. verfügbare Eingangskapazität;
+5. Qualitätsprofil;
+6. Kontamination;
+7. Eigentums- und Vertragsdaten;
+8. vereinbarte Mindest- und Höchstmengen.
+
+Rohöl kann angenommen, teilweise angenommen, in Quarantäne gestellt oder abgelehnt werden.
+
+Eine Laborprüfung erzeugt ein unveränderliches Qualitätsergebnis. Korrigierte Prüfungen ersetzen die Historie nicht, sondern werden als neue Messung mit Begründung gespeichert.
+
+## 12.21 Rezepturen und Massenerhaltung
+
+Raffinerierezepte sind versioniert und enthalten:
+
+- gültige Eingangsprodukte;
+- Qualitätsgrenzen;
+- Eingangsmenge;
+- Ausgangsprodukte und Verhältnisse;
+- erlaubte Verluste;
+- Nebenprodukte und Abfall;
+- benötigte Energie;
+- Hilfs- und Zusatzstoffe;
+- Maschinenanforderungen;
+- Grunddauer;
+- Qualitätsformeln;
+- Freigabestatus.
+
+Mengenverhältnisse werden ganzzahlig, beispielsweise in Anteilen pro Million, gespeichert. Ausgangsprodukte, Nebenprodukte und zulässige Verluste müssen zusammen zum Eingang passen. Rezepte dürfen keine unkontrollierte Warenvermehrung erzeugen.
+
+Ein laufender Produktionsauftrag behält seine Rezeptversion, auch wenn ein Administrator später eine neue Version veröffentlicht.
+
+## 12.22 Produktionsauftrag der Raffinerie
+
+Ein Auftrag enthält:
+
+- Auftrag-UUID;
+- Betreiber und Auftraggeber;
+- Raffinerie und Produktionslinie;
+- Rezeptversion;
+- Rohölcharge und reservierte Menge;
+- Eigentum an Ein- und Ausgängen;
+- Zielprodukttanks;
+- Energie- und Hilfsstoffreservierung;
+- Start- und Endzeit;
+- Priorität;
+- Gebühren;
+- aktuellen Zustand;
+- Ergebnis- und Verlustmengen.
+
+Vor dem Start reserviert der Server alle Eingänge und genügend Ausgangskapazität. Ohne vollständige Reservierung startet die Produktion nicht.
+
+## 12.23 Raffinerieablauf
+
+1. Rohöl annehmen und prüfen;
+2. Eingangscharge und Hilfsstoffe reservieren;
+3. freie Ausgangstanks reservieren;
+4. Produktionslinie vorbereiten;
+5. Auftrag starten;
+6. Energie, Rohstoffe und Maschinenzustand serverseitig fortschreiben;
+7. mögliche Störungen behandeln;
+8. Ausgangsmengen und Qualität berechnen;
+9. Produkte, Nebenprodukte und Abfall buchen;
+10. Ausgangschargen in reservierte Tanks einlagern;
+11. Gebühren, Löhne und Vertragserfüllung abrechnen;
+12. Produktions- und Auditbericht abschließen.
+
+## 12.24 Hintergrundproduktion und Neustarts
+
+Eine laufende Raffinerieproduktion darf ohne anwesenden Spieler weiterlaufen, sofern:
+
+- der Auftrag gestartet und vollständig reserviert wurde;
+- die Anlage betriebsbereit ist;
+- Energie und Hilfsstoffe vorhanden sind;
+- Ausgangskapazität reserviert bleibt;
+- keine Störung oder administrative Sperre vorliegt.
+
+Beim Serverneustart wird nicht jede vergangene Sekunde einzeln simuliert. Der Server berechnet den zulässigen Fortschritt anhand gespeicherter Zeitpunkte, Ressourcen, Maschinenzustände und Obergrenzen.
+
+Ein Auftrag kann niemals über die vorhandenen Eingänge, die Ausgangskapazität oder sein vertragliches Limit hinaus produzieren.
+
+## 12.25 Wartung, Verschleiß und Störungen
+
+Maschinen besitzen:
+
+- Zustand;
+- Verschleiß;
+- Wartungsintervall;
+- letzte Wartung;
+- Betriebsstunden;
+- Fehlerstatus;
+- benötigte Ersatzteile.
+
+Schlechter Zustand kann:
+
+- Produktion verlangsamen;
+- Energieverbrauch erhöhen;
+- Verlustmenge erhöhen;
+- Qualitätswert senken;
+- einen kontrollierten Stopp auslösen;
+- bei aktivierten erweiterten Störfällen ein Leck oder einen Brand verursachen.
+
+Wartung ist ein wirtschaftlicher Auftrag für Mechaniker oder spezialisierte Firmen und keine bloße Administrationsgebühr.
+
+## 12.26 Produktqualität und Mischung
+
+Ausgangsqualität hängt ab von:
+
+- Rohölqualität;
+- Rezept;
+- Maschinenzustand;
+- Bedienerfähigkeit bei beaufsichtigten Schritten;
+- Zusatzstoffen;
+- Störungen;
+- möglicher Kontamination.
+
+Produktchargen dürfen kontrolliert gemischt werden. Die neue Qualität wird serverseitig berechnet. Eine Mischung kann:
+
+- eine Zielqualität erreichen;
+- weiterhin verkaufsfähig bleiben;
+- nur noch als niedrige Qualität gelten;
+- in Quarantäne fallen;
+- als Abfall eingestuft werden.
+
+Premiumkraftstoff entsteht nicht durch Umbenennung, sondern durch eine passende Rezeptur oder zulässige Mischung mit entsprechenden Kosten.
+
+## 12.27 Nebenprodukte und Abfall
+
+Nebenprodukte können:
+
+- an andere Branchen verkauft;
+- in späteren Rezepten weiterverarbeitet;
+- gelagert;
+- exportiert;
+- fachgerecht entsorgt werden.
+
+Abfall benötigt ein geeignetes Lager und einen Entsorgungsnachweis. Einfaches Löschen ist nicht erlaubt. Illegale Entsorgung kann später Ermittlungen, Bußgelder und Umweltaufträge auslösen.
+
+Im MVP werden Nebenprodukt und Produktionsabfall bereits mengenmäßig geführt, auch wenn deren weitere Verarbeitung zunächst begrenzt ist.
+
+## 12.28 Großhandel und Lieferverträge
+
+Raffinerien, Depots und Tankstellen können:
+
+- einmalige Kaufangebote;
+- Rahmenverträge;
+- Abrufaufträge;
+- Mindestabnahmemengen;
+- Preisformeln;
+- Qualitätsanforderungen;
+- Lieferzeitfenster;
+- Vertragsstrafen;
+- Transport inklusive oder ab Werk
+
+vereinbaren.
+
+Der Preis kann fest, indexiert oder bei jedem Abruf neu angeboten werden. Jeder Abruf erzeugt einen konkreten Auftrag mit reservierter Ware und Zielkapazität.
+
+## 12.29 Tankstellen als Unternehmen und Anlage
+
+Eine Tankstelle besteht aus:
+
+- Grundstück und Gebäude;
+- Betreiberunternehmen;
+- Betriebslizenz;
+- einem oder mehreren unterirdischen Tanks;
+- Zapfsäulen;
+- Zapfpistolen;
+- Verkaufs- und Preiskonfiguration;
+- Kassen- oder Bankkonto;
+- Bestellregeln;
+- Mitarbeitern und Zugriffsrechten;
+- optionalem Shop und weiteren Diensten.
+
+Eigentümer, Betreiber und Kraftstoffeigentümer können unterschiedliche Parteien sein. Eine Tankstelle kann gekauft, gepachtet oder durch einen staatlichen Betreiber geführt werden.
+
+## 12.30 Produkttanks, Zapfsäulen und Zapfpistolen
+
+Jeder Tankstellen-Tank führt:
+
+- zugelassenes Produkt;
+- Kapazität und Sicherheitsreserve;
+- verfügbaren und reservierten Bestand;
+- Charge und Qualität;
+- Mindestbestand;
+- Bestellschwelle;
+- Leckage- und Wartungsstatus.
+
+Jede Zapfpistole ist genau einer Produktleitung beziehungsweise einem Tank zugeordnet. Die sichtbare Beschriftung allein entscheidet nicht über das Produkt.
+
+Eine Zapfsäule besitzt:
+
+- Weltobjekt-UUID;
+- Pumpennummer;
+- zugeordnete Zapfpistolen;
+- Preisdisplay;
+- Zählerstand;
+- Betriebs- und Sperrstatus;
+- maximale gleichzeitige Sitzung.
+
+## 12.31 Kraftstoffarten und Fahrzeuge
+
+Eine Fahrzeugdefinition legt fest:
+
+- Kraftstoffart;
+- Tankkapazität;
+- aktuellen Füllstand;
+- grundlegenden Verbrauch;
+- erlaubte Kraftstoffe;
+- optionale Qualitätsanforderung.
+
+Im MVP werden mindestens Benzin und Diesel unterschieden. Fahrzeuge ohne Kraftstoffsystem und spätere Elektrofahrzeuge werden separat behandelt.
+
+Falschbetankung wird im MVP durch die serverseitige Produktverträglichkeit verhindert. Ein erweitertes Fehlbetankungs- und Schadenssystem kann später ergänzt werden.
+
+## 12.32 Tankvorgang
+
+Vor Beginn prüft der Server:
+
+1. Spieler, Fahrzeug, Zapfsäule und Entfernung;
+2. Fahrzeugzugriff;
+3. Kraftstoffverträglichkeit;
+4. freie Fahrzeugtankkapazität;
+5. verfügbaren Tankstellenbestand;
+6. gültigen Preis;
+7. gewählte Zahlungsart und Deckung;
+8. freie Zapfsäule und nicht gesperrte Anlage.
+
+Der Preis wird für die Sitzung als Momentaufnahme eingefroren. Der Betreiber kann einen laufenden Tankvorgang nicht durch eine Preisänderung verteuern.
+
+Bei Kontozahlung wird ein Maximalbetrag reserviert und nach Abschluss exakt abgerechnet. Bei Bargeldzahlung wird ein Betrag vorausbezahlt; nicht verbrauchtes Guthaben wird nachvollziehbar zurückgegeben.
+
+Der Server schreibt Menge und Preis schrittweise oder in sicheren Intervallen fort. Der Client stellt Zapfschlauch, Animation, Anzeige und Eingabe dar, bestimmt jedoch weder Liter noch Endpreis.
+
+## 12.33 Abschluss eines Tankvorgangs
+
+Beim Abschluss werden atomar:
+
+- Kraftstoffbestand der Tankstelle reduziert;
+- Fahrzeugfüllstand erhöht;
+- reservierter Betrag abgerechnet;
+- Umsatz auf das Betreiberkonto gebucht;
+- Steuer und mögliche Gebühren gebucht;
+- Pumpenzähler aktualisiert;
+- Warencharge verknüpft;
+- Beleg und Auditvorgang erstellt.
+
+Abbruch, Verbindungsverlust und Serverneustart verwenden den letzten serverseitig bestätigten Stand. Dieselbe Tankvorgangs-UUID kann nicht doppelt abgerechnet werden.
+
+## 12.34 Preisbildung an Tankstellen
+
+Der Tankstellenbetreiber bestimmt seine Verkaufspreise. Der Server kann konfigurierbare Leitplanken verwenden:
+
+- absoluter Mindestpreis;
+- absoluter Höchstpreis;
+- maximale Änderung pro Zeitfenster;
+- Steueranteil;
+- Preisuntergrenze für staatlich subventionierte Ware;
+- Schutz vor versehentlichen Extremwerten.
+
+Der Marktpreis entsteht vor allem aus:
+
+- Einkaufspreis;
+- Transportkosten;
+- Lager- und Betriebskosten;
+- Löhnen;
+- Steuern;
+- Verlusten;
+- lokaler Konkurrenz;
+- Bestand und Nachfrage;
+- gewünschter Marge.
+
+Preisänderungen werden historisiert. Verdeckte oder rückwirkende Preisänderungen sind nicht möglich.
+
+## 12.35 Bestellregeln und Nachversorgung
+
+Eine Tankstelle kann:
+
+- manuell bestellen;
+- einen bestehenden Liefervertrag abrufen;
+- bei einer Bestellschwelle automatisch einen Abrufauftrag erzeugen;
+- Angebote auf dem Marktplatz einholen;
+- in einer Versorgungskrise begrenzte Notversorgung beantragen.
+
+Eine automatische Bestellung reserviert nicht unkontrolliert Geld. Sie besitzt:
+
+- freigegebenes Budget;
+- maximale Menge;
+- erlaubte Lieferanten;
+- Qualitätsminimum;
+- Höchstpreis;
+- Mindestabstand zwischen Bestellungen;
+- zuständige Freigaberolle.
+
+## 12.36 Begrenzte NPC-Notversorgung
+
+NPC-Notversorgung verhindert einen dauerhaft unspielbaren Server, ersetzt aber nicht die Spielerwirtschaft.
+
+Sie ist:
+
+- deutlich teurer als eine normale Spielerlösung;
+- mengenmäßig begrenzt;
+- mit Abklingzeit versehen;
+- nur bei tatsächlichem Versorgungsmangel verfügbar;
+- vollständig protokolliert;
+- nicht frei weiterverkaufbar, wenn dadurch sichere Arbitrage entstehen würde.
+
+Die Notversorgung kann als Import vom Hafen oder als staatliche Reserve dargestellt werden. Auch sie erzeugt einen realen Lieferauftrag; eine sofortige magische Tankfüllung ist nur als ausdrücklich aktivierbarer administrativer Notfallmodus vorgesehen.
+
+## 12.37 Begrenzter Exportmarkt
+
+Ein Exportterminal kann überschüssige Waren in begrenzter Menge ankaufen. Dadurch bleibt die Kette bei geringer Spielerzahl funktionsfähig.
+
+Der Export:
+
+- besitzt zeitabhängige Mengenlimits;
+- zahlt normalerweise weniger als der lokale Markt;
+- verwendet dynamische Preise;
+- verlangt echte Lieferung;
+- akzeptiert nur definierte Qualität;
+- verhindert unbegrenztes Verkaufen an das System.
+
+Import und Export dürfen keine garantierte Preisdifferenz erzeugen, mit der ohne Spielerbedarf dauerhaft Geld vervielfacht werden kann.
+
+## 12.38 Wirtschaftliche Quellen und Senken
+
+Einnahmen entstehen unter anderem durch:
+
+- Verkauf von Rohöl;
+- Raffineriedienstleistungen;
+- Produktverkauf;
+- Transporte;
+- Lagervermietung;
+- Tankstellenumsätze;
+- Wartungsleistungen;
+- begrenzten Export.
+
+Kosten und Geldsenken:
+
+- Förderrechte und Konzessionen;
+- Fahrzeug- und Ausrüstungsmiete;
+- Kautionen und Finanzierung;
+- Energie;
+- Wartung und Ersatzteile;
+- Lagergebühren;
+- Löhne;
+- Kraftstoff für Transporte;
+- Zusatzstoffe;
+- Versicherungen;
+- Steuern und Lizenzen;
+- Produktverluste;
+- Entsorgung;
+- Vertragsstrafen.
+
+Jede Kostenart soll eine spielerische oder regulierende Funktion besitzen. Gebühren werden nicht nur eingeführt, um Geld willkürlich zu vernichten.
+
+## 12.39 Fähigkeiten, Ruf und Lizenzen
+
+Relevante Fähigkeiten:
+
+- Rohstoffförderung;
+- Industrieanlagenbedienung;
+- Tankerlogistik;
+- Raffination;
+- Qualitätsprüfung;
+- Tankstellenbetrieb.
+
+Mögliche Spezialisierungen:
+
+- schneller Anlagenaufbau;
+- materialschonende Förderung;
+- sichere Hochleistungsförderung;
+- energieeffiziente Raffination;
+- Qualitätsmischung;
+- verlustarmes Be- und Entladen;
+- vorbeugende Wartung.
+
+Relevanter Ruf:
+
+- Ölfeldbetreiber;
+- Raffinerien;
+- Gefahrgutlogistik;
+- Kraftstoffgroßhandel;
+- staatliche Aufsicht.
+
+Mögliche Lizenzen:
+
+- Förderlizenz;
+- Anlagenbedienberechtigung;
+- Gefahrguttransport;
+- Raffineriebetrieb;
+- Tankstellenbetrieb;
+- Abfall- und Gefahrstoffhandhabung.
+
+Fähigkeit ersetzt keine rechtliche Lizenz. Lizenz ersetzt keine tatsächliche Erfahrung.
+
+## 12.40 Unfälle, Leckagen und Brände
+
+Mögliche Störfälle:
+
+- defekte Pumpe;
+- beschädigtes Ventil;
+- Leck am Trailer;
+- verunreinigter Tank;
+- überfüllter Behälter;
+- Raffineriestörung;
+- Brand;
+- Explosion bei schweren Regelverstößen;
+- verschütteter Kraftstoff.
+
+Störfälle werden serverseitig ausgelöst und begrenzt. Sie dürfen nicht als einfaches Werkzeug für massenhaftes Griefing dienen.
+
+Im MVP sind Wartungsstopp, Qualitätsverlust, kontrollierte Leckage und Alarmierung vorgesehen. Umfangreiche Feuer-, Umwelt- und Dekontaminationssimulationen folgen später.
+
+## 12.41 Kriminalität und Ermittlungsansätze
+
+Der Ölkreislauf bietet Cops-&-Robbers-Anknüpfungspunkte:
+
+- Überfall auf einen Tanktransport;
+- Diebstahl aus Tank oder Trailer;
+- Aufbrechen einer digitalen Plombe;
+- Verkauf gestohlener Ware;
+- gepanschter Kraftstoff;
+- manipulierte Lieferpapiere;
+- Sabotage;
+- illegale Entsorgung;
+- Betrieb ohne Lizenz;
+- Bestechung und Vertragsbetrug.
+
+Kriminelle Aktionen benötigen eigene Regeln, Risiken, Werkzeuge und Abnehmer. Eine normale Ladefunktion darf nicht durch einen simplen Clientevent zum Diebstahl umfunktioniert werden.
+
+Mögliche Beweise:
+
+- beschädigte Plombe;
+- Werkzeugspuren;
+- Fingerabdrücke;
+- Kameraaufnahmen;
+- Fahrzeug- und Kennzeichendaten;
+- GPS- oder Messprotokolle;
+- veränderte Qualitätsprobe;
+- Abweichung zwischen Lade- und Liefermenge;
+- Vertrags- und Bankspuren.
+
+Die genaue Ausgestaltung wird im späteren Kriminalitäts- und Polizeikapitel festgelegt.
+
+## 12.42 Dynamische Erstellung und Konfiguration
+
+Administratoren können im Ingame-Editor als Entwurf erstellen:
+
+- Ölfelder und Feldzonen;
+- Förderpunkte;
+- Ausrüstungs-Spawnpunkte;
+- Tanklager;
+- einzelne Tanks und Anschlüsse;
+- öffentliche oder private Raffinerien;
+- Produktionslinien;
+- Tankstellen;
+- Produkttanks;
+- Zapfsäulen und Zapfpistolen;
+- Lade- und Entladezonen;
+- Import- und Exportterminals.
+
+Konfigurierbar sind unter anderem:
+
+- Kontingente und Erholungsraten;
+- Qualitätsprofile;
+- Fördergeschwindigkeiten;
+- Miet- und Lizenzkosten;
+- Behälterkapazitäten;
+- Produktverträglichkeit;
+- Rezeptversionen;
+- Produktionsdauer und Energiebedarf;
+- zulässige Verluste;
+- Bestellschwellen;
+- Preisleitplanken;
+- Notversorgungs- und Exportlimits;
+- Störfallwahrscheinlichkeiten;
+- Fähigkeits- und Rufanforderungen.
+
+Änderungen durchlaufen Entwurf, Validierung, Vorschau und Veröffentlichung. Bereits laufende Verträge, Chargen und Produktionsaufträge behalten ihre gültigen Versionen.
+
+## 12.43 Validierung beim Veröffentlichen
+
+Vor der Veröffentlichung prüft der Editor mindestens:
+
+- eindeutige UUIDs;
+- gültige Zonen und Routing-Bucket-Regeln;
+- erreichbare Interaktionspunkte;
+- positive und plausible Kapazitäten;
+- vollständig zugeordnete Produkte;
+- kompatible Tank- und Leitungsverbindungen;
+- vollständige Rezeptbilanzen;
+- existierende Eingangs- und Ausgangslager;
+- gültige Konten und Betreiber;
+- nicht überlappende aktive Zapfsäuleninteraktionen;
+- Preis-, Kontingent- und Zeitgrenzen;
+- referenzierte Lizenzen und Berechtigungen.
+
+Fehlerhafte Konfigurationen bleiben Entwürfe und werden nicht live geschaltet.
+
+## 12.44 Geplante Datenbanktabellen
+
+Branchenspezifisch vorgesehen:
+
+- `cnr_resource_fields`
+- `cnr_resource_field_nodes`
+- `cnr_extraction_rights`
+- `cnr_extraction_equipment`
+- `cnr_extraction_sessions`
+- `cnr_extraction_meter_readings`
+- `cnr_bulk_transfer_sessions`
+- `cnr_bulk_transfer_events`
+- `cnr_batch_quality_results`
+- `cnr_tank_compartments`
+- `cnr_tank_seals`
+- `cnr_tank_cleaning_events`
+- `cnr_fuel_stations`
+- `cnr_fuel_station_tanks`
+- `cnr_fuel_pumps`
+- `cnr_fuel_nozzles`
+- `cnr_fuel_prices`
+- `cnr_fuel_price_history`
+- `cnr_fueling_sessions`
+- `cnr_station_reorder_rules`
+- `cnr_emergency_supply_orders`
+- `cnr_export_market_windows`
+
+Wiederverwendet werden insbesondere:
+
+- Warenchargen und Inventare aus `cnr_inventory`;
+- Lagerorte und Bewegungen aus `cnr_storage`;
+- Anlagen, Maschinen, Rezepte und Produktionsaufträge aus `cnr_facilities`;
+- Fahrzeuge, Trailer und Zustände aus `cnr_vehicles`;
+- Mietverträge aus `cnr_rentals`;
+- Firmen und Mitarbeiter aus `cnr_businesses` und `cnr_employment`;
+- Verträge und Aufträge aus `cnr_contracts`;
+- Zahlungen und Reservierungen aus `cnr_banking`.
+
+## 12.45 Serverautorisierte Regeln
+
+- Kein Client bestimmt Produktmenge, Qualität, Verkaufspreis oder Auszahlung.
+- Jede Flüssigkeitsbewegung besitzt Quelle, Ziel und Vorgangs-UUID.
+- Quellmenge, Zielkapazität und Produktverträglichkeit werden in derselben Transaktion geprüft.
+- Reservierte Ware kann nicht gleichzeitig verkauft, verarbeitet und ausgeliefert werden.
+- Jede Charge besitzt nachvollziehbare Herkunft.
+- Kein Produktionsauftrag startet ohne reservierte Eingänge und Ausgänge.
+- Rezeptversionen sind nach Produktionsstart unveränderlich.
+- Fahrzeug, Trailer, Tank, Zapfsäule und Anlage werden über dauerhafte UUIDs identifiziert.
+- Entfernung, Routing Bucket, Zugriffsrecht, Vertrag und Zustand werden serverseitig geprüft.
+- Preis und Steuer eines Tankvorgangs werden zu Beginn eingefroren.
+- Ein Vorgang kann durch Wiederholung derselben Anfrage nicht doppelt auszahlen oder buchen.
+- Neustartwiederherstellung verwendet den letzten bestätigten Zustand.
+- Administrative Korrekturen erfolgen als protokollierte Gegenbewegung, nicht durch Löschen.
+
+## 12.46 Überwachung und Economy-Kennzahlen
+
+Für Balancing und Fehlersuche werden aggregiert:
+
+- geförderte Menge pro Feld und Zeitraum;
+- durchschnittliche Rohölqualität;
+- Raffinerieauslastung;
+- Produktionsverluste;
+- Bestände pro Depot und Tankstelle;
+- offene Lieferaufträge;
+- durchschnittliche Groß- und Einzelhandelspreise;
+- regionale Versorgungsreichweite;
+- Notversorgungsquote;
+- Exportmenge;
+- Transportverluste;
+- Anzahl abgebrochener oder fehlerhafter Vorgänge;
+- Geldflüsse zwischen Spielern, Unternehmen und Systemkonten.
+
+Die Kennzahlen dienen der kontrollierten Anpassung. Balancingänderungen werden versioniert und nicht heimlich rückwirkend auf abgeschlossene Vorgänge angewendet.
+
+## 12.47 Minimal Viable Product des Ölkreislaufs
+
+Im ersten spielbaren MVP enthalten:
+
+- mindestens ein staatliches Ölfeld mit mehreren Förderpunkten;
+- Förderauftrag und begrenztes Förderkontingent;
+- eigene oder gemietete Zugmaschine;
+- eigener oder gemieteter Tanktrailer;
+- aktive serverseitige Förderung;
+- Rohölcharge mit Qualität und Herkunft;
+- Tankabteile und Flüssigkeitstransfers;
+- mindestens ein Tankdepot;
+- öffentliche Raffinerie;
+- versioniertes Grundrezept;
+- Benzin, Diesel, Nebenprodukt und Abfall;
+- neustartsichere Produktionsaufträge;
+- Transportauftrag zur Tankstelle;
+- Tankstellen-Tanks, Zapfsäulen und dynamische Bestände;
+- Betreiberpreise mit Leitplanken;
+- serverseitiger Tankvorgang;
+- manuelle und schwellenbasierte Nachbestellung;
+- teure begrenzte Notversorgung;
+- begrenzter Exportmarkt;
+- grundlegende Fähigkeiten, Lizenzen und Ruf;
+- Wartungszustände;
+- vollständige Finanz-, Waren- und Auditspur;
+- Erstellung der Standorte über den Ingame-Editor.
+
+## 12.48 Spätere Ausbaustufen
+
+- private Förderkonzessionen und Auktionen;
+- mehrere Rohölsorten und tiefere Chemiesimulation;
+- zusätzliche Raffineriestufen und Produktlinien;
+- Kerosin, Heizöl, Schmierstoffe und Bitumen;
+- komplexes Blending;
+- vollständige Labortätigkeit;
+- freie Raffinerieerweiterungen und Bauprojekte;
+- Rohrleitungen und Pipelines;
+- Schiffs- und Bahntransporte;
+- umfassende Umwelt- und Dekontaminationssysteme;
+- dynamische Großschadenslagen;
+- tiefere Versicherungen;
+- komplexe Schmuggel- und Panschmechaniken;
+- Strom- und Wassernetzabhängigkeit;
+- Elektro-Ladeinfrastruktur.
+
+## 12.49 Referenzablauf
+
+Ein vollständiger wirtschaftlicher Vorgang:
+
+1. Eine Tankstelle unterschreitet ihren Diesel-Mindestbestand.
+2. Ihre Bestellregel erzeugt einen Abrufauftrag innerhalb des freigegebenen Budgets.
+3. Ein Raffineriebetreiber bestätigt Menge, Qualität und Preis.
+4. Fehlt Produkt, startet die Raffinerie einen Produktionsauftrag.
+5. Rohöl und Ausgangstanks werden reserviert.
+6. Ein Förderunternehmen erhält einen Rohölauftrag.
+7. Ein Fahrer mietet Zugmaschine und Tanktrailer.
+8. Das Team fördert eine nachvollziehbare Rohölcharge.
+9. Die Charge wird verplombt zur Raffinerie transportiert.
+10. Die Raffinerie nimmt sie nach Messung und Qualitätsprüfung an.
+11. Der Produktionsauftrag erzeugt Diesel, weitere Produkte, Nebenprodukt und Abfall.
+12. Diesel wird für den Tankstellenauftrag reserviert.
+13. Ein Gefahrgutfahrer lädt die Charge und erhält einen Liefernachweis.
+14. Die Tankstelle prüft Plombe, Menge und Qualität.
+15. Der Diesel wird in den zugeordneten Tank übertragen.
+16. Vertrag, Fahrer, Lieferant und gegebenenfalls Lager werden bezahlt.
+17. Ein Spieler tankt sein Dieselfahrzeug.
+18. Der Bestand sinkt, der Umsatz wird gebucht und der nächste Bedarf entsteht.
+
+Damit entsteht ein geschlossener Kreislauf zwischen tatsächlicher Nachfrage, Spielerarbeit, Unternehmen und Verbrauch.
+
+## 12.50 Abnahmekriterien für das spätere Scripting
+
+Der Öl-MVP gilt fachlich als funktionsfähig, wenn:
+
+- der gesamte Referenzablauf ohne administrative Waren- oder Geldgabe spielbar ist;
+- jede Menge und Zahlung bis zur Quelle zurückverfolgt werden kann;
+- kein Neustart eine bestätigte Menge dupliziert oder löscht;
+- zwei Spieler nicht dieselbe reservierte Ware gleichzeitig verwenden können;
+- falsche Fahrzeuge, Produkte, Rechte oder Behälter abgewiesen werden;
+- kleine Spielergruppen öffentliche Infrastruktur nutzen können;
+- größere Unternehmen eigene Teile der Kette betreiben können;
+- leere Tankstellen durch Spielerlieferungen wieder versorgt werden;
+- die Notversorgung selten und wirtschaftlich unattraktiv bleibt;
+- alle Standorte und Kernwerte ohne Codeänderung konfigurierbar sind;
+- Fähigkeiten spürbar helfen, aber keine unkontrollierten Ertragsmultiplikatoren erzeugen;
+- legale Arbeit, wirtschaftlicher Wettbewerb und kriminelle Risiken miteinander verbunden sind.
 
 ---
 
@@ -5117,9 +6209,163 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Produktionsanlage | getrennt von Grundstück, Gebäude und Lager |
 | Produktion | serverseitig, versioniert und nur mit reservierten Eingängen |
 | Hintergrundproduktion | möglich, aber durch Ressourcen, Kapazität und Wartung begrenzt |
+| Flüssigkeitsmenge | ganzzahlige Basiseinheit in Millilitern mit `BIGINT`, Anzeige in Litern |
+| Rohstofffelder | begrenzte Kontingente mit konfigurierbaren Erholungszyklen |
+| aktive Förderung | im MVP nur mit Anwesenheit am Standort |
+| Produktbilanz | Produktion erhält Mengenbilanz aus Produkten, Nebenprodukten und Verlusten |
+| Flüssigkeitstransfer | immer zwischen eindeutiger Quelle und eindeutigem Ziel |
+| Tanktrailer | persistente Abteile mit Kapazität, Produkt, Charge, Zustand und Plombe |
+| Kraftstoffarten | im MVP mindestens Benzin und Diesel |
+| Tankstellenpreise | Betreiberpreis innerhalb konfigurierbarer Leitplanken |
+| Preis während Tankvorgang | wird beim Start eingefroren |
+| Notversorgung | teuer, begrenzt, bedarfsabhängig und grundsätzlich als Lieferung |
+| Exportmarkt | mengenbegrenzt und normalerweise unattraktiver als lokaler Handel |
+| öffentliche Industrie | Ölfeld und Raffinerie ermöglichen kleinen Betreibern den Einstieg |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
+---
+
+# 18. Planungsreife und Coding-Start
+
+## 18.1 Aktueller Stand
+
+Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortgeschritten. Detailliert geplant sind:
+
+- Servervision und Entwicklungsroadmap;
+- Standalone-Modularchitektur;
+- Accounts, Sitzungen, Charaktere und Identität;
+- Datenbankgrundsätze;
+- Items und Inventare;
+- Bargeld, Konten und doppeltes Hauptbuch;
+- Fähigkeiten, Ruf und Lizenzen;
+- Fahrzeuge, Trailer, Miete und Garagen;
+- Unternehmen, Mitarbeiter, Verträge und Aufträge;
+- Grundstücke, Immobilien, Lager und Produktionsanlagen;
+- ein vollständiger Öl- und Kraftstoffkreislauf als Referenzbranche;
+- grundlegende Admin-, UI- und Sicherheitsprinzipien.
+
+Damit steht die RP- und Economy-Grundlage. Das Gesamtprojekt ist jedoch noch nicht bereit für einen ungebremsten Start aller Gameplay-Ressourcen, weil der namensgebende Cops-&-Robbers-Kern bisher nur auf Übersichtsebene definiert ist.
+
+## 18.2 Noch notwendige Konzeptpakete vor dem Coding
+
+### Paket A – Cops-&-Robbers-Kern
+
+Vollständig zu planen sind:
+
+- Arten legaler und illegaler Konflikte;
+- Überfall- und Raubabläufe;
+- Planung, Durchführung, Flucht und Verwertung;
+- Polizei, Dienst, Leitstelle und Einsatzablauf;
+- Ermittlungen und Beweiskette;
+- Durchsuchung, Beschlagnahme und Asservate;
+- Festnahme, Haft und Fahndung;
+- Schutz vor Deathmatch, Farming und Meta-Gaming;
+- Offline-, Cooldown- und Mindestpolizei-Regeln;
+- fairer Risiko-, Belohnungs- und Eskalationsrahmen.
+
+### Paket B – Allgemeines Job- und Aktivitätsmodell
+
+Der Ölzweig ist die Referenz für komplexe Industrie. Zusätzlich benötigt der Core eine gemeinsame Definition für:
+
+- Jobangebote;
+- Schichten und Dienststatus;
+- Aufgaben und Arbeitsschritte;
+- Solo-, Gruppen- und Firmenaufträge;
+- plausible Fortschrittsmessung;
+- Abbruch und Wiederaufnahme;
+- Vergütung aus Auftrag, Firma oder Staatskonto;
+- Anti-AFK- und Anti-Farming-Regeln;
+- Wiederverwendung für weitere legale Berufe.
+
+### Paket C – Technischer Implementierungsrahmen
+
+Vor dem ersten produktiven Resource-Code werden verbindlich entschieden:
+
+- Server- und Client-Skriptsprache;
+- NUI-Technologie;
+- Datenbanktreiber;
+- Migrationen und Seed-Daten;
+- Resource-Startreihenfolge und Abhängigkeiten;
+- interne Exports, Callbacks und Eventkonventionen;
+- Fehlerformat und Übersetzungen;
+- Konfigurations- und Versionsformat;
+- Logging, Auditierung und Metriken;
+- automatisierte Tests;
+- Development-, Staging- und Production-Ablauf;
+- Backup, Wiederherstellung und Deployment.
+
+### Paket D – Verbindlicher MVP-Schnitt
+
+Für jedes System wird festgelegt:
+
+- im ersten spielbaren Build enthalten;
+- nur als einfache Grundversion enthalten;
+- ausdrücklich später;
+- Abhängigkeiten;
+- Abnahmekriterien;
+- Testfälle;
+- benötigte Inhalte und Kartenobjekte.
+
+Das verhindert, dass beim Scripting gleichzeitig ein Core, eine vollständige Wirtschaft, alle Jobs, alle Verbrechen und ein Control Panel fertiggestellt werden sollen.
+
+## 18.3 Empfohlener Zeitpunkt für den Coding-Start
+
+Der Coding-Start wird nach Abschluss der vier Konzeptpakete A bis D empfohlen.
+
+Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kann beginnen, sobald:
+
+- der MVP-Umfang verbindlich feststeht;
+- der Cops-&-Robbers-Hauptablauf definiert ist;
+- der technische Stack entschieden ist;
+- Modulgrenzen und zentrale Datenverträge widerspruchsfrei sind;
+- Sicherheits- und Transaktionsregeln feststehen;
+- mindestens ein legaler und ein illegaler vertikaler Testablauf beschrieben sind.
+
+Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Branchen und Zusatzinhalte weiter geplant werden.
+
+## 18.4 Empfohlene erste vertikale Abläufe
+
+### Legaler Ablauf
+
+1. Spieler verbindet sich und meldet sich an.
+2. Spieler erstellt oder lädt einen Charakter.
+3. Charakter erhält Konto, Inventar und notwendige Startberechtigungen.
+4. Spieler nimmt einen Förder- oder Transportauftrag an.
+5. Spieler mietet Zugmaschine und Tanktrailer.
+6. Rohöl wird gefördert, verarbeitet und an eine Tankstelle geliefert.
+7. Ein anderer Spieler tankt ein Fahrzeug.
+8. Waren-, Vertrags- und Geldspur ist vollständig nachvollziehbar.
+
+### Illegaler Ablauf
+
+Der genaue Ablauf wird mit Paket A festgelegt. Er soll mindestens verbinden:
+
+- vorbereitetes Verbrechen;
+- serverseitiges Ziel und Beute;
+- Alarmierung oder Entdeckungsrisiko;
+- Polizeireaktion;
+- Flucht und Fahndung;
+- physische illegale Ware;
+- Beweise;
+- Verwertung oder Beschlagnahme;
+- finanzielle Buchung und Auditspur.
+
+## 18.5 Definition of Ready für das Repository
+
+Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
+
+- freigegebene MVP-Matrix;
+- freigegebene Modul- und Abhängigkeitskarte;
+- Namens- und Eventkonventionen;
+- technische Stackentscheidung;
+- Migrationsstrategie;
+- lokale Entwicklungsanleitung;
+- Teststrategie;
+- Sicherheitscheckliste;
+- Konfigurations- und Secret-Konzept;
+- Akzeptanzabläufe für die ersten vertikalen Schnitte.
+
 ## Nächster Planungsschritt
 
-Als Nächstes wird der vollständige Öl-, Raffinerie-, Kraftstoff- und Tankstellenkreislauf im Detail geplant. Dazu gehören Förderung, Pumpen, Rohölqualität, Tanklager, Verarbeitung, Rezepturen, Nebenprodukte, Lieferverträge, Preisbildung, Tankstellenbestände, Gefahrgut und Störfälle.
+Als Nächstes wird Paket A, der vollständige Cops-&-Robbers-Kern, geplant. Begonnen wird mit dem gemeinsamen Lebenszyklus eines Verbrechens von Vorbereitung und Zielauswahl über Durchführung, Alarmierung und Flucht bis zu Beweisen, Ermittlungen, Festnahme, Beuteverwertung und langfristigen Folgen.
