@@ -7738,32 +7738,1582 @@ Der Cops-&-Robbers-MVP gilt fachlich als funktionsfähig, wenn:
 
 ---
 
-# 14. Weitere geplante Systeme
+# 14. Allgemeines Job- und Aktivitätsmodell
 
-## 14.1 Legale Berufe
+Das Job- und Aktivitätsmodell stellt eine gemeinsame Grundlage für legale Berufe, öffentliche Dienste, Firmenaufträge und selbstständige Tätigkeiten bereit. Fachliche Arbeit bleibt in den zuständigen Modulen. Das Jobmodul koordiniert Angebot, Berechtigung, Teilnehmer, Reservierungen, Fortschritt und Abrechnung.
 
-- Öl-Farmer
-- LKW-Fahrer
-- Kraftstofflieferant
-- Lagerarbeiter
-- Gabelstaplerfahrer
-- Hafenarbeiter
-- Raffineriemitarbeiter
-- Abschleppdienst
-- Mechaniker
-- Müllentsorgung und Recycling
-- Bergbau
-- Holzfällerei
-- Landwirtschaft
-- Fischerei
-- Taxi und Bus
-- Polizei, Feuerwehr und Rettungsdienst
-- Justiz und Stadtverwaltung
-- Immobilienmakler
-- Sicherheitsdienst
-- Anwalt und Journalist
+Ein Beruf besteht nicht nur aus einem sichtbaren Jobnamen. Anstellung, Schicht, Auftrag, Aktivität und einzelner Arbeitsschritt sind getrennte Objekte.
 
-Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
+## 14.1 Leitprinzipien
+
+- Arbeit erzeugt einen tatsächlichen Nutzen oder erfüllt einen nachvollziehbaren Auftrag.
+- Vergütung stammt aus einem Unternehmen, Kunden-, Staats- oder kontrollierten Systemkonto.
+- Das Fahren zu Markern allein gilt nicht automatisch als Arbeitsleistung.
+- Fachmodule bestätigen Warenbewegung, Reparatur, Produktion oder Diensthandlung.
+- Jobangebote besitzen eine Quelle, ein Budget, Anforderungen und eine Ablaufzeit.
+- Solo- und Gruppenarbeit verwenden denselben Kern.
+- Fortschritt richtet sich nach tatsächlichem Beitrag.
+- Pausen, Abbruch, Disconnect und Neustart sind definierte Zustände.
+- Ein Job darf keine Gegenstände, Fahrzeuge oder Geld am Fachmodul vorbei erzeugen.
+- Wiederverwendbare Aktivitätsschritte ersetzen keine fachliche Serverprüfung.
+
+## 14.2 Verantwortliche Module
+
+### `cnr_jobs`
+
+Verantwortet:
+
+- Jobdefinitionen;
+- Jobangebote;
+- Zuweisungen;
+- Teilnehmer und Rollen;
+- Arbeits- und Dienstsitzungen;
+- Aktivitätsinstanzen;
+- Arbeitsschritte;
+- Beitragsmessung;
+- Budget- und Assetreservierungen;
+- Abrechnungsvorbereitung;
+- Job-Cooldowns;
+- Anti-Farming-Signale.
+
+### `cnr_employment`
+
+Verantwortet:
+
+- Arbeitsverhältnisse;
+- Arbeitgeber und Position;
+- arbeitsvertragliche Rollen;
+- Lohnmodelle;
+- Arbeitszeitfreigabe;
+- Kündigung und Suspendierung.
+
+### `cnr_contracts`
+
+Verantwortet:
+
+- Dienstleistungs- und Rahmenverträge;
+- konkrete Aufträge;
+- Meilensteine;
+- Auftraggeber und Auftragnehmer;
+- Abnahme;
+- Streitstatus.
+
+### `cnr_marketplace`
+
+Verantwortet:
+
+- öffentliche und private Jobangebote;
+- Ausschreibungen;
+- Angebote;
+- Sichtbarkeit;
+- Vergabe.
+
+### `cnr_progression`
+
+Verantwortet:
+
+- Fähigkeiten;
+- Erfahrung;
+- Spezialisierungen;
+- Anti-Farming-Regeln für Fortschritt.
+
+Fachmodule wie `cnr_industry`, `cnr_logistics`, `cnr_vehicles`, `cnr_facilities`, `cnr_storage`, `cnr_police`, `cnr_medical` und später `cnr_fire` bestätigen die eigentliche Fachleistung.
+
+## 14.3 Getrennte Fachbegriffe
+
+| Begriff | Bedeutung |
+|---|---|
+| Beruf | langfristiges Tätigkeitsfeld eines Charakters |
+| Arbeitsverhältnis | Vertrag zwischen Charakter und Arbeitgeber |
+| Position | Rolle innerhalb eines Arbeitgebers |
+| Schicht | Zeitraum einer aktiven Beschäftigungs- oder Dienstsitzung |
+| Jobdefinition | versionierte Vorlage eines ausführbaren Jobtyps |
+| Jobangebot | konkrete verfügbare Arbeitsmöglichkeit |
+| Zuweisung | angenommener Job mit verantwortlichen Teilnehmern |
+| Auftrag | kaufmännischer Leistungsauftrag zwischen Parteien |
+| Aktivitätsdefinition | wiederverwendbarer fachlicher Ablauf |
+| Aktivitätsinstanz | konkrete laufende Ausführung |
+| Arbeitsschritt | einzelnes prüfbares Teilziel |
+| Beitrag | bestätigte Leistung eines Teilnehmers |
+| Abrechnung | endgültige Vergütung und Kostenbuchung |
+
+Ein Charakter kann einen Beruf ausüben, ohne fest angestellt zu sein. Ebenso erzeugt eine Anstellung nicht automatisch einen laufenden Auftrag oder vergütete Arbeitszeit.
+
+## 14.4 Beschäftigungs- und Tätigkeitsformen
+
+### Festangestellte Arbeit
+
+- Arbeitsvertrag;
+- feste Position;
+- Stunden- oder Festlohn;
+- betriebliche Schichten;
+- Firmenfahrzeuge und Arbeitsmittel;
+- interne Aufträge.
+
+### Öffentlicher Dienst
+
+- Polizei;
+- Rettungsdienst;
+- Feuerwehr;
+- Justiz;
+- Verwaltung;
+- städtische Betriebe.
+
+Öffentliche Dienste verwenden Dienstrollen und Fachmodule, aber denselben Sitzungs- und Beitragsrahmen.
+
+### Selbstständige Arbeit
+
+- eigener Betrieb;
+- direkter Kundenauftrag;
+- Ausschreibung;
+- Serviceanfrage;
+- Abrechnung über Firma oder Charakter, soweit erlaubt.
+
+### Freie Auftragsarbeit
+
+- zeitlich begrenztes Angebot;
+- keine dauerhafte Anstellung;
+- feste oder variable Vergütung;
+- eigene oder gestellte Ausrüstung.
+
+### Offene Einstiegsarbeit
+
+- kontrolliert finanzierter System- oder Stadtauftrag;
+- niedrige Zugangshürde;
+- begrenzte Kapazität;
+- sinnvolle Einbindung in Wirtschaft oder Stadtbetrieb;
+- keine unbegrenzte Geldquelle.
+
+## 14.5 Dauerhafte Identität und Versionierung
+
+Jobdefinitionen, Aktivitätsdefinitionen, Angebote, Zuweisungen und Instanzen besitzen eigene UUIDs.
+
+Eine Jobdefinition enthält:
+
+- interne ID und öffentliche UUID;
+- technischen Code;
+- sichtbaren übersetzbaren Namen;
+- Kategorie;
+- verantwortliches Fachmodul;
+- Version;
+- Status;
+- Ersteller und Freigabe;
+- Gültigkeitszeitraum.
+
+Koordinaten, NPCs, Marker oder sichtbare Namen sind keine dauerhafte Jobidentität.
+
+Ein angenommenes Jobangebot behält seine gültige Job- und Aktivitätsversion. Spätere Konfigurationsänderungen verändern keinen laufenden Auftrag rückwirkend.
+
+## 14.6 Jobdefinition
+
+Eine Jobdefinition beschreibt:
+
+- Tätigkeitsform;
+- mögliche Angebotsquellen;
+- erforderliche Rollen;
+- Mindest- und Höchstteilnehmer;
+- Fähigkeiten und Lizenzen;
+- Rufanforderungen;
+- erlaubte Arbeitgeber;
+- Aktivitätsvorlage;
+- Vergütungsmodelle;
+- Budgetregeln;
+- benötigte Assets;
+- Zeitfenster;
+- Abbruch- und Fehlerregeln;
+- Cooldowns;
+- Metriken;
+- zuständige Fachmodule.
+
+Eine Jobdefinition enthält keine frei ausführbaren Skripte aus dem Control Panel. Sie verwendet nur registrierte, serverseitig implementierte Fähigkeiten und Schritttypen.
+
+## 14.7 Aktivitätsdefinition
+
+Eine Aktivitätsdefinition besteht aus:
+
+- Aktivitäts-UUID;
+- Version;
+- Start- und Abschlussbedingungen;
+- Arbeitsschritten;
+- Abhängigkeiten;
+- optionalen oder alternativen Pfaden;
+- Teilnehmerrollen;
+- Reservierungen;
+- fachlichen Prüfern;
+- Erfolgs-, Teil- und Fehlerzuständen;
+- Beitragsereignissen;
+- Wiederaufnahmeverhalten.
+
+Einfache Aktivitäten dürfen linear sein. Komplexe Tätigkeiten können einen kleinen gerichteten Abhängigkeitsgraphen verwenden.
+
+## 14.8 Wiederverwendbare Arbeitsschritte
+
+Mögliche Schritttypen:
+
+- Gegenstand übernehmen;
+- Fahrzeug oder Maschine prüfen;
+- Ware laden oder entladen;
+- definierte Strecke oder Haltestellen bedienen;
+- Produkt sammeln;
+- Produktion starten oder überwachen;
+- Fahrzeug reparieren;
+- Objekt warten;
+- Person transportieren;
+- Standort kontrollieren;
+- Lieferung bestätigen;
+- Probe oder Messung durchführen;
+- Kundeninteraktion;
+- Einsatz übernehmen;
+- Bericht einreichen;
+- Anlage sicher übergeben.
+
+Jeder Schritttyp besitzt:
+
+- fachlichen Serverprüfer;
+- erlaubte Eingaben;
+- Positions- und Zustandsregeln;
+- Fortschrittsereignisse;
+- Abbruchregel;
+- Beitragszuordnung;
+- mögliche Kosten und Verluste.
+
+Ein generischer Fortschrittsbalken allein bestätigt keinen Arbeitsschritt.
+
+## 14.9 Quellen von Jobangeboten
+
+Jobangebote können entstehen durch:
+
+- tatsächlichen Lager- oder Produktionsbedarf;
+- Kundenanfrage;
+- Firmenauftrag;
+- Arbeitsplanung eines Vorgesetzten;
+- öffentlichen Auftrag;
+- Dispatch-Einsatz;
+- Marktplatzausschreibung;
+- Wartungsintervall;
+- beschädigtes Fahrzeug oder Asset;
+- Fahrplan;
+- dynamisches Ereignis;
+- kontrollierten Einstiegsjob.
+
+Jedes Angebot speichert seine Quelle. Ein vergütetes Angebot ohne Budget oder erlaubte Systemfinanzierung kann nicht veröffentlicht werden. Unbezahlte Tätigkeiten müssen ausdrücklich als solche gekennzeichnet und vor Annahme sichtbar sein.
+
+## 14.10 Bedarfsbasierte Jobs
+
+Beispiele:
+
+- Tankstelle benötigt Kraftstoff;
+- Lager benötigt Umlagerung;
+- Firma benötigt einen Transport;
+- Fahrzeug benötigt Reparatur;
+- Maschine erreicht Wartungsgrenze;
+- Bürger bestellt Taxi;
+- liegengebliebenes Fahrzeug benötigt Abschleppdienst;
+- Müllbehälter erreichen Abholschwelle;
+- Polizei oder Rettungsdienst erhält einen Einsatz.
+
+Bedarf wird durch das zuständige Fachmodul gemeldet. `cnr_jobs` erzeugt daraus nur dann ein Angebot, wenn:
+
+- Bedarf noch besteht;
+- keine ausreichende aktive Zuweisung existiert;
+- Budget oder Kostenträger vorhanden ist;
+- Ziel und benötigte Assets reservierbar sind;
+- Angebots- und Wiederholungsgrenzen eingehalten werden.
+
+## 14.11 Kontrollierte Einstiegsjobs
+
+Bei geringer Spielerzahl bleiben einfache Tätigkeiten verfügbar.
+
+Eigenschaften:
+
+- begrenztes städtisches oder Systembudget;
+- niedrigere, transparente Vergütung;
+- zeit- oder mengenbegrenztes Angebot;
+- wechselnde sinnvolle Ziele;
+- keine hohen Spezialisierungsvorteile;
+- Verbindung zu Recycling, Versorgung oder Stadtbetrieb;
+- keine sichere Arbitrage mit anderen Systemmärkten.
+
+Geeignete Beispiele:
+
+- kommunale Müllsammlung;
+- einfache Hafen- oder Lagerhilfe;
+- Stadtlieferungen;
+- Bus-Grundlinie;
+- Straßen- oder Anlagenkontrolle.
+
+## 14.12 Sichtbarkeit von Angeboten
+
+Mögliche Sichtbarkeit:
+
+- öffentlich;
+- nur Mitarbeiter;
+- nur bestimmte Firmen;
+- nur eingeladene Charaktere;
+- nur passende Lizenzinhaber;
+- rufabhängig;
+- standortabhängig;
+- rollenabhängig;
+- Ausschreibung;
+- direkte Zuweisung.
+
+Ein sichtbares Angebot zeigt mindestens:
+
+- Auftraggeber oder Angebotsquelle;
+- Tätigkeit;
+- Anforderungen;
+- erwarteten Vergütungsbereich;
+- mögliche Kosten;
+- Zeitfenster;
+- benötigte Assets;
+- Gruppengröße;
+- Abbruchbedingungen.
+
+Versteckte Strafgebühren oder nachträglich verschlechterte Vergütungsformeln sind nicht erlaubt.
+
+## 14.13 Angebotsstatus
+
+| Zustand | Bedeutung |
+|---|---|
+| `draft` | noch nicht sichtbar |
+| `scheduled` | für einen späteren Zeitpunkt vorgesehen |
+| `published` | für berechtigte Bewerber sichtbar |
+| `partially_reserved` | Bewerbung oder Gruppenbildung läuft |
+| `reserved` | vorübergehend für einen Bewerber oder ein Team gesperrt |
+| `assigned` | verbindlich vergeben |
+| `closed` | regulär beendet |
+| `expired` | Zeitfenster abgelaufen |
+| `cancelled` | durch berechtigte Quelle zurückgezogen |
+| `invalidated` | nur bei technischem oder administrativ bestätigtem Fehler |
+
+Reservierungen besitzen kurze Ablaufzeiten, damit ein geöffnetes UI Angebote nicht dauerhaft blockiert.
+
+## 14.14 Eignungsprüfung
+
+Vor Bewerbung oder Annahme prüft der Server:
+
+1. gültigen Charakter und aktive Sitzung;
+2. Beschäftigungs- oder Firmenrolle;
+3. erforderliche Fähigkeiten;
+4. Lizenzen;
+5. Ruf;
+6. Sperren und Interessenkonflikte;
+7. aktuelle kritische Zustände;
+8. andere unvereinbare Schichten oder Jobs;
+9. Teilnehmer- und Rollenlimits;
+10. verfügbare Fahrzeuge, Ausrüstung und Lagerkapazitäten;
+11. Budget und Zahlungsreservierung;
+12. Angebot, Version und Ablaufzeit.
+
+Nicht erfüllte Anforderungen werden verständlich angezeigt, soweit sie keine verdeckten Sicherheits- oder Balancingwerte offenlegen.
+
+## 14.15 Annahme und Reservierung
+
+Beim Annehmen werden atomar reserviert:
+
+- Angebot;
+- Teilnehmerplatz und Rolle;
+- Auftrag oder Kundenanfrage;
+- Vergütungsbudget oder Treuhandbetrag;
+- benötigte Ware;
+- Fahrzeug oder Maschine;
+- Lade- und Zielkapazität;
+- zeitkritischer Standort;
+- veröffentlichte Konfigurationsversion.
+
+Scheitert eine notwendige Reservierung, entsteht keine halbfertige Zuweisung.
+
+## 14.16 Zuweisungsstatus
+
+| Zustand | Bedeutung |
+|---|---|
+| `offered` | konkrete Zuweisung wurde angeboten |
+| `accepted` | Teilnehmer haben angenommen |
+| `preparing` | Assets und Rollen werden vorbereitet |
+| `ready` | Pflichtvoraussetzungen sind reserviert |
+| `active` | Arbeit läuft |
+| `paused` | kontrolliert unterbrochen |
+| `waiting_external` | wartet auf Kunde, Fachmodul oder Abnahme |
+| `completing` | Ergebnis und Abrechnung werden geprüft |
+| `completed` | fachlich und finanziell abgeschlossen |
+| `partially_completed` | verwertbarer Teil wurde erfüllt |
+| `failed` | Pflichtziel nicht erreicht |
+| `cancelled` | vor Start oder kontrolliert beendet |
+| `abandoned` | ohne geregelte Übergabe verlassen |
+| `disputed` | Abnahme oder Vergütung wird bestritten |
+
+## 14.17 Schicht und Aktivität bleiben getrennt
+
+Eine Schicht beschreibt, für wen und in welcher Rolle ein Charakter arbeitet. Eine Aktivität beschreibt, was konkret ausgeführt wird.
+
+Ein Mitarbeiter kann während einer Schicht:
+
+- mehrere Aufträge bearbeiten;
+- auf einen Einsatz warten;
+- Pause machen;
+- innerbetriebliche Aufgaben erledigen;
+- Ausrüstung übernehmen;
+- Berichte erstellen.
+
+Eine Aktivität kann umgekehrt durch:
+
+- festangestellte Mitarbeiter;
+- freie Auftragnehmer;
+- mehrere Firmen;
+- öffentliche Dienste;
+- einen einzelnen Selbstständigen
+
+ausgeführt werden.
+
+## 14.18 Arbeitssitzung
+
+Die bestehende Arbeitssitzung enthält mindestens:
+
+- Charakter;
+- Arbeitgeber oder Dienststelle;
+- Arbeitsverhältnis und Position;
+- Dienstrolle;
+- Start und Ende;
+- aktive Zeit;
+- Pausen;
+- zugeordnete Aktivitäten;
+- ausgegebene Assets;
+- Disconnect- und Timeoutzeiten;
+- Freigabestatus;
+- Korrekturhistorie.
+
+Standardmäßig kann ein Charakter nur eine vergütete Arbeits- oder Dienstsitzung gleichzeitig führen. Firmenbesitz und passive Unternehmensrollen zählen nicht als aktive Schicht.
+
+## 14.19 Schichtstatus
+
+- `clocked_in`;
+- `available`;
+- `assigned`;
+- `active_work`;
+- `break`;
+- `suspended`;
+- `disconnected_grace`;
+- `clocked_out`;
+- `pending_review`;
+- `approved`;
+- `corrected`;
+- `rejected`.
+
+Ein Statuswechsel prüft Rolle, Ort, Aktivität und mögliche ausgegebene Assets.
+
+## 14.20 Aktive Arbeitszeit und Pausen
+
+Vergütungsfähige Zeit kann entstehen durch:
+
+- aktive fachliche Tätigkeit;
+- notwendige Anfahrt innerhalb eines Auftrags;
+- Einsatzbereitschaft in ausdrücklich vergütetem öffentlichem Dienst;
+- dokumentierte Vorbereitung;
+- Abwicklung und Berichte;
+- erlaubte Wartezeit auf Kunde oder Anlage.
+
+Nicht automatisch vergütungsfähig:
+
+- beliebige Onlinezeit;
+- Pause;
+- AFK-Zeit;
+- private Umwege;
+- unzugewiesene Aktivität;
+- absichtlich verlängerte Arbeit;
+- Aufenthalt in einem Dienstfahrzeug ohne Aufgabe.
+
+Pausen können manuell begonnen oder nach klaren Regeln vorgeschlagen werden. Das System beendet nicht bei jeder kurzen Inaktivität sofort die gesamte Schicht.
+
+## 14.21 Aktivitätsinstanz
+
+Eine Aktivitätsinstanz speichert:
+
+- Definition und Version;
+- Zuweisung und Auftrag;
+- Teilnehmer;
+- Start- und Zielorte;
+- reservierte Assets;
+- aktuellen Schritt;
+- Schrittzustände;
+- fachliche Ergebnisse;
+- Beitrag;
+- Kosten;
+- Beginn, Pausen und Ende;
+- Wiederaufnahmeinformationen;
+- Abrechnungsreferenz.
+
+## 14.22 Aktivitätsstatus
+
+| Zustand | Bedeutung |
+|---|---|
+| `created` | Instanz wurde angelegt |
+| `reserved` | Pflichtressourcen sind reserviert |
+| `ready` | Startbedingungen sind erfüllt |
+| `running` | mindestens ein Arbeitsschritt läuft |
+| `paused` | sicher unterbrochen |
+| `waiting` | wartet auf einen externen Zustand |
+| `completing` | Ergebnisse werden validiert |
+| `completed` | alle Pflichtziele sind bestätigt |
+| `partially_completed` | definierter Teilnutzen wurde erreicht |
+| `aborted` | kontrolliert beendet |
+| `failed` | nicht mehr erfüllbar |
+| `recovery` | nach Fehler oder Neustart in Prüfung |
+
+## 14.23 Teams und Rollen
+
+Eine Zuweisung kann Rollen vorgeben:
+
+- Fahrer;
+- Beifahrer oder Navigator;
+- Verlader;
+- Maschinenführer;
+- Techniker;
+- Disponent;
+- Sicherheitsbegleitung;
+- Kundenkontakt;
+- Teamleiter;
+- Prüfer.
+
+Rollen bestimmen:
+
+- erlaubte Arbeitsschritte;
+- benötigte Fähigkeiten;
+- Assetzugriffe;
+- Beitragsarten;
+- Vergütungsanteil oder Lohnmodell;
+- Übergaberechte.
+
+Die Teamleitung kann Teilnehmer nicht nach geleisteter Arbeit entfernen, um deren vereinbarte Vergütung zu übernehmen.
+
+## 14.24 Gruppenbildung
+
+Mögliche Bildung:
+
+- fertiges Team bewirbt sich;
+- Teamleiter lädt vor Annahme ein;
+- Arbeitgeber weist Mitarbeiter zu;
+- öffentliches Angebot füllt offene Rollen;
+- laufende Aktivität erhält einen zulässigen Ersatz.
+
+Vor Beginn bestätigen Teilnehmer:
+
+- Rolle;
+- Vergütungsmodell;
+- mögliche Kosten;
+- Verantwortlichkeiten;
+- Zeitfenster.
+
+Änderungen nach Beginn benötigen die Zustimmung betroffener Parteien oder eine klar definierte Vertragsregel.
+
+## 14.25 Beitragsmessung
+
+Beitrag entsteht aus bestätigten Fachereignissen:
+
+- tatsächlich gefahrene Auftragsstrecke;
+- geladene oder gelieferte Menge;
+- bediente Maschine;
+- geprüfte Ladung;
+- ausgeführte Reparatur;
+- betreuter Kunde;
+- bearbeiteter Einsatz;
+- gesicherte Übergabe;
+- erstellter erforderlicher Bericht;
+- Koordination eines echten Teamschritts.
+
+Zeit allein ist kein vollständiger Beitragsnachweis. Unterstützende Rollen dürfen Beitrag erhalten, auch wenn sie nicht den Abschlussknopf betätigen.
+
+## 14.26 Beitrags- und Vergütungsaufteilung
+
+Mögliche Modelle:
+
+- fester Betrag pro Rolle;
+- Stundenlohn aus Arbeitsvertrag;
+- prozentualer Auftragsanteil;
+- gleicher Teamanteil;
+- beitragsgewichteter Anteil;
+- Grundbetrag plus Leistungsanteil;
+- Provision;
+- vom Arbeitgeber getrennt gezahlter Lohn.
+
+Ein beitragsgewichtetes Modell verwendet Ober- und Untergrenzen. Es darf notwendige Unterstützungsrollen nicht systematisch ohne Vergütung lassen.
+
+Die vereinbarte Methode wird bei Jobbeginn als Version gespeichert.
+
+## 14.27 Arbeitsmittel und Ausgabe
+
+Arbeitsmittel können sein:
+
+- Werkzeug;
+- Schutzkleidung;
+- Scanner;
+- Funkgerät;
+- Zugangskarte;
+- Material;
+- Ersatzteil;
+- Behälter;
+- Dienstwaffe;
+- medizinische Ausrüstung.
+
+Eine Ausgabe speichert:
+
+- Asset oder Item;
+- ausgebende Organisation;
+- Empfänger;
+- Schicht und Aktivität;
+- Menge und Zustand;
+- Ausgabezeit;
+- erlaubte Nutzung;
+- Rückgabe- oder Verbrauchsregel.
+
+Verbrauch, Rückgabe, Verlust und Schaden werden nachvollziehbar gebucht.
+
+## 14.28 Fahrzeuge und Maschinen
+
+Jobfahrzeuge können:
+
+- dem Arbeitgeber gehören;
+- für den Auftrag gemietet sein;
+- vom Auftraggeber gestellt werden;
+- einem Teilnehmer gehören;
+- staatlich bereitgestellt werden.
+
+Eine Zuweisung enthält:
+
+- Fahrzeug oder Maschine;
+- erlaubte Fahrer und Bediener;
+- Übergabezustand;
+- Kilometer- oder Betriebsstand;
+- Kraftstoff;
+- Ladung;
+- Schäden;
+- Rückgabeort;
+- Kostenverteilung.
+
+Ein Jobzugriff ist ein zeitlich begrenztes Recht und überträgt kein Eigentum.
+
+## 14.29 Waren und Kapazitäten
+
+Vor materialgebundener Arbeit werden reserviert:
+
+- Quellware;
+- Zielkapazität;
+- Ladebereich;
+- Fahrzeug- oder Containerkapazität;
+- Produktionskapazität;
+- Kundenbestand;
+- erlaubte Verlustmenge.
+
+Fachmodule führen die tatsächlichen Bewegungen durch. Das Jobmodul speichert Referenzen und Fortschritt, erzeugt aber keine Waren.
+
+## 14.30 Standort- und Routenwahl
+
+Standorte können:
+
+- fest;
+- aus einem geprüften Pool gewählt;
+- durch tatsächlichen Bedarf bestimmt;
+- von Kunde oder Auftraggeber angegeben;
+- dynamisch nach Kapazität ausgewählt;
+- Teil eines Fahrplans sein.
+
+Eine Route berücksichtigt:
+
+- Fahrzeugart;
+- Entfernung;
+- Zugänglichkeit;
+- Lade- und Zielstatus;
+- Zeitfenster;
+- doppelte Belegung;
+- mögliche Straßen- oder Weltregeln.
+
+Der Client darf ein Ziel nicht gegen einen näheren manipulierten Punkt austauschen. Unnötige Zwangsrouten werden vermieden; entscheidend sind bestätigter Start, Ziel und Leistung.
+
+## 14.31 Qualität und Abnahme
+
+Mögliche Qualitätsmerkmale:
+
+- richtige Menge;
+- Produktqualität;
+- Lieferzeitfenster;
+- Schadenszustand;
+- Reparaturergebnis;
+- Sauberkeit;
+- Kundenzustand;
+- Dokumentation;
+- sichere Durchführung;
+- erlaubte Verluste.
+
+Abnahme kann erfolgen durch:
+
+- zuständiges Fachmodul;
+- Kunde;
+- Arbeitgeber;
+- Vertragspartner;
+- automatische objektive Prüfung;
+- Kombination aus objektiver Prüfung und Bestätigung.
+
+Ein Kunde kann objektiv korrekt erbrachte Arbeit nicht unbegrenzt blockieren. Umgekehrt ersetzt automatische Abnahme keinen echten fachlichen Nachweis.
+
+## 14.32 Serviceanfragen von Spielern
+
+Spieler können Anfragen erstellen für:
+
+- Taxi;
+- Abschleppen;
+- Reparatur;
+- Transport;
+- Lieferung;
+- Lagerhilfe;
+- Sicherheitsdienst;
+- medizinische oder öffentliche Hilfe;
+- spätere weitere Dienstleistungen.
+
+Eine Anfrage enthält:
+
+- Kunde;
+- Dienstleistung;
+- Standort;
+- Ziel;
+- Beschreibung;
+- Budget oder Preisregel;
+- Sichtbarkeit;
+- Ablaufzeit;
+- mögliche Dringlichkeit;
+- Stornierungsregel.
+
+Bei Annahme können Betrag oder Gebühren reserviert werden. Missbrauch durch Spam, falsche Standorte und wiederholtes Stornieren wird begrenzt.
+
+## 14.33 Öffentliche Dienste und Dispatch
+
+Polizei, Rettungsdienst und Feuerwehr verwenden:
+
+- Dienstsitzung;
+- Verfügbarkeitsstatus;
+- Dispatchangebot;
+- Einheiten- und Rollenzuweisung;
+- fachliche Einsatzinstanz;
+- Beitragsereignisse;
+- Bericht oder Übergabe;
+- staatliche Vergütung.
+
+`cnr_jobs` kennt Dienst und Beitrag. `cnr_police`, `cnr_medical` und `cnr_fire` entscheiden über fachliche Maßnahmen.
+
+Ein Notruf ist kein normaler Marktplatzjob und wird nur berechtigten Dienstrollen angezeigt.
+
+## 14.34 Firmeninterne Jobs
+
+Arbeitgeber können Angebote:
+
+- automatisch aus Bedarf;
+- durch Disponenten;
+- aus Verträgen;
+- aus Wartungsplänen;
+- aus Kundenanfragen
+
+erzeugen.
+
+Firmenrechte bestimmen, wer:
+
+- Angebote erstellt;
+- Budget freigibt;
+- Mitarbeiter zuweist;
+- Fahrzeuge ausgibt;
+- Arbeit abnimmt;
+- Korrekturen beantragt.
+
+Ein Firmenleiter kann keine Fachleistung bestätigen, die serverseitig nachweislich nicht stattgefunden hat.
+
+## 14.35 Selbstständige und freie Auftragnehmer
+
+Selbstständige können:
+
+- öffentliche Angebote annehmen;
+- auf Ausschreibungen bieten;
+- eigene Servicepreise veröffentlichen;
+- Kundenanfragen beantworten;
+- Subunternehmer einsetzen, wenn erlaubt;
+- eigene Fahrzeuge und Werkzeuge verwenden.
+
+Kosten, Steuern, Versicherung, Material und Verschleiß bleiben beim vereinbarten Kostenträger.
+
+Ein Charakter ohne Unternehmen kann nur Tätigkeiten abrechnen, die für persönliche Selbstständigkeit freigegeben sind.
+
+## 14.36 Einarbeitung und Training
+
+Jobdefinitionen können Trainingsaktivitäten besitzen:
+
+- Einführung;
+- sichere Übungsanlage;
+- Beispielauftrag;
+- Werkzeugerklärung;
+- Fahrzeugübergabe;
+- Fachprüfung;
+- Lizenzprüfung.
+
+Training:
+
+- zahlt keine hohe reguläre Auftragsvergütung;
+- kann begrenzte Erfahrung geben;
+- verwendet ungefährliche oder klar gekennzeichnete Ressourcen;
+- kann bei Bedarf wiederholt werden;
+- darf nicht als günstigere Produktionsmethode missbraucht werden.
+
+## 14.37 Vergütungsmodelle
+
+Unterstützt werden:
+
+- Stundenlohn;
+- Festbetrag pro Auftrag;
+- Betrag pro Meilenstein;
+- Stück- oder Mengensatz;
+- Kilometer- oder Streckensatz;
+- Provision;
+- Umsatzanteil;
+- Grundbetrag plus Qualitätsbonus;
+- Bereitschaftsvergütung;
+- Zuschläge;
+- Trinkgeld;
+- Kostenerstattung;
+- Kombinationen.
+
+Vergütung und Erfahrung bleiben getrennt.
+
+## 14.38 Herkunft der Vergütung
+
+Mögliche Zahler:
+
+- Arbeitgeberkonto;
+- Kundenkonto;
+- Auftraggeberunternehmen;
+- Staatskonto;
+- kommunales Jobbudget;
+- Vertragstreuhand;
+- kontrolliertes Einstiegsjobkonto;
+
+Vor Beginn eines vergüteten Jobs muss eine zulässige Zahlungsquelle vorhanden sein. Ein ausdrücklich unbezahltes Ehrenamt oder Training benötigt eine entsprechende sichtbare Definition statt einer scheinbaren Vergütung.
+
+Systemfinanzierte Jobs besitzen:
+
+- Budgetperiode;
+- Mengen- oder Zeitlimit;
+- transparente Grundlogik;
+- niedrigere Marktverzerrung;
+- Auditierung;
+- keine unbegrenzte Auszahlung.
+
+## 14.39 Vergütungsmomentaufnahme
+
+Bei Annahme werden gespeichert:
+
+- Vergütungsmodell und Version;
+- feste Bestandteile;
+- variable Formeln;
+- Mindest- und Höchstbetrag;
+- Kostenverteilung;
+- Steuerregel;
+- Teamaufteilung;
+- Bonus- und Abzugskriterien;
+- reserviertes Budget.
+
+Variable Werte wie tatsächlich gelieferte Menge oder genehmigte Arbeitszeit werden beim Abschluss aus Serverdaten eingesetzt.
+
+Eine spätere Preisänderung verändert den bereits angenommenen Job nicht rückwirkend.
+
+## 14.40 Abrechnung
+
+Vor Abrechnung prüft der Server:
+
+1. Zuweisung und Aktivitätsstatus;
+2. bestätigte Meilensteine;
+3. fachliche Ergebnisse;
+4. Teilnehmerbeiträge;
+5. genehmigte Arbeitszeit;
+6. Schäden, Verluste und Kosten;
+7. Abnahme;
+8. reserviertes Budget;
+9. Steuern und Abzüge;
+10. bereits erfolgte Teilzahlungen.
+
+Anschließend werden zusammengehörig gebucht:
+
+- Teilnehmervergütungen;
+- Arbeitgeber- oder Auftragnehmerumsatz;
+- Steuern;
+- Gebühren;
+- Kostenerstattungen;
+- Rückgabe freier Reservierungen;
+- offene Forderungen bei definiertem Zahlungsausfall;
+- Erfahrung und Ruf nach erfolgreicher Fachbestätigung.
+
+Dieselbe Abrechnungs-UUID wird nur einmal gebucht.
+
+## 14.41 Teilzahlungen und Meilensteine
+
+Lang laufende Jobs können definierte Meilensteine abrechnen.
+
+Ein Meilenstein enthält:
+
+- erwartetes Ergebnis;
+- fachlichen Prüfer;
+- Betrag oder Anteil;
+- Teilnehmerzuordnung;
+- Fälligkeit;
+- Abnahmeregel;
+- Rückforderungs- oder Korrekturregel.
+
+Eine Teilzahlung wird nicht gelöscht, wenn der spätere Auftrag scheitert. Korrekturen erfolgen über Forderung, Gegenbuchung oder vertragliche Regel.
+
+## 14.42 Trinkgeld und Kostenerstattung
+
+Trinkgeld:
+
+- ist freiwillig;
+- stammt vom Kunden;
+- wird separat gebucht;
+- beeinflusst nicht automatisch die fachliche Abnahme;
+- besitzt Spam- und Betragsgrenzen.
+
+Kostenerstattung kann gelten für:
+
+- Kraftstoff;
+- Maut oder Gebühr;
+- Material;
+- Ersatzteile;
+- Fahrzeugmiete;
+- genehmigte Fremdleistung.
+
+Nur verknüpfte und erlaubte Ausgaben werden erstattet. Frei eingegebene Clientbeträge reichen nicht.
+
+## 14.43 Lohnabrechnung und Auftragsvergütung
+
+Auftragsvergütung und Lohn sind getrennt:
+
+- Das Unternehmen erhält den Auftragserlös.
+- Mitarbeiter erhalten Lohn, Provision oder vereinbarten Anteil.
+- Ein selbstständiger Charakter oder Einzelbetrieb kann direkt Auftragnehmer sein.
+- Öffentliche Dienstkräfte erhalten in der Regel Dienstlohn statt Geld pro Einsatz.
+
+Ein Einsatz, eine Festnahme oder eine Behandlung erzeugt keine persönliche Geldprämie, sofern kein ausdrücklich geregelter Bonus existiert.
+
+## 14.44 Abbruch vor Arbeitsbeginn
+
+Vor Start kann ein Job abhängig von der Regel storniert werden.
+
+Mögliche Folgen:
+
+- vollständige Freigabe aller Reservierungen;
+- geringe Stornogebühr;
+- Verlust einer Buchungsgebühr;
+- Angebotsrückkehr;
+- kurzer Annahme-Cooldown bei wiederholtem Blockieren.
+
+Es gibt keine Strafe für eine nicht angenommene öffentliche Jobanzeige.
+
+## 14.45 Abbruch während der Arbeit
+
+Bei kontrolliertem Abbruch werden:
+
+- letzte bestätigte Schritte gespeichert;
+- Waren und Assets gesichert;
+- Fahrzeuge und Ausrüstung zurückgegeben oder neu zugewiesen;
+- Teilnutzen geprüft;
+- mögliche Teilvergütung berechnet;
+- übriges Budget freigegeben;
+- Auftraggeber informiert;
+- Übergabe oder Ersatz ermöglicht.
+
+Ein Job darf nicht nur deshalb volle Vergütung zahlen, weil der Spieler kurz vor dem Abschluss abbricht.
+
+## 14.46 Scheitern, Pflichtverletzung und Streit
+
+Mögliche Gründe:
+
+- Zeitfenster erheblich verfehlt;
+- Ware verloren;
+- falsches Produkt;
+- Fahrzeug zerstört;
+- Kunde nicht erreichbar;
+- Pflichtschritt nicht erfüllt;
+- Lizenz oder Rolle verloren;
+- technischer Fehler;
+- Auftraggeber storniert unberechtigt.
+
+Ergebnisse:
+
+- Teilabschluss;
+- keine weitere Vergütung;
+- vertraglicher Abzug;
+- Versicherungsfall;
+- Forderung;
+- Rufauswirkung;
+- Streitfall;
+- technische Prüfung.
+
+Abzüge können nicht ohne Grenze ein negatives Bargeld- oder Bankguthaben erzeugen. Größere Ansprüche werden als Forderung geführt.
+
+## 14.47 Disconnect und Wiederverbindung
+
+Bei Disconnect:
+
+- Arbeitssitzung wechselt in eine Gnadenphase;
+- Aktivität und Reservierungen bleiben erhalten;
+- Fahrzeug und Ware bleiben persistent;
+- Team kann je nach Rolle fortsetzen;
+- Ersatz kann nach Regel zugewiesen werden;
+- Charakterwechsel bleibt bei kritischen Zuständen gesperrt;
+- Wiederverbindung stellt zulässigen Zustand wieder her.
+
+Nach Ablauf der Gnadenphase wird die Sitzung pausiert, kontrolliert beendet oder zur Übergabe freigegeben. Ein Netzwerkfehler erzeugt nicht automatisch eine Vertragsstrafe.
+
+## 14.48 Neustartwiederherstellung
+
+Nach Neustart:
+
+- Angebote werden anhand Ablaufzeit neu bewertet;
+- aktive Zuweisungen werden geladen;
+- Reservierungen werden abgeglichen;
+- bestätigte Schritte bleiben abgeschlossen;
+- offene Schritte gehen in `recovery`;
+- Fahrzeuge, Waren und Ausrüstung werden zugeordnet;
+- Budgets bleiben reserviert;
+- unklare Fälle gelangen in eine Prüfwarteschlange.
+
+Eine Aktivität wird nicht pauschal als abgeschlossen markiert und nicht mit voller Vergütung ausgezahlt.
+
+## 14.49 Fähigkeiten, Lizenzen, Ruf und Rang
+
+Die vier Bereiche bleiben getrennt:
+
+- Fähigkeit beschreibt praktische Erfahrung.
+- Lizenz beschreibt rechtliche Erlaubnis.
+- Ruf beschreibt Vertrauen einer Branche oder Organisation.
+- Position oder Dienstgrad beschreibt organisatorische Berechtigung.
+
+Beispiel:
+
+Ein Charakter kann LKW-Logistik auf hohem Level besitzen, aber ohne Gefahrgutlizenz keinen Tanktrailerauftrag annehmen. Ein Polizeilevel ersetzt keine Einstellung und keinen Dienstgrad.
+
+## 14.50 Erfahrungsvergabe
+
+Erfahrung wird nach bestätigten Beitragsereignissen vergeben.
+
+Faktoren:
+
+- fachliche Schwierigkeit;
+- tatsächlicher Beitrag;
+- Qualität;
+- Menge;
+- sichere Durchführung;
+- erstmals oder abwechslungsreich ausgeführte Aufgabe;
+- Teamrolle;
+- zulässige Dauer;
+- Nachfrage.
+
+Keine Erfahrung allein für:
+
+- Einstempeln;
+- Öffnen des Job-UIs;
+- Starten eines Balkens;
+- Mitfahren ohne Aufgabe;
+- AFK-Wartezeit;
+- wiederholtes Abbrechen;
+- dieselbe Vorgangs-UUID.
+
+## 14.51 Anti-AFK-Regeln
+
+Das System bewertet fachliche Aktivität, nicht nur Tastendrücke.
+
+Mögliche Signale:
+
+- bestätigte Arbeitsschritte;
+- serverseitige Warenbewegung;
+- sinnvolle Positionsänderung;
+- Fahrzeugbedienung;
+- Maschineninteraktion;
+- Kunden- oder Dispatchereignis;
+- Berichts- oder Übergabehandlung.
+
+Reine Bewegung im Kreis, dauerhaftes Sitzen im Fahrzeug oder automatisierte Eingaben gelten nicht als volle Arbeit.
+
+Kurze Inaktivität führt zunächst zu Warnung, Pause oder Statusänderung. Sicherheitsflags werden protokolliert und nicht als unsichtbare sofortige Geldstrafe verwendet.
+
+## 14.52 Anti-Farming-Regeln
+
+Schutzmaßnahmen:
+
+- eindeutige Vorgangs-UUID;
+- Plausibilitätsgrenzen für Dauer, Strecke, Menge und Qualität;
+- keine Auszahlung aus Clientwerten;
+- Ziel- und Angebotsreservierungen;
+- Wiederholungserkennung;
+- reduzierte Erfahrung bei identischen Abläufen;
+- Erkennung wiederkehrender künstlicher Kunden;
+- Limits kontrollierter Systembudgets;
+- kein mehrfacher Abschluss derselben Meilensteine;
+- Abgleich von Waren-, Fahrzeug- und Geldbewegungen;
+- Sicherheitsflags für ungewöhnliche Ertragsraten;
+- weiche Fortschrittsgrenzen statt pauschaler Arbeitsverbote.
+
+Wirtschaftliche Vergütung wird nicht allein wegen hoher Spielzeit heimlich reduziert. Wenn ein Marktbedarf weiterhin besteht, darf gearbeitet werden; Erfahrung kann dagegen weiche Grenzen besitzen.
+
+## 14.53 Mehrfachjobs und Interessenkonflikte
+
+Ein Charakter darf mehrere Arbeitsverhältnisse besitzen.
+
+Standardregeln:
+
+- höchstens eine aktive vergütete Schicht gleichzeitig;
+- keine parallele Auftragsabrechnung derselben Arbeitszeit;
+- kritische Dienstrollen können Nebenjobs während des Dienstes sperren;
+- Firmenrollen bleiben außerhalb einer Schicht bestehen, soweit erlaubt;
+- Zugriff auf Fahrzeuge, Lager und Daten folgt der aktiven Rolle;
+- Interessenkonflikte können durch Organisation oder Vertrag eingeschränkt werden.
+
+Ein Charakter kann beispielsweise Mechaniker und Taxifahrer sein, aber nicht dieselben Minuten gleichzeitig bei beiden Arbeitgebern abrechnen.
+
+## 14.54 Solo- und Gruppenfairness
+
+- Es gibt sinnvolle Solo-Einstiegsjobs.
+- Gruppenjobs zahlen nicht automatisch jedem die volle Einzelvergütung.
+- zusätzliche Teilnehmer sollen echten Durchsatz, Sicherheit oder Rollenvielfalt ermöglichen.
+- notwendige Unterstützer erhalten Beitrag.
+- Teamgrößen besitzen Obergrenzen.
+- Aufgaben skalieren nur innerhalb definierter Grenzen.
+- ein Gruppenleiter kann Budget oder Beute nicht nachträglich allein umleiten.
+- neue Spieler können Grundrollen übernehmen, ohne sofort Maximallevel zu benötigen.
+
+## 14.55 Niedrige Spielerzahl und NPC-Fallback
+
+Bei geringer Population können:
+
+- kontrollierte Einstiegsjobs;
+- NPC-Kunden;
+- staatliche Grundaufträge;
+- öffentliche Infrastruktur;
+- begrenzte Systemnachfrage
+
+verwendet werden.
+
+Fallbacks sind:
+
+- mengen- oder zeitbegrenzt;
+- schlechter oder höchstens gleichwertig zu Spieleraufträgen;
+- aus definierten Konten finanziert;
+- nicht als Arbitrage nutzbar;
+- dynamisch reduzierbar, sobald Spielerbedarf vorhanden ist.
+
+## 14.56 Berufsfamilien
+
+### Industrie und Rohstoffe
+
+- Ölförderung;
+- Raffinerie;
+- Bergbau;
+- Holz;
+- Landwirtschaft;
+- Fischerei;
+- Recycling.
+
+### Logistik und Lager
+
+- LKW-Fahrer;
+- Kraftstofflieferant;
+- Lagerarbeiter;
+- Gabelstaplerfahrer;
+- Hafenarbeiter;
+- Kurier;
+- Disponent.
+
+### Fahrzeuge und Dienstleistungen
+
+- Mechaniker;
+- Abschleppdienst;
+- Fahrzeugtransport;
+- Taxi;
+- Bus;
+- Mietfahrzeugservice;
+- Sicherheitsdienst.
+
+### Öffentlichkeit
+
+- Polizei;
+- Rettungsdienst;
+- Feuerwehr;
+- Justiz;
+- Stadtverwaltung;
+- Müllabfuhr;
+- öffentlicher Nahverkehr.
+
+### Wirtschaft und Gesellschaft
+
+- Immobilienmakler;
+- Anwalt;
+- Journalist;
+- Gastronomie;
+- Handel;
+- Veranstaltungsdienst.
+
+## 14.57 Beispiel: Logistikauftrag
+
+1. Ein Lager meldet Bedarf an einer Warenlieferung.
+2. Ein Vertrag oder Marktplatzangebot erzeugt einen Transportjob.
+3. Budget, Ware, Zielkapazität und Zeitfenster werden reserviert.
+4. Ein Fahrer oder Team nimmt das Angebot an.
+5. Fahrzeug und gegebenenfalls Trailer werden zugewiesen.
+6. Ware wird durch `cnr_storage` und `cnr_inventory` geladen.
+7. `cnr_logistics` bestätigt Ladung, Strecke und Lieferzustand.
+8. Ziel prüft Menge und Qualität.
+9. Auftrag und Aktivität werden abgeschlossen.
+10. Unternehmen, Fahrer, Steuern, Kosten, Erfahrung und Ruf werden abgerechnet.
+
+## 14.58 Beispiel: Mechaniker und Abschleppdienst
+
+1. Spieler oder Fahrzeugzustand erzeugt eine Serviceanfrage.
+2. Preisregel oder Angebot wird bestätigt.
+3. Abschlepp- oder Mechanikerbetrieb nimmt an.
+4. Mitarbeiter, Fahrzeug und Werkzeug werden zugewiesen.
+5. Fahrzeug wird gesichert, transportiert oder diagnostiziert.
+6. Ersatzteile werden aus einem realen Lager reserviert und verbaut.
+7. `cnr_vehicles` bestätigt die Zustandsänderung.
+8. Kunde oder objektive Prüfung nimmt die Leistung ab.
+9. Zahlung, Materialverbrauch, Lohn und Ruf werden gebucht.
+
+## 14.59 Beispiel: Müll und Recycling
+
+1. Müllbehälter sammeln serverseitig Bedarf.
+2. Eine Route wird aus fälligen Behältern zusammengestellt.
+3. Team, Müllfahrzeug und Zielanlage werden reserviert.
+4. Behälter werden geleert und Mengen dem Fahrzeug zugeordnet.
+5. Ladung wird zur Recycling- oder Entsorgungsanlage gebracht.
+6. verwertbare Materialien, Restmüll und Gebühren werden fachlich gebucht.
+7. Stadtauftrag und Teambeitrag werden abgerechnet.
+
+Der Job erzeugt damit Rohstoffe oder Entsorgungsleistung für andere Systeme statt nur eine Markerbelohnung.
+
+## 14.60 Beispiel: Taxi und Bus
+
+Taxi:
+
+- Spieler- oder NPC-Anfrage;
+- Abholort und Ziel;
+- geschätzter Preis oder Taxameterregel;
+- Fahrerannahme;
+- serverseitig bestätigte Fahrt;
+- Warte- und Stornoregel;
+- Zahlung und optionales Trinkgeld.
+
+Bus:
+
+- veröffentlichter Fahrplan;
+- Fahrzeug- und Fahrerzuweisung;
+- Haltestellenfolge;
+- Zeitfenster statt sekundengenauer Zwang;
+- Fahrgast- oder Grundversorgungsnachweis;
+- staatliche oder betriebliche Vergütung.
+
+Unnötige Umwege erhöhen nicht beliebig die Vergütung.
+
+## 14.61 Beispiel: Öffentlicher Dienst
+
+1. Charakter beginnt eine berechtigte Dienstsitzung.
+2. Einheit, Rolle, Fahrzeug und Ausrüstung werden zugewiesen.
+3. Dispatch erzeugt einen passenden Einsatz.
+4. Einheit übernimmt und bearbeitet ihn im Fachmodul.
+5. relevante Maßnahmen und Beiträge werden bestätigt.
+6. Einsatz wird übergeben oder abgeschlossen.
+7. erforderlicher Bericht wird eingereicht.
+8. Dienstzeit, Ausrüstung und Arbeitsstatus werden aktualisiert.
+9. reguläre Lohnabrechnung erfolgt aus dem Organisationskonto.
+
+Es gibt keine persönliche Prämie allein für Festnahme, Behandlung oder Tötung.
+
+## 14.62 Dynamischer Job-Editor
+
+Administratoren können als Entwurf erstellen:
+
+- Jobdefinition;
+- Angebotsquelle;
+- Aktivitätsdefinition;
+- Arbeitsschritte;
+- Abhängigkeiten und Alternativen;
+- Rollen;
+- Anforderungen;
+- Start-, Arbeits- und Zielbereiche;
+- Assetanforderungen;
+- Vergütungsmodelle;
+- Budgetgrenzen;
+- Cooldowns;
+- Qualitätsregeln;
+- Wiederaufnahmeverhalten;
+- Metriken.
+
+Fachmodule registrieren erlaubte Fähigkeiten und Schritttypen. Der Editor kann keine beliebigen Serverfunktionen oder SQL-Anweisungen ausführen.
+
+## 14.63 Validierung vor Veröffentlichung
+
+Geprüft werden:
+
+- eindeutige UUIDs und Codes;
+- gültige Fachmodule;
+- erreichbare Schritte;
+- mindestens ein Abschluss- und Fehlerpfad;
+- keine zyklischen Pflichtabhängigkeiten;
+- gültige Rollen und Teilnehmerzahlen;
+- zulässige Orte und Routing Buckets;
+- definierte Budgetquelle;
+- Vergütungsobergrenzen;
+- vorhandene Assets und Produkte;
+- Rückgabe- und Abbruchregeln;
+- fachliche Prüfer;
+- Cooldowns und Angebotslimits;
+- Übersetzungen;
+- Audit- und Metrikzuordnung.
+
+Fehlerhafte Definitionen bleiben Entwürfe.
+
+## 14.64 Benutzeroberflächen
+
+### Jobbörse
+
+- verfügbare Angebote;
+- Filter;
+- Anforderungen;
+- Vergütung;
+- Zeitfenster;
+- Gruppenrollen;
+- Standortbereich;
+- Bewerbung und Annahme.
+
+### Arbeitsansicht
+
+- aktiver Job;
+- Rolle;
+- nächste sinnvolle Aufgabe;
+- Team;
+- reservierte Assets;
+- Fortschritt;
+- Qualitätsstatus;
+- mögliche Kosten;
+- Pause, Übergabe oder Abbruch.
+
+### Arbeitgeberansicht
+
+- Bedarfe;
+- Angebote;
+- Bewerber;
+- Zuweisungen;
+- Mitarbeiterstatus;
+- Fahrzeuge und Ausrüstung;
+- Budgets;
+- Abnahme;
+- ausstehende Abrechnungen;
+- Auffälligkeiten.
+
+### Dienstansicht
+
+- Dienststatus;
+- Einheit;
+- Rolle;
+- Dispatch;
+- ausgegebene Ausrüstung;
+- offene Berichte;
+- Schichtende.
+
+Alle UIs zeigen nur serverseitig freigegebene Daten.
+
+## 14.65 Geplante Datenbanktabellen
+
+- `cnr_job_definitions`
+- `cnr_job_definition_versions`
+- `cnr_job_roles`
+- `cnr_job_requirements`
+- `cnr_job_offers`
+- `cnr_job_offer_visibility`
+- `cnr_job_assignments`
+- `cnr_job_assignment_members`
+- `cnr_job_assignment_reservations`
+- `cnr_activity_definitions`
+- `cnr_activity_definition_versions`
+- `cnr_activity_steps`
+- `cnr_activity_step_dependencies`
+- `cnr_activity_instances`
+- `cnr_activity_participants`
+- `cnr_activity_step_events`
+- `cnr_activity_contributions`
+- `cnr_job_equipment_checkouts`
+- `cnr_job_vehicle_assignments`
+- `cnr_job_milestones`
+- `cnr_job_expenses`
+- `cnr_job_settlements`
+- `cnr_job_settlement_items`
+- `cnr_job_performance_records`
+- `cnr_job_cooldowns`
+- `cnr_job_demand_signals`
+- `cnr_service_requests`
+- `cnr_job_disputes`
+- `cnr_job_recovery_queue`
+
+Wiederverwendet werden:
+
+- `cnr_work_sessions`;
+- `cnr_employment_contracts`;
+- `cnr_orders`;
+- `cnr_order_assignments`;
+- `cnr_payroll_runs`;
+- Bank-, Inventar-, Fahrzeug-, Lager-, Vertrags- und Fortschrittstabellen.
+
+## 14.66 Serverautorisierte Regeln
+
+- Kein Client erstellt sich selbst ein gültiges Jobangebot.
+- Kein Client bestimmt Abschluss, Menge, Qualität, Zeit oder Vergütung.
+- Jobdefinitionen und Aktivitäten sind versioniert.
+- Annahme reserviert Budget und Pflichtassets atomar.
+- Dieselbe Angebots-, Aktivitäts- oder Abrechnungs-UUID wird nur einmal verarbeitet.
+- Fachmodule bestätigen echte Fachleistung.
+- Arbeitszeit entsteht nicht allein aus Onlinezeit.
+- Ein Charakter führt standardmäßig nur eine vergütete Schicht gleichzeitig.
+- Jobzugriff überträgt kein Eigentum.
+- Warenbewegungen erfolgen ausschließlich über Inventar und Lager.
+- Fahrzeugzustände erfolgen ausschließlich über `cnr_vehicles`.
+- Zahlungen erfolgen ausschließlich über `cnr_banking`.
+- Erfahrung erfolgt ausschließlich über `cnr_progression`.
+- Teamänderungen dürfen bestätigten Beitrag nicht löschen.
+- Abbruch und Neustart geben Reservierungen nur kontrolliert frei.
+- Korrekturen erzeugen Versionen, Gegenbuchungen oder Auditereignisse.
+
+## 14.67 Kennzahlen und Qualitätssicherung
+
+Aggregiert werden:
+
+- veröffentlichte und angenommene Angebote;
+- Zeit bis zur Besetzung;
+- Abschluss-, Teil- und Abbruchquote;
+- fachliche Ergebnisqualität;
+- tatsächliche Dauer;
+- Vergütung und Kosten;
+- Beitrag pro Rolle;
+- Nachfrage ohne Angebot;
+- unbesetzte öffentliche Dienste;
+- wiederholte Paarungen;
+- auffällige Ertragsraten;
+- Disconnect- und Recoveryquote;
+- Streit- und Korrekturquote;
+- Verhältnis von Spieler- zu Systemaufträgen.
+
+Kennzahlen verbessern Balancing und Verfügbarkeit. Sie ersetzen keine individuelle automatische Schuldentscheidung.
+
+## 14.68 Streitfälle und Korrekturen
+
+Ein Streitfall kann enthalten:
+
+- Zuweisung;
+- Auftrag;
+- Parteien;
+- beanstandeten Meilenstein;
+- fachliche Ergebnisse;
+- Zahlungen;
+- Waren- und Assetzustände;
+- Kommunikation oder Bestätigungen;
+- Begründung;
+- Entscheidung und Korrekturen.
+
+Objektiv bestätigte Waren- oder Zustandsbewegungen werden nicht gelöscht. Notwendige Korrekturen erfolgen über Gegenbuchungen, Rückgaben, Forderungen oder neu bewertete Abnahme.
+
+## 14.69 Job- und Aktivitäts-MVP
+
+Im MVP enthalten:
+
+- versionierte Job- und Aktivitätsdefinitionen;
+- öffentliche, interne und direkte Angebote;
+- Jobbörse;
+- Anforderungen und Sichtbarkeit;
+- Budget-, Waren-, Fahrzeug- und Zielreservierung;
+- Solo- und Gruppenannahme;
+- Rollen;
+- lineare und einfache verzweigte Arbeitsschritte;
+- Arbeitssitzung, Pause und aktive Arbeitszeit;
+- Stunden-, Fest-, Meilenstein- und Provisionsvergütung;
+- fachliche Beitragsereignisse;
+- Teilabschluss und kontrollierter Abbruch;
+- Ausrüstungsausgabe;
+- Fahrzeugzuweisung;
+- Spieler-Serviceanfragen;
+- bedarfsbasierte Aufträge;
+- kontrollierte Einstiegsjobs;
+- Disconnect- und Neustartwiederherstellung;
+- Erfahrung und Ruf nach Beitrag;
+- Anti-AFK- und Anti-Farming-Signale;
+- Arbeitgeber- und Dienstansichten;
+- Job-Editor;
+- Auditierung und Kennzahlen.
+
+Erste integrierte Jobfamilien:
+
+- Transport und Logistik;
+- Öl- und Kraftstoffwirtschaft;
+- Mechaniker und Abschleppdienst;
+- Müll und Recycling;
+- Taxi oder Bus;
+- Polizeidienst als öffentlicher Referenzdienst.
+
+## 14.70 Spätere Ausbaustufen
+
+- komplexe Schichtplanung;
+- Bewerbungsportal;
+- Gewerkschaften und Tarifmodelle;
+- umfangreiche Versicherungsfälle;
+- vollwertige Spielerbewertungen mit Einspruch;
+- dynamische Ausbildungsschulen;
+- Zertifikatsprüfungen;
+- umfangreiche NPC-Kundenprofile;
+- komplexe Fahrpläne;
+- Arbeitsvermittlung;
+- branchenspezifische Saisonarbeit;
+- tiefe Feuerwehr- und Rettungsdienstkarrieren;
+- Journalismus- und Anwaltsworkflows;
+- Veranstaltungsjobs;
+- weitergehende Automatisierung von Disposition.
+
+## 14.71 Erster legaler Referenzablauf
+
+1. Eine Tankstelle unterschreitet ihren Diesel-Mindestbestand.
+2. Das Fachmodul erzeugt ein Bedarfssignal.
+3. Ein gültiger Vertrag oder Marktplatz erzeugt ein Transportangebot.
+4. Zahlungsbudget, Dieselcharge und Zielkapazität werden reserviert.
+5. Ein Fahrer nimmt den Job an.
+6. Eignung, Schicht, Lizenz und Fahrzeug werden geprüft.
+7. Zugmaschine und Tanktrailer werden zugewiesen oder gemietet.
+8. Die Raffinerie belädt ein geeignetes Abteil.
+9. Fachmodule bestätigen Menge, Qualität, Plombe und Zustand.
+10. Der Fahrer transportiert die Ware ohne starre Zwangsroute.
+11. Die Tankstelle nimmt Menge und Qualität ab.
+12. Auftrag, Aktivität und Meilensteine werden abgeschlossen.
+13. Lieferant, Fahrer, Steuern, Miete und Kosten werden atomar abgerechnet.
+14. Erfahrung und Ruf entstehen aus dem bestätigten Beitrag.
+15. Dieselbestand ist anschließend tatsächlich für Tankvorgänge verfügbar.
+
+## 14.72 Abnahmekriterien für das spätere Scripting
+
+Das Job- und Aktivitäts-MVP gilt fachlich als funktionsfähig, wenn:
+
+- dasselbe Modell einen einfachen Solojob und einen komplexen Gruppenauftrag abbildet;
+- Anstellung, Schicht, Angebot, Auftrag und Aktivität getrennt bleiben;
+- kein vergüteter Job ohne Zahlungsquelle veröffentlicht oder angenommen wird;
+- Budget, Waren und Assets beim Annehmen widerspruchsfrei reserviert werden;
+- ein Client weder Abschluss noch Vergütung bestimmen kann;
+- tatsächlicher fachlicher Nutzen die Abrechnung auslöst;
+- Stundenlohn keine reine Online- oder AFK-Zeit bezahlt;
+- unterstützende Gruppenrollen nachvollziehbaren Beitrag erhalten;
+- ein Teamleiter bereits geleisteten Beitrag nicht entfernen kann;
+- Teilabschluss, Abbruch und Übergabe ohne Duplikation funktionieren;
+- Disconnect und Neustart laufende Jobs wiederherstellen;
+- dieselbe Abrechnung nicht doppelt ausgeführt werden kann;
+- eigene, gemietete und gestellte Fahrzeuge korrekt zugeordnet werden;
+- Spieleraufträge und kontrollierte Einstiegsjobs nebeneinander funktionieren;
+- öffentliche Dienste Dienstlohn statt Prämienfarming verwenden;
+- Jobdefinitionen ohne Codeänderung sicher konfiguriert werden können;
+- Fachmodule weiterhin allein über Waren, Fahrzeuge, Anlagen und Einsätze entscheiden;
+- der legale Referenzablauf eine vollständige Waren-, Vertrags-, Arbeits- und Geldspur besitzt.
 
 ---
 
@@ -7943,6 +9493,22 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Beschlagnahmung | bewegt ein Asset in Verwahrung und erzeugt keine Kopie |
 | Polizeivergütung | Gehalt statt Kopfprämie pro Festnahme oder Tötung |
 | Haft | persistentes Hybridmodell aus aktivem und möglichem Offline-Anteil |
+| Jobbegriffe | Anstellung, Schicht, Angebot, Auftrag, Aktivität und Arbeitsschritt bleiben getrennt |
+| Jobidentität | dauerhafte UUID und versionierte Definition |
+| Fachleistung | wird vom zuständigen Fachmodul und nicht vom Job-UI bestätigt |
+| Jobannahme | reserviert Budget, Teilnehmerplatz und notwendige Assets atomar |
+| Vergütungsquelle | Unternehmen, Kunde, Staat oder begrenztes kontrolliertes Systemkonto |
+| Vergütungsmomentaufnahme | Modell und Grenzen werden bei Annahme versioniert gespeichert |
+| aktive Schichten | standardmäßig höchstens eine vergütete Schicht pro Charakter |
+| Arbeitszeit | entsteht aus plausibler Tätigkeit, nicht allein aus Onlinezeit |
+| Gruppenbeitrag | Erfahrung und variable Anteile folgen bestätigten Beiträgen |
+| Teamleitung | kann bereits bestätigten Beitrag nicht nachträglich entfernen |
+| Jobfahrzeuge und Ausrüstung | zeitlich begrenzter Zugriff ohne Eigentumsübertragung |
+| öffentliche Dienste | Dienstlohn statt persönlicher Prämie pro Einsatz |
+| Einstiegsjobs | begrenztes Budget und keine unbegrenzte Systemgeldquelle |
+| Jobabbruch | sichert Teilfortschritt und gibt Reservierungen kontrolliert frei |
+| Job-Disconnect | Gnadenphase und Wiederaufnahme statt sofortigem Verlust |
+| Job-Editor | nur registrierte Schritttypen und Fachprüfer, keine freien Serverskripte |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
@@ -7968,9 +9534,10 @@ Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortges
 - der vollständige Cops-&-Robbers-Lebenszyklus;
 - Polizeidienst, Dispatch, Fahndung und Einsatzbearbeitung;
 - Beweise, Fälle, Durchsuchungen, Beschlagnahmung, Festnahme und Haft;
+- das allgemeine Job-, Schicht-, Aktivitäts- und Vergütungsmodell;
 - grundlegende Admin-, UI- und Sicherheitsprinzipien.
 
-Damit stehen die RP-, Economy- und Cops-&-Robbers-Grundlagen. Vor dem produktiven Coding fehlen noch ein allgemeines Jobmodell, der technische Implementierungsrahmen und ein verbindlicher MVP-Schnitt.
+Damit stehen die RP-, Economy-, Cops-&-Robbers- und Jobgrundlagen. Vor dem produktiven Coding fehlen noch der technische Implementierungsrahmen und ein verbindlicher MVP-Schnitt.
 
 ## 19.2 Noch notwendige Konzeptpakete vor dem Coding
 
@@ -7989,9 +9556,9 @@ Paket A ist mit Kapitel 13 abgeschlossen. Definiert sind:
 - Offline-, Cooldown- und Mindestpolizei-Regeln;
 - fairer Risiko-, Belohnungs- und Eskalationsrahmen.
 
-### Paket B – Allgemeines Job- und Aktivitätsmodell
+### Abgeschlossen – Paket B: Allgemeines Job- und Aktivitätsmodell
 
-Der Ölzweig ist die Referenz für komplexe Industrie. Zusätzlich benötigt der Core eine gemeinsame Definition für:
+Paket B ist mit Kapitel 14 abgeschlossen. Definiert sind:
 
 - Jobangebote;
 - Schichten und Dienststatus;
@@ -8036,7 +9603,7 @@ Das verhindert, dass beim Scripting gleichzeitig ein Core, eine vollständige Wi
 
 ## 19.3 Empfohlener Zeitpunkt für den Coding-Start
 
-Der Coding-Start wird nach Abschluss der verbleibenden Konzeptpakete B bis D empfohlen.
+Der Coding-Start wird nach Abschluss der verbleibenden Konzeptpakete C und D empfohlen.
 
 Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kann beginnen, sobald:
 
@@ -8091,4 +9658,4 @@ Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird Paket B, das allgemeine Job- und Aktivitätsmodell, geplant. Es vereinheitlicht Jobangebote, Schichten, Aufgaben, Gruppenarbeit, Fortschritt, Vergütung, Abbruch, Wiederaufnahme und Anti-Farming-Regeln für legale Berufe und öffentliche Dienste.
+Als Nächstes wird Paket C, der technische Implementierungsrahmen, geplant. Festgelegt werden Sprache, NUI-Stack, Datenbankzugriff, Migrationen, Resource-Abhängigkeiten, APIs und Events, Konfiguration, Tests, Logging, Deployment, Backups und Entwicklungsumgebungen.
