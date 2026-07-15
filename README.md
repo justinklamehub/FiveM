@@ -322,6 +322,9 @@ Der Core stellt nur gemeinsame technische Dienste bereit. Geld, Fahrzeuge, Inven
 
 - `cnr_vehicles`
 - `cnr_garages`
+- `cnr_dealerships`
+- `cnr_rentals`
+- `cnr_impound`
 - `cnr_properties`
 - `cnr_storage`
 - `cnr_businesses`
@@ -1899,9 +1902,879 @@ Erste MVP-Fähigkeiten:
 
 ---
 
-# 9. Öl- und Kraftstoffwirtschaft
+# 9. Fahrzeug-, Eigentums-, Miet- und Garagensystem
 
-## 9.1 Förderung
+## 9.1 Verantwortliche Module
+
+### `cnr_vehicles`
+
+Verantwortet:
+
+- dauerhafte Fahrzeugidentität;
+- Eigentum und Eigentumshistorie;
+- Fahrzeugzustand;
+- Schlüssel und Zugriffsrechte;
+- Kilometerstand;
+- Modifikationen;
+- Zulassungsdaten;
+- Spawnstatus;
+- Zugmaschinen und Trailer als Fahrzeuge.
+
+### `cnr_garages`
+
+Verantwortet:
+
+- Garagen und Stellplätze;
+- Ein- und Auslagerung;
+- Kapazitäten;
+- Zugriffsrechte;
+- unterstützte Fahrzeuggrößen;
+- Park- und Lagerereignisse.
+
+### `cnr_dealerships`
+
+Verantwortet:
+
+- Fahrzeugkataloge;
+- Händlerbestände;
+- Neu- und Gebrauchtfahrzeuge;
+- Probefahrten;
+- Kaufangebote;
+- Auslieferungen.
+
+### `cnr_rentals`
+
+Verantwortet:
+
+- Mietangebote;
+- Mietverträge;
+- Kautionen;
+- Kilometer- und Zeitabrechnung;
+- Zustandsprotokolle;
+- Rückgabe und Verspätung;
+- temporäre Fahrerrechte.
+
+### `cnr_impound`
+
+Verantwortet:
+
+- Abschleppvorgänge;
+- Polizeiverwahrung;
+- Beschlagnahmung;
+- Freigabebedingungen;
+- Verwahrgebühren;
+- Rückgabe oder Verwertung.
+
+## 9.2 Dauerhafte Fahrzeugidentität
+
+Jedes persistente Fahrzeug erhält:
+
+- interne Fahrzeug-ID;
+- öffentliche Fahrzeug-UUID;
+- eindeutige Fahrgestellnummer beziehungsweise VIN;
+- aktuelles Kennzeichen;
+- Fahrzeugdefinition und Modell;
+- Fahrzeugtyp und Klasse;
+- Eigentümerart und Eigentümer-ID;
+- Erstellungs- oder Importdatum;
+- aktuelle Zustandsversion.
+
+Das Kennzeichen ist niemals der Primärschlüssel eines Fahrzeugs. Kennzeichen können geändert, gestohlen oder gefälscht werden. Die VIN bleibt die dauerhafte technische Identität.
+
+Die FiveM-Netzwerk-ID einer gespawnten Entity ist ebenfalls nur temporär und wird niemals als dauerhafte Fahrzeug-ID verwendet.
+
+## 9.3 Eigentümerarten
+
+Ein Fahrzeug kann gehören zu:
+
+- einem Charakter;
+- einem Unternehmen;
+- einer staatlichen Stelle;
+- einem Fahrzeughändler;
+- einem Vermietungsunternehmen;
+- einer Finanzierungsgesellschaft;
+- einer anderen systemverwalteten Organisation.
+
+Eigentum, Fahrerlaubnis und tatsächlicher Besitz werden getrennt behandelt. Ein Dieb kann ein Fahrzeug kontrollieren, ohne rechtlicher Eigentümer zu werden.
+
+## 9.4 Getrennte Fahrzeugzustände
+
+Statt eines einzigen überladenen Statusfeldes werden mehrere Zustandsbereiche verwendet.
+
+### Betriebszustand
+
+- `STORED`
+- `SPAWNED`
+- `PARKED`
+- `IN_MAINTENANCE`
+- `DESTROYED`
+- `ARCHIVED`
+
+### Rechtlicher Zustand
+
+- `LEGAL`
+- `UNREGISTERED`
+- `REPORTED_STOLEN`
+- `IMPOUNDED`
+- `SEIZED`
+- `REPOSSESSED`
+- `EVIDENCE_HOLD`
+
+### Vertragszustand
+
+- eigenes Fahrzeug ohne Vertrag
+- aktiv vermietet
+- finanziert
+- Händlerbestand
+- staatlich zugewiesen
+- Jobfahrzeug
+
+So kann ein Fahrzeug beispielsweise gleichzeitig beschädigt, als gestohlen gemeldet und aktiv gespawnt sein.
+
+## 9.5 Fahrzeugdefinitionen
+
+Eine Fahrzeugdefinition beschreibt einen Modelltyp und enthält:
+
+- technischer Modellname;
+- sichtbare Bezeichnung;
+- Hersteller;
+- Fahrzeugklasse;
+- Fahrzeugart;
+- Kauf- und Basispreis;
+- zulässige Händler;
+- Sitzplätze;
+- Leergewicht;
+- Kofferraumkapazität;
+- Tankgröße und Kraftstoffart;
+- Anhängelast;
+- erlaubte Trailerarten;
+- benötigte Lizenz;
+- mögliche Modifikationen;
+- Wartungsgrundwerte;
+- aktiv oder deaktiviert.
+
+Nur serverseitig registrierte und aktivierte Fahrzeugdefinitionen können dauerhaft gekauft oder gemietet werden.
+
+## 9.6 Fahrzeugarten
+
+- Pkw
+- Motorrad
+- Transporter
+- LKW-Zugmaschine
+- Tankfahrzeug
+- Bus
+- Einsatzfahrzeug
+- landwirtschaftliches Fahrzeug
+- Arbeitsmaschine
+- Anhänger und Trailer
+- Boot
+- später gegebenenfalls Luftfahrzeug
+
+Fahrzeugklasse, Eigentum, Lizenzanforderung und Nutzung bleiben voneinander getrennt.
+
+## 9.7 Fahrzeugkauf
+
+Möglicher Kaufablauf:
+
+1. Händlerangebot auswählen.
+2. Bestand und Preis serverseitig prüfen.
+3. Käufer und mögliche Firmenberechtigung prüfen.
+4. Zahlungsbetrag über `cnr_banking` reservieren.
+5. Fahrzeugdatensatz und VIN erzeugen.
+6. Zulassung und Kennzeichen anlegen.
+7. Eigentum eintragen.
+8. Zahlung endgültig buchen.
+9. Fahrzeugschlüssel und Dokumente ausstellen.
+10. Fahrzeug ausliefern oder in einer Abholgarage bereitstellen.
+
+Schlägt ein Schritt fehl, werden Reservierung und unvollständige Datensätze kontrolliert zurückgerollt.
+
+Eine Fahrerlaubnis ist keine Voraussetzung für den Besitz eines Fahrzeugs. Sie ist jedoch für die legale Nutzung im Straßenverkehr erforderlich.
+
+## 9.8 Händler und Fahrzeugbestände
+
+Mögliche Händlertypen:
+
+- öffentlicher Basishändler;
+- Gebrauchtwagenhändler;
+- Nutzfahrzeughändler;
+- Motorradhandel;
+- staatlicher Fuhrpark;
+- Spielerunternehmen;
+- Spezial- oder Importhändler.
+
+Händler können besitzen:
+
+- tatsächlichen Bestand;
+- Lieferzeiten;
+- Mindest- und Höchstpreise;
+- Einkaufskosten;
+- Ausstellungsfahrzeuge;
+- Probefahrzeuge;
+- Verkaufsprovisionen;
+- konfigurierbare Öffnungszeiten.
+
+Für den MVP stellt ein kontrollierter NPC-Händler eine Grundversorgung sicher. Später können Spielerhändler echte Bestände und Lieferketten verwalten.
+
+## 9.9 Gebrauchtfahrzeuge und Eigentumsübertragung
+
+Ein Eigentumswechsel benötigt einen Kauf- oder Übertragungsvertrag.
+
+Vor Abschluss werden geprüft:
+
+- aktueller Eigentümer;
+- Verkaufsberechtigung;
+- aktiver Kredit oder Pfand;
+- Beschlagnahmung oder Fahndung;
+- aktiver Mietvertrag;
+- offene Eigentumssperre;
+- Fahrzeugidentität;
+- Kaufpreis und Zahlungsreservierung.
+
+Nach Abschluss werden gespeichert:
+
+- alter und neuer Eigentümer;
+- Kaufpreis;
+- Kilometerstand;
+- Fahrzeugzustand;
+- bekannte Schäden;
+- Vertragsreferenz;
+- Zeitpunkt;
+- übertragene oder entzogene Zugriffsrechte.
+
+Die Eigentumshistorie wird niemals gelöscht.
+
+## 9.10 Finanzierung
+
+Eine Fahrzeugfinanzierung kann enthalten:
+
+- Fahrzeugpreis;
+- Anzahlung;
+- finanzierter Betrag;
+- Zinssatz;
+- Laufzeit;
+- Ratenplan;
+- Fälligkeit;
+- Karenzzeit;
+- Restschuld;
+- finanzierendes Institut;
+- Fahrzeug als Sicherheit.
+
+Während einer aktiven Finanzierung:
+
+- bleibt das Fahrzeug nutzbar;
+- darf es nicht ohne Freigabe verkauft werden;
+- ist die Finanzierung in der Eigentumsakte sichtbar;
+- können versäumte Raten Mahnungen auslösen;
+- kann das Fahrzeug nach geregeltem Prozess zurückgenommen werden.
+
+Finanzierung ist nicht Teil des ersten MVP, wird aber im Datenmodell vorbereitet.
+
+## 9.11 Fahrzeugmiete
+
+Ein Mietvertrag enthält:
+
+- Vermieter;
+- Mieter;
+- Fahrzeug;
+- erlaubte Fahrer;
+- Mietbeginn und Mietende;
+- Grundpreis;
+- Kaution;
+- enthaltene Kilometer;
+- Mehrkilometerpreis;
+- Kraftstoffregel;
+- Ausgangszustand;
+- Rückgabeort;
+- Verspätungsregeln;
+- Schadensregeln;
+- Vertragsstatus.
+
+Mögliche Statuswerte:
+
+- `DRAFT`
+- `RESERVED`
+- `ACTIVE`
+- `OVERDUE`
+- `RETURN_PENDING`
+- `COMPLETED`
+- `CANCELLED`
+- `DEFAULTED`
+
+Der Mietvertrag bleibt bei Disconnect oder Serverneustart bestehen.
+
+## 9.12 Mietkaution und Abrechnung
+
+Die Kaution wird über `cnr_banking` reserviert und nicht sofort als gewöhnliche Zahlung abgezogen.
+
+Rückgabeablauf:
+
+1. Fahrzeug und Vertrag identifizieren.
+2. Rückgabeort prüfen.
+3. Kilometerstand vergleichen.
+4. Kraftstoffstand prüfen.
+5. neue Schäden feststellen.
+6. Verspätung berechnen.
+7. berechtigte Kosten aus der Kaution einziehen.
+8. Restbetrag freigeben.
+9. Mietzugriffe entfernen.
+10. Fahrzeug zurück in den Vermieterbestand überführen.
+
+Ausgangs- und Rückgabezustand werden getrennt gespeichert, damit Schäden nachvollziehbar bleiben.
+
+## 9.13 Jobbezogene Vermietung
+
+Für den Einstieg in die Wirtschaft können Fahrzeuge jobbezogen gemietet werden.
+
+Beispiel Ölförderung:
+
+- Zugmaschine separat mieten;
+- passenden Tanktrailer separat mieten;
+- benötigte Lizenzen prüfen;
+- Kaution reservieren;
+- Auftrag oder Vertragsreferenz hinterlegen;
+- Mietkosten später mit Auftragserlös verrechnen;
+- Fahrzeug und Trailer nach Abschluss getrennt zurückgeben.
+
+Ein Jobfahrzeug wird nicht automatisch Eigentum des Spielers. Mietverträge können zeitlich oder auftragsbezogen gelten.
+
+## 9.14 Trailer und Anhänger
+
+Trailer sind vollwertige Fahrzeuge mit eigener Identität.
+
+Sie besitzen:
+
+- eigene Fahrzeug-ID und VIN;
+- optional eigenes Kennzeichen;
+- eigenen Eigentümer;
+- eigenen Miet- oder Finanzierungsvertrag;
+- Fahrzeugtyp;
+- maximale Ladungsmenge;
+- zulässige Ladungsarten;
+- Leergewicht;
+- Achs- und Reifenzustand;
+- eigenen Standort und Garagenstatus;
+- Kompatibilität mit Zugmaschinen;
+- eigene Schadenshistorie.
+
+Mögliche Trailerarten:
+
+- Tanktrailer
+- Kühltrailer
+- geschlossener Trailer
+- Pritsche
+- Tieflader
+- Containerchassis
+- Fahrzeugtransporter
+- Gefahrguttrailer
+
+Zugmaschine, Trailer und Ladung bleiben drei getrennte Objekte.
+
+## 9.15 Fahrzeugzugriff und Schlüssel
+
+Ein Schlüssel ist ein Zugangsnachweis und kein Eigentumsnachweis.
+
+Mögliche Zugriffsrollen:
+
+- Eigentümer;
+- Miteigentümer;
+- dauerhaft berechtigter Fahrer;
+- Firmenmitarbeiter;
+- temporärer Mieter;
+- Werkstattmitarbeiter;
+- Abschleppdienst;
+- Polizei im Rahmen einer Maßnahme.
+
+Zugriffsrechte können erlauben:
+
+- aufschließen;
+- Motor starten;
+- Kofferraum öffnen;
+- Trailer ankoppeln;
+- Fahrzeug einlagern;
+- Zugriffe weitergeben;
+- Fahrzeug verwalten.
+
+Physische oder digitale Schlüsselitems verweisen nur auf einen serverseitigen Zugriffsdatensatz.
+
+## 9.16 Gestohlene Schlüssel und Fahrzeugdiebstahl
+
+- Ein gestohlener Schlüssel kann Zugang ermöglichen.
+- Er überträgt kein Eigentum.
+- Schlüssel können gesperrt oder Fahrzeugschlösser neu codiert werden.
+- Hotwiring kann einen temporären Motorzugriff erzeugen.
+- Manipulation kann Spuren und Schäden hinterlassen.
+- Diebstahlstatus und Eigentum bleiben getrennt.
+- gestohlene Fahrzeuge können zur Fahndung ausgeschrieben werden.
+- Kennzeichenwechsel entfernt die VIN-Fahndung nicht.
+
+Später können Schlüsselkopien, elektronische Angriffe, Wegfahrsperren und Alarmanlagen ergänzt werden.
+
+## 9.17 Spawn- und Persistenzsystem
+
+Für jedes dauerhafte Fahrzeug darf nur eine aktive Entity existieren.
+
+Geplante Schutzmechanismen:
+
+- `spawn_session_uuid`;
+- serverseitige Spawn-Sperre;
+- aktive Entity-Referenz;
+- Heartbeat beziehungsweise Zustandslease;
+- Versionsprüfung;
+- kontrollierte Freigabe beim Einlagern;
+- Wiederherstellung nach Ressourcenrestart;
+- Bereinigung verwaister Entities.
+
+Vor jedem Spawn wird geprüft:
+
+- Fahrzeug existiert;
+- Fahrzeug ist nicht bereits aktiv;
+- Benutzer besitzt Zugriff;
+- Garage oder Abholort ist gültig;
+- Spawnpunkt ist frei;
+- Fahrzeug ist nicht beschlagnahmt oder zerstört;
+- Miet- oder Jobvertrag erlaubt die Nutzung.
+
+Netzwerk-IDs werden niemals zur dauerhaften Duplikaterkennung verwendet.
+
+## 9.18 Speicherung des Fahrzeugzustands
+
+Gespeichert werden unter anderem:
+
+- Position bei aktiv geparkten Fahrzeugen;
+- Garage oder Stellplatz;
+- Kraftstoffmenge;
+- Kilometerstand;
+- Motorzustand;
+- Karosseriezustand;
+- Reifenzustände;
+- Verschmutzung;
+- Türen und Fenster;
+- Modifikationen;
+- angekoppelter Trailer;
+- Zustandsversion;
+- letzter Fahrer;
+- letzter Speicherzeitpunkt.
+
+Der Zustand wird bei wichtigen Übergängen und in kontrollierten Intervallen gespeichert, nicht bei jedem Frame.
+
+Nach einem Serverneustart können aktive Fahrzeuge abhängig von Konfiguration und Zustand am letzten sicheren Standort wiederhergestellt oder in eine Wiederherstellungsgarage gebracht werden.
+
+## 9.19 Parken und Einlagern
+
+Parken und Einlagern sind unterschiedliche Vorgänge.
+
+### Parken
+
+- Fahrzeug bleibt als Weltobjekt bestehen;
+- Position wird gespeichert;
+- Fahrzeug kann gefunden, gestohlen oder abgeschleppt werden;
+- es belegt keinen virtuellen Garagenslot, aber realen Raum.
+
+### Einlagern
+
+- Fahrzeug wird kontrolliert aus der Welt entfernt;
+- Zustand wird vollständig gespeichert;
+- Fahrzeug befindet sich in einer Garage oder einem Depot;
+- Zugriff erfolgt über den entsprechenden Garagenprozess.
+
+Dadurch kann ein Spieler sein Fahrzeug nicht beliebig aus der Welt verschwinden lassen, um einer Kontrolle, Verfolgung oder Beschädigung zu entgehen.
+
+## 9.20 Garagentypen
+
+- öffentliche Garage
+- Wohnhausgarage
+- Firmen- oder Betriebshof
+- LKW-Depot
+- Trailerstellplatz
+- Jobgarage
+- Vermietungsdepot
+- Händlerlager
+- Werkstatt
+- Polizeiverwahrung
+- Asservatengelände
+- Abschlepphof
+- Wiederherstellungsgarage
+
+## 9.21 Garagen und Stellplätze
+
+Eine Garage besitzt:
+
+- Position und Einfahrtszone;
+- Ausfahrt beziehungsweise Spawnpunkte;
+- Besitzer oder Betreiber;
+- Zugriffsregeln;
+- Kapazität;
+- unterstützte Fahrzeugklassen;
+- separate Trailerplätze;
+- Miet- oder Nutzungskosten;
+- Öffnungszeiten optional;
+- Einlagerungsregeln;
+- Status.
+
+Ein kleiner Wohnstellplatz kann keinen Tanktrailer aufnehmen. Fahrzeuggröße und Stellplatztyp werden geprüft.
+
+## 9.22 Remote-Rückholung
+
+Fahrzeuge können nicht kostenlos an jede beliebige Garage teleportiert werden.
+
+Mögliche Rückholoptionen:
+
+- Abschleppauftrag an Spielerunternehmen;
+- NPC-Notabschleppung gegen höhere Gebühr;
+- Fahrzeuglieferdienst;
+- Wiederherstellung nach technischem Fehler;
+- administrative Wiederherstellung mit Begründung.
+
+Die Rückholung besitzt Kosten, Dauer und Protokollierung. Aktive Verfolgungen, Beschlagnahmungen oder Mietverstöße blockieren sie.
+
+## 9.23 Fahrzeugzustand und Schäden
+
+Für den mittleren Realismusgrad werden zunächst folgende Werte verwendet:
+
+- Motorzustand;
+- Karosseriezustand;
+- Reifen pro Achse oder Rad;
+- Kraftstoffstand;
+- allgemeiner Verschleiß;
+- Kilometerstand.
+
+Spätere Erweiterungen:
+
+- Batterie;
+- Bremsen;
+- Getriebe;
+- Öl und Flüssigkeiten;
+- Kühlung;
+- elektrische Systeme;
+- einzelne Fahrzeugkomponenten.
+
+Schäden werden nachvollziehbar aus Fahrzeugzustand und Ereignissen abgeleitet. Zufällige Totalausfälle ohne Warnung werden vermieden.
+
+## 9.24 Wartung und Reparatur
+
+Wartung basiert auf:
+
+- Kilometerstand;
+- Betriebsstunden;
+- Fahrzeugklasse;
+- transportiertem Gewicht;
+- Fahrverhalten;
+- Kollisionen;
+- vorherigen Schäden;
+- Wartungsintervallen.
+
+Reparaturen benötigen abhängig vom Schaden:
+
+- Ersatzteile;
+- Werkzeug;
+- Mechanikerfähigkeit;
+- Arbeitszeit;
+- Werkstattzugang;
+- Bezahlung oder Firmenfreigabe.
+
+Ein Reparaturvorgang setzt nicht pauschal alle Fahrzeugwerte auf den Maximalwert. Jede reparierte Komponente wird nachvollziehbar erfasst.
+
+## 9.25 Wartungshistorie
+
+Gespeichert werden:
+
+- Fahrzeug;
+- Werkstatt;
+- Mechaniker;
+- Kilometerstand;
+- festgestellte Probleme;
+- ausgeführte Arbeiten;
+- verwendete Teile;
+- Kosten;
+- Zeitpunkt;
+- Ergebnis und Restmängel.
+
+Die Historie kann Kaufpreise, Versicherungen und technische Kontrollen beeinflussen.
+
+## 9.26 Kraftstoff und Ladung
+
+Fahrzeugkraftstoff und transportierte Flüssigkeit sind getrennte Bestände.
+
+Beispiel Tanklastzug:
+
+- Zugmaschine besitzt einen Dieseltank für den eigenen Motor.
+- Tanktrailer besitzt eine Ladung aus Rohöl, Benzin oder Diesel.
+- Fahrzeugverbrauch verändert niemals automatisch die Trailerladung.
+- Trailerladung wird als `cargo lot` mit Menge, Qualität und Herkunft geführt.
+
+Kraftstoffverbrauch kann berücksichtigen:
+
+- Fahrzeugdefinition;
+- Geschwindigkeit;
+- Beschleunigung;
+- Gewicht;
+- Anhänger;
+- Motorzustand;
+- Fahrstil.
+
+## 9.27 Zulassung und Kennzeichen
+
+Eine Fahrzeugzulassung enthält:
+
+- VIN;
+- Kennzeichen;
+- Halter;
+- Fahrzeugklasse;
+- Zulassungsstatus;
+- Ausstellungsdatum;
+- Ablaufdatum optional;
+- zuständige Behörde;
+- Steuerstatus;
+- technische Einschränkungen.
+
+Mögliche Zustände:
+
+- `ACTIVE`
+- `EXPIRED`
+- `SUSPENDED`
+- `REVOKED`
+- `UNREGISTERED`
+
+Ein abgelaufenes oder fehlendes Dokument verhindert nicht zwangsläufig das Fahren, macht die Nutzung aber illegal und kann Versicherungsschutz beeinflussen.
+
+## 9.28 Modifikationen
+
+Persistente Modifikationen können umfassen:
+
+- Farbe;
+- Felgen;
+- Fahrwerk;
+- Motor- und Bremskomponenten;
+- Beleuchtung;
+- Kennzeichen;
+- Kofferraumerweiterungen;
+- Anhängerkupplung;
+- Firmenlackierungen;
+- Sicherheitsausstattung;
+- illegale Leistungsmodifikationen.
+
+Jede Modifikation besitzt:
+
+- technische Kompatibilität;
+- Kosten;
+- benötigte Teile;
+- Einbauvoraussetzungen;
+- mögliche Zulassungspflicht;
+- Auswirkungen auf Zustand und Leistung.
+
+## 9.29 Versicherung
+
+Versicherungen sind für eine spätere Ausbaustufe vorgesehen.
+
+Mögliche Policen:
+
+- Haftpflicht;
+- Teilkasko;
+- Vollkasko;
+- gewerbliche Versicherung;
+- Mietwagenversicherung;
+- Frachtversicherung.
+
+Eine Police kann Prämie, Selbstbeteiligung, Deckung, Ausschlüsse, Laufzeit und Schadenshistorie besitzen.
+
+Versicherungen ersetzen Fahrzeuge nicht automatisch. Ein Schadensfall benötigt Prüfung, mögliche Selbstbeteiligung und Schutz vor Versicherungsbetrug.
+
+## 9.30 Abschleppen, Verwahrung und Beschlagnahmung
+
+Mögliche Gründe:
+
+- Falschparken;
+- Verkehrsbehinderung;
+- Unfall;
+- verlassenes Fahrzeug;
+- Polizeimaßnahme;
+- Beweismittel;
+- gestohlenes Fahrzeug;
+- Kreditrückstand;
+- abgelaufener Mietvertrag.
+
+Ein Verwahrdatensatz enthält:
+
+- Fahrzeug;
+- Grund;
+- einliefernde Person oder Organisation;
+- Verwahrort;
+- Zeitpunkt;
+- Beweis- oder Fallreferenz;
+- Freigabebedingungen;
+- frühestes Freigabedatum;
+- Gebühren;
+- Status.
+
+Ein Fahrzeug im `EVIDENCE_HOLD` kann nicht allein durch Zahlung freigegeben werden.
+
+## 9.31 Diebstahlanzeige und Fahndung
+
+Ein berechtigter Halter kann ein Fahrzeug als gestohlen melden.
+
+Die Meldung kann enthalten:
+
+- Fahrzeug und VIN;
+- Kennzeichen zum Meldezeitpunkt;
+- letzter bekannter Standort;
+- Zeitpunkt;
+- meldende Person;
+- bekannte Fahrer;
+- Beschreibung;
+- Polizeivorgang.
+
+Kennzeichen- und VIN-Fahndungen bleiben getrennt. Ein gefälschtes Kennzeichen kann eine Sichtkontrolle erschweren, entfernt aber nicht die zugrunde liegende Fahrzeugidentität.
+
+## 9.32 Benutzeroberflächen
+
+### Fahrzeugübersicht
+
+- eigene und berechtigte Fahrzeuge;
+- Standortstatus;
+- Garage;
+- Kraftstoff;
+- Zustand;
+- Kilometerstand;
+- Zulassung;
+- Miet- oder Finanzierungsstatus;
+- Schlüssel und Fahrerrechte.
+
+### Händler
+
+- Fahrzeugkatalog;
+- Bestand;
+- Preis;
+- technische Daten;
+- Probefahrt;
+- Kauf und Finanzierung;
+- Lieferstatus.
+
+### Vermietung
+
+- verfügbare Fahrzeuge und Trailer;
+- Mietdauer;
+- Kaution;
+- Kilometerregeln;
+- erlaubte Fahrer;
+- Zustandsprotokoll;
+- Rückgabe.
+
+### Garage und Verwahrung
+
+- eingelagerte Fahrzeuge;
+- passende Stellplätze;
+- Auslagerung;
+- Gebühren;
+- Rückholauftrag;
+- Freigabebedingungen.
+
+Alle Oberflächen verwenden `cnr_ui`.
+
+## 9.33 Vorgesehene Tabellen
+
+- `cnr_vehicle_definitions`
+- `cnr_vehicles`
+- `cnr_vehicle_ownership_history`
+- `cnr_vehicle_access`
+- `cnr_vehicle_keys`
+- `cnr_vehicle_state_snapshots`
+- `cnr_vehicle_components`
+- `cnr_vehicle_modifications`
+- `cnr_vehicle_service_records`
+- `cnr_vehicle_registrations`
+- `cnr_vehicle_insurance_policies`
+- `cnr_vehicle_financing_contracts`
+- `cnr_vehicle_rental_contracts`
+- `cnr_vehicle_rental_inspections`
+- `cnr_garages`
+- `cnr_garage_spaces`
+- `cnr_vehicle_storage_events`
+- `cnr_impound_records`
+- `cnr_dealerships`
+- `cnr_dealership_stock`
+- `cnr_vehicle_theft_reports`
+
+## 9.34 Sicherheit und Schutz vor Duplizierung
+
+- Fahrzeugmodelle nur aus serverseitigen Definitionen
+- Eigentum niemals anhand des Kennzeichens bestimmen
+- nur eine aktive Entity pro dauerhaftem Fahrzeug
+- serverseitige Spawn-Sperren
+- eindeutige `spawn_session_uuid`
+- Käufe, Mieten und Übertragungen mit `operation_uuid`
+- atomare Verbindung mit Zahlungen und Verträgen
+- serverseitige Zugriffs- und Entfernungsprüfung
+- validierte Zustandsübergänge
+- keine vertrauenswürdigen Schadens-, Kilometer- oder Tankwerte direkt vom Client
+- vollständige Eigentums- und Zugriffslogs
+- Wiederherstellung verwaister Spawnzustände
+- administrative Fahrzeugerzeugung nur mit Berechtigung und Grund
+
+## 9.35 Control-Panel-Konfiguration
+
+Dynamisch einstellbar:
+
+- Fahrzeugdefinitionen;
+- Klassen und Typen;
+- Kauf- und Basispreise;
+- Händlerbestände;
+- Lieferzeiten;
+- Tank- und Kofferraumkapazitäten;
+- Anhängelasten und Trailerkompatibilität;
+- Mietpreise und Kautionen;
+- Kilometer- und Verspätungsgebühren;
+- Kraftstoffregeln;
+- Wartungsintervalle;
+- Verschleißfaktoren;
+- Garagenkapazitäten;
+- Stellplatztypen;
+- Verwahrgebühren;
+- Rückholkosten;
+- Zulassungs- und Steuerregeln;
+- erlaubte Modifikationen;
+- Restart- und Wiederherstellungsverhalten.
+
+Über den Ingame-Editor können Händler, Mietstationen, Garagen, Depots, Stellplätze, Abschlepphöfe und Auslieferungsorte erstellt werden.
+
+## 9.36 MVP-Umfang
+
+- dauerhafte Fahrzeugidentität mit VIN;
+- Charakter- und Firmeneigentum;
+- NPC-Basishändler;
+- Fahrzeugkauf;
+- Eigentumshistorie;
+- Zugriffs- und Schlüsselsystem;
+- genau eine aktive Entity;
+- Parken und Einlagern;
+- öffentliche und Firmen-Garagen;
+- Zugmaschinen und Trailer als getrennte Fahrzeuge;
+- Fahrzeug- und Trailermiete;
+- Kaution und Rückgabeprüfung;
+- jobbezogene Vermietung für die Öllieferkette;
+- Kilometerstand;
+- Kraftstoff;
+- grundlegende Motor-, Karosserie- und Reifenschäden;
+- einfache Wartungshistorie;
+- Zulassung und Kennzeichen;
+- Abschlepphof und Polizeiverwahrung;
+- Diebstahlanzeige;
+- vollständige Auditierung.
+
+Nicht im ersten MVP:
+
+- komplexe Finanzierung;
+- umfassende Versicherungen;
+- Spieler-Fahrzeugproduktion;
+- vollständige Komponentenphysik;
+- Luftfahrzeuge;
+- tiefes Tuning- und Homologationssystem.
+
+---
+
+# 10. Öl- und Kraftstoffwirtschaft
+
+## 10.1 Förderung
 
 - Öl-Farmer-Job oder Lizenz
 - gemieteter oder gekaufter LKW
@@ -1911,7 +2784,7 @@ Erste MVP-Fähigkeiten:
 - Maschinenverschleiß und mögliche Defekte
 - Qualität und Chargenverfolgung
 
-## 9.2 Lagerung
+## 10.2 Lagerung
 
 - mobile Tanks
 - gemietete Lager
@@ -1922,7 +2795,7 @@ Erste MVP-Fähigkeiten:
 - Versicherung und Sicherheit
 - Ein- und Auslagerungsprotokolle
 
-## 9.3 Raffinerie
+## 10.3 Raffinerie
 
 - öffentliche Verarbeitung gegen Gebühr
 - mietbare oder kaufbare Raffinerie
@@ -1933,7 +2806,7 @@ Erste MVP-Fähigkeiten:
 - verschiedene Qualitätsstufen
 - Benzin, Diesel, Kerosin, Heizöl, Schmiermittel, Bitumen und Nebenprodukte
 
-## 9.4 Tankstellen
+## 10.4 Tankstellen
 
 - getrennte Tanks pro Produkt
 - individuelle Kapazitäten und Bestände
@@ -1947,9 +2820,9 @@ Erste MVP-Fähigkeiten:
 
 ---
 
-# 10. Weitere geplante Systeme
+# 11. Weitere geplante Systeme
 
-## 10.1 Legale Berufe
+## 11.1 Legale Berufe
 
 - Öl-Farmer
 - LKW-Fahrer
@@ -1974,7 +2847,7 @@ Erste MVP-Fähigkeiten:
 
 Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
 
-## 10.2 Unternehmen
+## 11.2 Unternehmen
 
 - Unternehmensgründung
 - Firmenkonto
@@ -1992,29 +2865,8 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Lizenzen
 - Ausschreibungen und Lieferverträge
 
-## 10.3 Fahrzeuge und Vermietung
+## 11.3 Lager und Immobilien
 
-- Neu- und Gebrauchtfahrzeuge
-- Schlüssel
-- Eigentümerwechsel
-- Kennzeichen und Fahrgestellnummer
-- Kilometerstand
-- Schäden und Wartung
-- Versicherung und Fahrzeugsteuer
-- Finanzierung
-- Beschlagnahmung
-- Diebstahl
-- Mietdauer und Kaution
-- Kilometerbegrenzung
-- Schadensabrechnung
-- verspätete Rückgabe
-- separate Vermietung von Zugmaschine und Trailer
-
-## 10.4 Garagen, Lager und Immobilien
-
-- öffentliche, private und Firmen-Garagen
-- Abschlepphof und Polizeiverwahrung
-- Garagenkapazität und Zugriffsrechte
 - mietbare und kaufbare Lager
 - Gefahrgut- und Kühllager
 - Lagergebühren und Sicherheit
@@ -2024,7 +2876,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Mietverträge, Nebenkosten und Hypotheken
 - Einbruch und Alarmanlagen
 
-## 10.5 Kriminalität
+## 11.4 Kriminalität
 
 - Laden-, Tankstellen- und Bankraub
 - Geldtransporter
@@ -2039,7 +2891,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Sabotage
 - organisierte Kriminalität
 
-## 10.6 Polizeisystem
+## 11.5 Polizeisystem
 
 - Dienstsystem und Dienstgrade
 - Fahrzeuge und Ausrüstung
@@ -2055,7 +2907,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Bodycam
 - Polizei-MDT
 
-## 10.7 Beweissystem
+## 11.6 Beweissystem
 
 - Fingerabdrücke
 - DNA
@@ -2071,9 +2923,9 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 
 ---
 
-# 11. Dynamische Administration
+# 12. Dynamische Administration
 
-## 11.1 Ingame-Editor
+## 12.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -2096,7 +2948,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 11.2 Externes Control Panel
+## 12.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -2116,7 +2968,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 12. Einheitliches UI-System
+# 13. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -2137,7 +2989,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 13. Sicherheitsgrundsätze
+# 14. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -2152,7 +3004,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 14. Aktuelle verbindliche Entscheidungen
+# 15. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -2184,9 +3036,17 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Lizenzen | rechtliche Erlaubnis, getrennt von Fähigkeit und Jobrang |
 | Fähigkeitsverlust | kein Verlust durch Tod oder Haft |
 | Echtgeldboosts | keine kaufbare Erfahrung oder Gameplay-Vorteile |
+| Fahrzeugidentität | dauerhafte VIN und UUID, niemals Kennzeichen oder Netzwerk-ID |
+| aktive Fahrzeuge | maximal eine Entity pro dauerhaftem Fahrzeug |
+| Trailer | eigenständige Fahrzeuge mit Eigentum, Zustand und Vertrag |
+| Schlüssel | Zugriffsrecht, kein Eigentumsnachweis |
+| Parken und Einlagern | getrennte Vorgänge |
+| Fahrzeugmiete | persistenter Vertrag mit Kaution und Zustandsvergleich |
+| Fahrzeugrealismus | Kilometer, Kraftstoff sowie grundlegender Verschleiß und Schaden |
+| Remote-Rückholung | nur als kostenpflichtiger und protokollierter Dienst |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird das Fahrzeug-, Eigentums-, Miet- und Garagensystem geplant. Dazu gehören Fahrzeugidentität, Besitz, Schlüssel, Schäden, Wartung, Finanzierung, Vermietung, Trailer, Garagen und Beschlagnahmung.
+Als Nächstes wird das Unternehmens-, Mitarbeiter-, Vertrags- und Auftragssystem geplant. Dazu gehören Firmengründung, Rollen, Firmenkonten, Mitarbeiter, Löhne, Lager, Fuhrpark, Lieferverträge, Ausschreibungen und Insolvenzregeln.
