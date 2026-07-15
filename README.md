@@ -313,6 +313,7 @@ Der Core stellt nur gemeinsame technische Dienste bereit. Geld, Fahrzeuge, Inven
 - `cnr_inventory`
 - `cnr_banking`
 - `cnr_progression`
+- `cnr_reputation`
 - `cnr_licenses`
 - `cnr_interactions`
 - `cnr_zones`
@@ -1365,9 +1366,542 @@ Nicht im ersten MVP:
 
 ---
 
-# 8. Öl- und Kraftstoffwirtschaft
+# 8. Fähigkeiten-, Level-, Ruf- und Lizenzsystem
 
-## 8.1 Förderung
+## 8.1 Trennung der Fortschrittsarten
+
+Das Fortschrittssystem unterscheidet vier eigenständige Bereiche:
+
+| Bereich | Bedeutung | Beispiel |
+|---|---|---|
+| Fähigkeit | praktische Erfahrung eines Charakters | Ölförderung, Hacking, Mechanik |
+| Level | Fortschrittsstufe innerhalb einer Fähigkeit | Ölförderung Level 8 |
+| Lizenz | rechtliche oder berufliche Erlaubnis | LKW- oder Gefahrgutlizenz |
+| Ruf | Vertrauen bei einer Organisation oder Gruppe | Raffinerieverband, Unterweltkontakt |
+
+Zusätzlich können Berufe, Firmenränge und Polizeidienstgrade existieren. Sie werden nicht automatisch durch ein Level vergeben.
+
+Ein Charakter kann beispielsweise ein sehr erfahrener Fahrer sein, aber aufgrund einer entzogenen Fahrerlaubnis trotzdem nicht legal fahren.
+
+## 8.2 Kein globales Machtlevel
+
+Es gibt kein einzelnes globales Charakterlevel, das pauschal alle Fähigkeiten verbessert.
+
+Gründe:
+
+- Ein Mechaniker wird nicht automatisch zu einem besseren Hacker.
+- Ein krimineller Charakter erhält nicht durch Gesamtspielzeit Zugang zu Polizeifunktionen.
+- Neue Charaktere bleiben in einzelnen Tätigkeiten konkurrenzfähig.
+- Fortschritt bleibt nachvollziehbar und thematisch passend.
+
+Optional kann ein allgemeiner Charakterfortschritt für Statistiken, kosmetische Auszeichnungen oder Meilensteine angezeigt werden. Er verleiht keine direkten Gameplay-Vorteile.
+
+## 8.3 Fähigkeitskategorien
+
+### Industrie und Logistik
+
+- Ölförderung
+- Raffinerieverarbeitung
+- Gefahrguthandhabung
+- LKW-Logistik
+- Lagerlogistik
+- Fahrzeugbeladung
+- Bergbau
+- Holzverarbeitung
+- Landwirtschaft
+- Recycling
+
+### Handwerk und Dienstleistungen
+
+- Fahrzeugmechanik
+- Fahrzeuglackierung
+- Elektronik
+- Reparatur
+- Medizinische Versorgung
+- Handel
+- Verhandlung
+- Kochen und Lebensmittelproduktion
+
+### Kriminalität
+
+- Einbruch
+- Schlossknacken
+- Hacking
+- Fahrzeugdiebstahl
+- Geldwäsche
+- Schmuggel
+- illegale Herstellung
+- Spurenvermeidung
+
+### Öffentliche Tätigkeiten
+
+- Ermittlung
+- Beweissicherung
+- Einsatzfahren
+- medizinische Behandlung
+- Brandbekämpfung
+- Verwaltung
+
+Polizei-, Medizin- oder Feuerwehrfähigkeiten ersetzen keine Einstellung, Ausbildung oder Dienstfreigabe.
+
+## 8.4 Levelmodell
+
+Empfohlen werden standardmäßig 20 Level pro Fähigkeit. Die maximale Stufe bleibt pro Fähigkeit dynamisch konfigurierbar.
+
+Grundregeln:
+
+- Level 1 ist der Einstieg.
+- höhere Level benötigen zunehmend mehr Erfahrung.
+- Levelkurven sind nicht linear.
+- einzelne Tätigkeiten können eine Mindeststufe besitzen.
+- Spezialisierungen werden an definierten Meilensteinen freigeschaltet.
+- hohe Level erhöhen Zuverlässigkeit und Möglichkeiten, nicht unbegrenzt den Gewinn.
+
+Empfohlene Meilensteine:
+
+| Level | Bedeutung |
+|---:|---|
+| 1 | Anfänger und Grundaufträge |
+| 5 | erste Spezialisierung oder bessere Werkzeuge |
+| 10 | fortgeschrittene Aufträge und Verfahren |
+| 15 | Expertenfunktionen |
+| 20 | Meisterschaft und besondere Spezialisierung |
+
+## 8.5 Erfahrungspunkte
+
+Erfahrungspunkte werden ausschließlich serverseitig nach einer sinnvollen Aktion vergeben.
+
+Mögliche Berechnungsfaktoren:
+
+- Grundwert der Tätigkeit
+- Schwierigkeit
+- tatsächlich benötigte Zeit
+- Entfernung
+- Warenmenge
+- Qualität des Ergebnisses
+- Zustand verwendeter Ausrüstung
+- aktuelle Nachfrage
+- Risiko
+- eigener Beitrag innerhalb einer Gruppe
+- erstmalige oder abwechslungsreiche Tätigkeit
+
+Keine Erfahrung gibt es allein für:
+
+- das Drücken einer Taste;
+- das Starten eines Fortschrittsbalkens;
+- dauerhaftes Herumfahren ohne Auftrag;
+- Aufenthalt in einer Zone;
+- wiederholtes Abbrechen;
+- dieselbe Vorgangsnummer;
+- vom Client gemeldete Mengen ohne Servernachweis.
+
+## 8.6 Ablauf einer Erfahrungsvergabe
+
+1. Ein Fachmodul meldet eine abgeschlossene Tätigkeit.
+2. `cnr_progression` prüft Charakter, Vorgang und Fähigkeitsdefinition.
+3. Schwierigkeit und tatsächlicher Beitrag werden bewertet.
+4. Anti-Farming-Regeln werden angewendet.
+5. Erfahrung wird als eigene Transaktion gespeichert.
+6. ein möglicher Levelaufstieg wird berechnet.
+7. Freischaltungen oder Spezialisierungspunkte werden verarbeitet.
+8. der Spieler erhält eine dezente Benachrichtigung.
+
+Andere Module dürfen das Erfahrungsfeld nicht direkt erhöhen.
+
+## 8.7 Schutz vor AFK- und Wiederholungsfarming
+
+Geplante Schutzmaßnahmen:
+
+- eindeutige `operation_uuid` pro Tätigkeit;
+- Mindest- und Höchstdauer für plausible Abläufe;
+- serverseitige Prüfung von Position und Strecke;
+- Prüfung tatsächlich bewegter oder verarbeiteter Waren;
+- abnehmende Erfahrung bei identischen Wiederholungen;
+- Abwechslungsmultiplikator für unterschiedliche Aufträge;
+- reduzierte Erfahrung bei wiederholten Abbrüchen;
+- weiche Tagesgrenzen statt harter Spielverbote;
+- Erkennung unnatürlicher Eingabe- und Bewegungsmuster;
+- keine Erfahrung für gegenseitig künstlich erzeugte Aktionen;
+- Sicherheitslogs für auffällige Erfahrungsraten.
+
+Ein weiches Limit reduziert nach sehr hoher Tagesaktivität schrittweise den Erfahrungsgewinn. Spielen bleibt möglich und wirtschaftliche Erträge werden davon getrennt behandelt.
+
+## 8.8 Teamarbeit
+
+Gruppenaufträge verteilen Erfahrung anhand des tatsächlichen Beitrags.
+
+Mögliche Rollen:
+
+- Fahrer
+- Maschinenführer
+- Verlader
+- Verarbeiter
+- Disponent
+- Sicherheitsbegleitung
+- Techniker
+
+Jede Rolle besitzt eigene Beitragsereignisse. Reines Mitfahren oder AFK-Anwesenheit reicht nicht für die volle Belohnung.
+
+Unterstützende Rollen dürfen trotzdem Fortschritt erhalten, auch wenn sie nicht den finalen Verkaufs- oder Abschlussknopf betätigen.
+
+## 8.9 Spezialisierungen und Vorteile
+
+Spezialisierungen ermöglichen individuelle Charakterwege, ohne vollständige Klassen zu erzwingen.
+
+Mögliche Vorteile:
+
+- geringerer Materialverlust
+- stabilere Produktqualität
+- reduzierte Bearbeitungszeit
+- geringerer Werkzeugverschleiß
+- bessere Fehlererkennung
+- größere oder schwierigere Aufträge
+- neue Maschinen
+- zusätzliche Rezeptvarianten
+- bessere Risikoabschätzung
+- besondere Dialog- oder Verhandlungsoptionen
+
+Vorteile dürfen nicht zu extremen Multiplikatoren führen. Als Balancing-Richtung gelten kleine, kombinierbare Verbesserungen statt einer Verdopplung von Geschwindigkeit oder Ertrag.
+
+Beispielhafte Obergrenzen können dynamisch festgelegt werden:
+
+- maximal etwa 25 Prozent Zeitvorteil;
+- maximal etwa 15 Prozent direkter Ertragsvorteil;
+- weitere Vorteile hauptsächlich über Qualität, Zuverlässigkeit und neue Möglichkeiten.
+
+Diese Werte sind Planungsrichtwerte und keine endgültigen Balancewerte.
+
+## 8.10 Spezialisierungspunkte
+
+An bestimmten Leveln erhält ein Charakter Spezialisierungspunkte.
+
+Regeln:
+
+- Punkte werden nur innerhalb der passenden Fähigkeit verwendet.
+- nicht alle Vorteile können gleichzeitig gewählt werden.
+- Entscheidungen sollen verschiedene Spielweisen ermöglichen.
+- Zurücksetzen ist möglich, aber mit Kosten und Cooldown verbunden.
+- Level und gesammelte Erfahrung werden bei einer Umspezialisierung nicht gelöscht.
+
+Mögliche Zweige der Ölförderung:
+
+- Geschwindigkeit
+- Qualität
+- Maschinenschonung
+- Gefahrgutsicherheit
+- mobile Förderung
+
+## 8.11 Beispiel: Fortschritt eines Öl-Farmers
+
+| Levelbereich | Möglicher Fortschritt |
+|---|---|
+| 1–4 | öffentliche Förderstellen, kleine Pumpen, Grundlagen |
+| 5–9 | Qualitätsprüfung, geringerer Verlust, erste Spezialisierung |
+| 10–14 | größere Pumpen, schwierigere Felder, bessere Chargen |
+| 15–19 | Prozessoptimierung, Expertenaufträge, seltene Förderstellen |
+| 20 | Meister-Spezialisierung und besondere Industrieverträge |
+
+Zusätzliche Voraussetzungen bleiben getrennt:
+
+- LKW-Lizenz zum legalen Fahren eines Tanklasters;
+- Gefahrgutlizenz für entsprechende Transporte;
+- Ruf bei Auftraggebern für hochwertige Verträge;
+- Unternehmen oder Vertrag für den Betrieb eigener Anlagen;
+- Kapital und Genehmigung für Eigentum.
+
+Ein hohes Ölförderungslevel allein schenkt keine Raffinerie und kein Unternehmen.
+
+## 8.12 Rufsystem
+
+Ruf wird getrennt nach Organisation, Industrie oder Gruppierung gespeichert.
+
+Beispiele:
+
+- Stadtverwaltung
+- Polizei
+- bestimmte Unternehmen
+- Raffineriebetreiber
+- Logistikverband
+- Fahrzeughändler
+- Werkstattnetzwerk
+- Unterweltgruppen
+- Schmugglerkontakte
+
+Empfohlene Rufstufen:
+
+- `HOSTILE`
+- `DISTRUSTED`
+- `NEUTRAL`
+- `TRUSTED`
+- `RESPECTED`
+- `ELITE`
+
+Ruf kann positiv oder negativ sein. Nicht jeder Ruf ist öffentlich sichtbar. Die Polizei kann den internen Ruf bei einer kriminellen Organisation nicht einfach im Charakterprofil ablesen.
+
+## 8.13 Rufveränderungen
+
+Positive Einflüsse:
+
+- zuverlässige Vertragsabschlüsse
+- hohe Produktqualität
+- fristgerechte Lieferungen
+- erfolgreiche Zusammenarbeit
+- ehrliche Geschäftsvorgänge
+- gruppenspezifische Aufgaben
+
+Negative Einflüsse:
+
+- Vertragsbruch
+- beschädigte oder fehlende Waren
+- Betrug
+- Verrat
+- nicht bezahlte Forderungen
+- Straftaten gegen die betreffende Gruppe
+- unzuverlässige Auftragsabbrüche
+
+Rufänderungen werden wie Geld und Erfahrung als einzelne Transaktionen gespeichert. Manuelle Adminänderungen benötigen einen Grund.
+
+Ruf kann langsam in Richtung neutral zurückkehren, sofern die jeweilige Definition einen Verfall vorsieht. Fähigkeiten verfallen standardmäßig nicht.
+
+## 8.14 Lizenzarten
+
+### Fahrzeug und Transport
+
+- Pkw-Führerschein
+- Motorradführerschein
+- LKW-Führerschein
+- Busführerschein
+- Anhängerberechtigung
+- Gefahrgutlizenz
+- Taxilizenz
+
+### Wirtschaft und Unternehmen
+
+- Gewerbelizenz
+- Handelslizenz
+- Lagergenehmigung
+- Gefahrgutlagergenehmigung
+- Raffineriebetriebserlaubnis
+- Tankstellenbetriebserlaubnis
+- Waffenhandelslizenz
+
+### Weitere Bereiche
+
+- Waffenlizenz
+- Jagdlizenz
+- medizinische Zulassung
+- Mechanikerzertifizierung
+- Sicherheitsdienstlizenz
+- Berufsausweise öffentlicher Stellen
+
+Nicht jede berufliche Ausbildung ist eine staatliche Lizenz. Interne Firmenzertifikate und Dienstgrade bleiben eigene Systeme.
+
+## 8.15 Erwerb einer Lizenz
+
+Eine Lizenz kann folgende Voraussetzungen besitzen:
+
+- Mindestalter
+- benötigte Fähigkeit
+- theoretische Prüfung
+- praktische Prüfung
+- medizinische Untersuchung
+- Gebühren
+- vorhandene Grundlizenz
+- sauberes oder zulässiges Führungszeugnis
+- Unternehmens- oder Berufszugehörigkeit
+- vorgeschriebene Ausbildung
+
+Der Erwerb besteht je nach Lizenz aus:
+
+1. Antrag
+2. Prüfung der Voraussetzungen
+3. Bezahlung oder Kostenübernahme
+4. Theorieprüfung
+5. Praxisprüfung
+6. Ausstellung
+7. optionaler Aushändigung eines Dokuments
+
+## 8.16 Lizenzstatus
+
+- `PENDING`
+- `PROVISIONAL`
+- `ACTIVE`
+- `EXPIRED`
+- `SUSPENDED`
+- `REVOKED`
+- `DENIED`
+
+Jede Statusänderung enthält Zeitpunkt, Grund, verantwortliche Stelle und optionales Enddatum.
+
+## 8.17 Lizenzen als Erlaubnis statt unsichtbare Wand
+
+Eine fehlende Lizenz blockiert nicht automatisch jede technisch mögliche Handlung.
+
+Beispiele:
+
+- Ein Charakter kann ein Fahrzeug ohne Fahrerlaubnis bewegen, handelt aber illegal.
+- Gefahrgut kann ohne Lizenz transportiert werden, erzeugt jedoch rechtliche und versicherungsbezogene Risiken.
+- Eine staatlich registrierte Firma kann dagegen nicht ohne notwendige Genehmigung offiziell eröffnet werden.
+- Bestimmte sichere oder behördliche Anlagen dürfen eine technische Zugangssperre besitzen.
+
+Dadurch entstehen Rollenspiel, Kontrollen und Konsequenzen, ohne jede Straftat durch eine unsichtbare Systemwand zu verhindern.
+
+## 8.18 Prüfungen
+
+Theorieprüfungen verwenden versionierte Fragenkataloge mit zufälliger Auswahl. Praktische Prüfungen bewerten nachvollziehbare Aufgaben.
+
+Regeln:
+
+- begrenzte Versuche innerhalb eines Zeitraums;
+- Wartezeit nach Nichtbestehen;
+- keine Antwortauswertung ausschließlich auf dem Client;
+- unterschiedliche Prüfungsvarianten;
+- Protokollierung von Beginn, Ergebnis und Prüfer;
+- manuelle Prüfungen durch berechtigte Spieler möglich;
+- automatisierte Alternative bei fehlendem Personal.
+
+## 8.19 Entzug und Wiedererteilung
+
+Lizenzen können ausgesetzt oder entzogen werden durch:
+
+- behördliche Entscheidung
+- Gerichtsurteil
+- Punktesystem
+- abgelaufene Gültigkeit
+- fehlende Pflichtuntersuchung
+- administrative Korrektur
+
+Eine Wiedererteilung kann Gebühren, Wartezeit, Schulung oder erneute Prüfung benötigen.
+
+Dokumente im Inventar spiegeln nur den Datensatz wider. Das Vernichten der physischen Karte entfernt nicht die rechtliche Lizenz.
+
+## 8.20 Jobränge und öffentliche Rollen
+
+Berufsränge werden nicht automatisch anhand einer Fähigkeit vergeben.
+
+Beispiele:
+
+- Ein Polizist erhält seinen Dienstgrad durch die Organisation.
+- Ermittlungsfähigkeit kann Werkzeuge oder Auswertungen verbessern.
+- Sie erteilt aber keine Personal- oder Führungsrechte.
+- Ein Mechanikerlevel erlaubt bessere Arbeit.
+- Die Firmenrolle entscheidet weiterhin über Kasse, Mitarbeiter und Lager.
+
+Damit bleiben Rollenspielhierarchie, fachliche Erfahrung und technische Berechtigungen sauber getrennt.
+
+## 8.21 Tod, Haft und Charakterwechsel
+
+- Tod oder Krankenhausaufenthalt entfernt keine Fähigkeitslevel.
+- Haft entfernt keine Erfahrung, kann aber Lizenzen und Ruf beeinflussen.
+- Charaktere eines Accounts besitzen getrennten Fortschritt.
+- Erfahrung kann nicht zwischen eigenen Charakteren übertragen werden.
+- Accountweite Belohnungen bleiben auf kosmetische oder organisatorische Inhalte beschränkt.
+
+## 8.22 Neue Spieler und Aufholmechaniken
+
+Neue Spieler müssen sofort sinnvoll mitarbeiten können.
+
+Geplante Mechaniken:
+
+- Anfängeraufträge mit echtem Nutzen;
+- Mentoren- und Auszubildendensystem;
+- Gruppenbonus für gemeinsames Lernen, nicht für AFK-Anwesenheit;
+- abwechslungsreiche Wochenaufgaben;
+- schneller Einstieg in Grundlagenlevel;
+- zunehmende Anforderungen erst in höheren Stufen;
+- keine mit Echtgeld kaufbaren Erfahrungsboosts.
+
+Erfahrene Charaktere gewinnen Effizienz und Möglichkeiten, dürfen Anfänger aber nicht vollständig aus dem Markt verdrängen.
+
+## 8.23 Vorgesehene Tabellen
+
+- `cnr_skill_definitions`
+- `cnr_character_skills`
+- `cnr_skill_xp_transactions`
+- `cnr_specialization_definitions`
+- `cnr_character_specializations`
+- `cnr_reputation_definitions`
+- `cnr_character_reputations`
+- `cnr_reputation_transactions`
+- `cnr_license_types`
+- `cnr_character_licenses`
+- `cnr_license_events`
+- `cnr_exam_definitions`
+- `cnr_exam_attempts`
+- `cnr_achievement_definitions`
+- `cnr_character_achievements`
+
+## 8.24 Sicherheit und Auditierung
+
+- Erfahrung ausschließlich durch serverseitige Fachmodule
+- jede Vergabe mit Vorgangsnummer und Quelle
+- keine direkte Levelveränderung durch den Client
+- keine doppelte Erfahrungsvergabe für denselben Vorgang
+- Plausibilitätsprüfung von Zeit, Strecke, Menge und Beitrag
+- getrennte Transaktionshistorie für Erfahrung und Ruf
+- manuelle Änderungen nur mit Berechtigung und Begründung
+- Lizenzänderungen mit vollständiger Ereignishistorie
+- auffällige Fortschrittsraten als Sicherheitsereignis
+- Korrekturen durch Ausgleichstransaktion statt Löschen der Historie
+
+## 8.25 Control-Panel-Konfiguration
+
+Dynamisch einstellbar:
+
+- aktive Fähigkeiten
+- maximale Level
+- Erfahrungskurven
+- Erfahrungswerte einzelner Tätigkeiten
+- Multiplikatoren und weiche Tagesgrenzen
+- Anti-Wiederholungsregeln
+- Spezialisierungen und Voraussetzungen
+- Stärke und Obergrenzen von Vorteilen
+- Rufstufen und Rufverfall
+- Lizenztypen
+- Prüfungsanforderungen
+- Gebühren
+- Gültigkeitsdauer
+- Wartezeiten und Wiederholungsversuche
+- Abhängigkeiten zwischen Fähigkeiten, Ruf und Lizenzen
+
+Administratoren erhalten Auswertungen über:
+
+- durchschnittliche Levelgeschwindigkeit;
+- häufigste Erfahrungsquellen;
+- ungewöhnliche Erfahrungsraten;
+- Verteilung der Spezialisierungen;
+- ausgestellte, abgelaufene und entzogene Lizenzen;
+- Rufverteilung;
+- Auswirkungen auf Produktion und Wirtschaft.
+
+## 8.26 MVP-Umfang
+
+- getrennte Charakterfähigkeiten
+- standardmäßig 20 Level
+- steigende Erfahrungskurve
+- serverseitige Erfahrungstransaktionen
+- Anti-Wiederholungs- und Plausibilitätsprüfungen
+- erste Spezialisierungen
+- Ruf pro Organisation oder Branche
+- Pkw-, LKW- und Gefahrgutlizenz
+- Lizenzstatus und Ereignishistorie
+- einfache Theorie- und Praxisprüfungen
+- Fortschrittsübersicht im einheitlichen UI
+- Adminauswertung und Audit-Logs
+
+Erste MVP-Fähigkeiten:
+
+- Ölförderung
+- Raffinerieverarbeitung
+- LKW-Logistik
+- Lagerlogistik
+- Fahrzeugmechanik
+
+---
+
+# 9. Öl- und Kraftstoffwirtschaft
+
+## 9.1 Förderung
 
 - Öl-Farmer-Job oder Lizenz
 - gemieteter oder gekaufter LKW
@@ -1377,7 +1911,7 @@ Nicht im ersten MVP:
 - Maschinenverschleiß und mögliche Defekte
 - Qualität und Chargenverfolgung
 
-## 8.2 Lagerung
+## 9.2 Lagerung
 
 - mobile Tanks
 - gemietete Lager
@@ -1388,7 +1922,7 @@ Nicht im ersten MVP:
 - Versicherung und Sicherheit
 - Ein- und Auslagerungsprotokolle
 
-## 8.3 Raffinerie
+## 9.3 Raffinerie
 
 - öffentliche Verarbeitung gegen Gebühr
 - mietbare oder kaufbare Raffinerie
@@ -1399,7 +1933,7 @@ Nicht im ersten MVP:
 - verschiedene Qualitätsstufen
 - Benzin, Diesel, Kerosin, Heizöl, Schmiermittel, Bitumen und Nebenprodukte
 
-## 8.4 Tankstellen
+## 9.4 Tankstellen
 
 - getrennte Tanks pro Produkt
 - individuelle Kapazitäten und Bestände
@@ -1413,9 +1947,9 @@ Nicht im ersten MVP:
 
 ---
 
-# 9. Weitere geplante Systeme
+# 10. Weitere geplante Systeme
 
-## 9.1 Legale Berufe
+## 10.1 Legale Berufe
 
 - Öl-Farmer
 - LKW-Fahrer
@@ -1440,7 +1974,7 @@ Nicht im ersten MVP:
 
 Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
 
-## 9.2 Unternehmen
+## 10.2 Unternehmen
 
 - Unternehmensgründung
 - Firmenkonto
@@ -1458,7 +1992,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Lizenzen
 - Ausschreibungen und Lieferverträge
 
-## 9.3 Fahrzeuge und Vermietung
+## 10.3 Fahrzeuge und Vermietung
 
 - Neu- und Gebrauchtfahrzeuge
 - Schlüssel
@@ -1476,7 +2010,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - verspätete Rückgabe
 - separate Vermietung von Zugmaschine und Trailer
 
-## 9.4 Garagen, Lager und Immobilien
+## 10.4 Garagen, Lager und Immobilien
 
 - öffentliche, private und Firmen-Garagen
 - Abschlepphof und Polizeiverwahrung
@@ -1490,7 +2024,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Mietverträge, Nebenkosten und Hypotheken
 - Einbruch und Alarmanlagen
 
-## 9.5 Kriminalität
+## 10.5 Kriminalität
 
 - Laden-, Tankstellen- und Bankraub
 - Geldtransporter
@@ -1505,7 +2039,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Sabotage
 - organisierte Kriminalität
 
-## 9.6 Polizeisystem
+## 10.6 Polizeisystem
 
 - Dienstsystem und Dienstgrade
 - Fahrzeuge und Ausrüstung
@@ -1521,7 +2055,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Bodycam
 - Polizei-MDT
 
-## 9.7 Beweissystem
+## 10.7 Beweissystem
 
 - Fingerabdrücke
 - DNA
@@ -1535,44 +2069,11 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Beweiskette
 - Kontamination und Verfall
 
-## 9.8 Fähigkeiten und Level
-
-Mögliche Fähigkeiten:
-
-- Ölförderung
-- Raffinerieverarbeitung
-- LKW-Fahren
-- Lagerlogistik
-- Mechanik
-- Handel
-- Landwirtschaft
-- Bergbau
-- Medizin
-- Polizeiarbeit
-- Einbruch
-- Hacking
-- Waffenhandhabung
-- Ausdauer
-- Fahrzeugkontrolle
-
-Mögliche Vorteile:
-
-- schnellere Abläufe
-- geringerer Materialverlust
-- bessere Qualität
-- größere Aufträge
-- geringerer Verschleiß
-- neue Maschinen und Rezepte
-- neue Lizenzen
-- Spezialisierungen
-
-Fortschritt soll Komfort, Zuverlässigkeit und neue Möglichkeiten schaffen, aber neue Spieler nicht chancenlos machen.
-
 ---
 
-# 10. Dynamische Administration
+# 11. Dynamische Administration
 
-## 10.1 Ingame-Editor
+## 11.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -1595,7 +2096,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 10.2 Externes Control Panel
+## 11.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -1615,7 +2116,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 11. Einheitliches UI-System
+# 12. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -1636,7 +2137,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 12. Sicherheitsgrundsätze
+# 13. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -1651,7 +2152,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 13. Aktuelle verbindliche Entscheidungen
+# 14. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -1676,9 +2177,16 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Bargeld | serverseitige Geldbörse innerhalb des Hauptbuchs |
 | illegales Geld | physische Chargen mit Herkunft statt `black_money` |
 | Korrekturen | Gegenbuchung statt Löschen gebuchter Transaktionen |
+| globales Charakterlevel | nein; getrennte Fähigkeiten |
+| Fähigkeitslevel | standardmäßig 20, pro Fähigkeit konfigurierbar |
+| Spezialisierungen | begrenzte Auswahl mit Umspezialisierung |
+| Ruf | getrennt nach Organisation oder Branche |
+| Lizenzen | rechtliche Erlaubnis, getrennt von Fähigkeit und Jobrang |
+| Fähigkeitsverlust | kein Verlust durch Tod oder Haft |
+| Echtgeldboosts | keine kaufbare Erfahrung oder Gameplay-Vorteile |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird das Fähigkeiten-, Level- und Lizenzsystem geplant. Dazu gehören getrennte Fähigkeiten, Erfahrungspunkte, Spezialisierungen, Freischaltungen, Lizenzen und Schutz vor AFK- oder Wiederholungsfarming.
+Als Nächstes wird das Fahrzeug-, Eigentums-, Miet- und Garagensystem geplant. Dazu gehören Fahrzeugidentität, Besitz, Schlüssel, Schäden, Wartung, Finanzierung, Vermietung, Trailer, Garagen und Beschlagnahmung.
