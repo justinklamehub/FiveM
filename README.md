@@ -327,6 +327,7 @@ Der Core stellt nur gemeinsame technische Dienste bereit. Geld, Fahrzeuge, Inven
 - `cnr_impound`
 - `cnr_properties`
 - `cnr_storage`
+- `cnr_facilities`
 - `cnr_businesses`
 - `cnr_employment`
 - `cnr_contracts`
@@ -3754,9 +3755,1110 @@ Nicht im ersten MVP:
 
 ---
 
-# 11. Öl- und Kraftstoffwirtschaft
+# 11. Immobilien-, Grundstücks-, Lager- und Anlagensystem
 
-## 11.1 Förderung
+## 11.1 Verantwortliche Module
+
+### `cnr_properties`
+
+Verantwortet:
+
+- Grundstücke und Gebäude;
+- Wohnungen und Gewerbeeinheiten;
+- Adressen;
+- Eigentum und Eigentumshistorie;
+- Kauf, Verkauf und Miete;
+- Zugriffsrechte und Türen;
+- Innenräume;
+- Immobilienstatus;
+- spätere Hypotheken und Pfandrechte.
+
+### `cnr_storage`
+
+Verantwortet:
+
+- Lagerstandorte;
+- Lagerbereiche und Tanks;
+- Kapazitäten;
+- zulässige Warenarten;
+- Zugriffsrechte;
+- Bestandsreservierungen;
+- Inventuren;
+- Lagerbewegungen;
+- Miet- und Betreiberstatus.
+
+### `cnr_facilities`
+
+Verantwortet:
+
+- Produktionsanlagen;
+- Maschineneinheiten;
+- Produktionsrezepte;
+- Produktionsaufträge;
+- Ein- und Ausgänge;
+- Kapazitäten;
+- Energie- und Betriebsmittel;
+- Wartung;
+- Anlagenstatus.
+
+## 11.2 Objekt-Hierarchie
+
+Immobilien werden nicht als ein einzelner Marker gespeichert. Sie besitzen eine klare Hierarchie:
+
+1. Grundstück beziehungsweise `parcel`
+2. Gebäude
+3. Einheit
+4. Raum oder Funktionsbereich
+5. Tür, Interaktionspunkt oder Lager
+6. optionale Produktionsanlage
+
+Beispiel:
+
+- Grundstück: Industrieparzelle 18
+- Gebäude: Raffineriehalle
+- Einheit: Produktionsbereich Nord
+- Funktionsbereich: Rohöltanklager
+- Lager: Tank 01 bis Tank 04
+- Anlage: Destillationslinie A
+
+Eine Immobilie kann mehrere Einheiten, Lager und Anlagen besitzen.
+
+## 11.3 Immobilientypen
+
+### Wohnen
+
+- Apartment;
+- Wohnung;
+- Einfamilienhaus;
+- Mehrfamilienhaus;
+- Hotel- oder Übergangszimmer;
+- Gemeinschaftsunterkunft.
+
+### Gewerbe
+
+- Büro;
+- Ladengeschäft;
+- Restaurant;
+- Werkstatt;
+- Tankstelle;
+- Fahrzeughandel;
+- Logistikbüro;
+- Unternehmenszentrale.
+
+### Industrie und Lager
+
+- allgemeines Lager;
+- Kühlhaus;
+- Gefahrgutlager;
+- Flüssigkeitstanklager;
+- Betriebshof;
+- Raffineriegrundstück;
+- Fabrik;
+- Recyclinganlage;
+- Sägewerk;
+- Mine oder Fördergelände;
+- Landwirtschaftsfläche.
+
+### Staat und Spezialobjekte
+
+- Polizeistation;
+- Feuerwehrwache;
+- Krankenhaus;
+- Gericht;
+- Gefängnis;
+- Verwaltungsgebäude;
+- Asservatenlager.
+
+## 11.4 Dauerhafte Immobilienidentität
+
+Jede Immobilie erhält:
+
+- interne Immobilien-ID;
+- öffentliche UUID;
+- eindeutige Adress- oder Registrierungsnummer;
+- Grundstücksreferenz;
+- Immobilientyp;
+- Eigentümerart und Eigentümer-ID;
+- Welt- oder Interior-Typ;
+- Status;
+- Erstellungsdatum;
+- Zustandsversion.
+
+Koordinaten oder Routing Buckets sind niemals die dauerhafte Identität einer Immobilie.
+
+## 11.5 Adresssystem
+
+Eine Adresse kann enthalten:
+
+- Straßenname;
+- Hausnummer;
+- Zusatz;
+- Einheit oder Apartmentnummer;
+- Stadtteil;
+- Postleitzahl;
+- interne Parzellenkennung.
+
+Adressen müssen serverweit eindeutig genug sein, um verwendet zu werden für:
+
+- Verträge;
+- Unternehmen;
+- Notrufe;
+- Polizeiakten;
+- Lieferaufträge;
+- Rechnungen;
+- Navigationsziele;
+- Zulassungen und Lizenzen.
+
+Eine Namensänderung der Straße verändert nicht die interne Immobilien-ID.
+
+## 11.6 Grundstücke und Nutzungszonen
+
+Ein Grundstück wird als serverseitig validierte Fläche gespeichert.
+
+Mögliche Nutzungsarten:
+
+- Wohnen;
+- Gewerbe;
+- Industrie;
+- Landwirtschaft;
+- Logistik;
+- Gefahrgut;
+- staatliche Nutzung;
+- Sondernutzung.
+
+Die Nutzungszone bestimmt:
+
+- erlaubte Gebäudetypen;
+- erlaubte Produktionsanlagen;
+- maximale Lagerarten;
+- Lärm- und Gefahrgutregeln;
+- mögliche Zufahrten;
+- Fahrzeug- und Trailergrößen;
+- Genehmigungen;
+- Ausbaugrenzen.
+
+Eigentum an einem Grundstück erlaubt nicht automatisch das freie Platzieren beliebiger Objekte oder Anlagen.
+
+## 11.7 Physische und instanzierte Innenräume
+
+Das System unterstützt zwei Innenraumarten.
+
+### Physische Innenräume
+
+- MLO oder vorhandenes GTA-Gebäude;
+- fester Standort in der Welt;
+- Spieler teilen denselben physischen Raum;
+- Türen und Bereiche werden direkt dem Gebäude zugeordnet.
+
+### Instanzierte Innenräume
+
+- Shell oder wiederverwendbares Interior;
+- eigene serverseitige Instanz pro Einheit;
+- eindeutiger Routing Bucket;
+- Bewohner und Gäste werden gezielt derselben Instanz zugewiesen;
+- Außen- und Innenposition bleiben getrennt.
+
+Der Server entscheidet über die Instanz. Ein Client darf keinen beliebigen Routing Bucket wählen.
+
+## 11.8 Immobilienstatus
+
+- `DRAFT`
+- `AVAILABLE_FOR_SALE`
+- `AVAILABLE_FOR_RENT`
+- `RESERVED`
+- `OCCUPIED`
+- `UNDER_CONSTRUCTION`
+- `IN_MAINTENANCE`
+- `RESTRICTED`
+- `SEALED`
+- `SEIZED`
+- `FORECLOSURE_PENDING`
+- `DAMAGED`
+- `INACTIVE`
+- `ARCHIVED`
+
+Eigentums-, Miet-, Bau- und Sicherheitsstatus werden bei Bedarf getrennt gespeichert, damit ein Objekt mehrere gleichzeitige Zustände abbilden kann.
+
+## 11.9 Eigentümerarten
+
+Eine Immobilie kann gehören zu:
+
+- einem Charakter;
+- mehreren Charakteren;
+- einem Unternehmen;
+- einer Immobiliengesellschaft;
+- einer staatlichen Stelle;
+- einem systemverwalteten Eigentümer.
+
+Eigentum, Bewohnerstatus, Mieterstatus und Zugriffsrecht sind getrennte Beziehungen.
+
+Ein Unternehmensstandort gehört der Firma und nicht automatisch dem privaten Charakter des Firmeninhabers.
+
+## 11.10 Immobilienkauf
+
+Möglicher Kaufablauf:
+
+1. Angebot oder Inserat auswählen.
+2. Eigentümer und Verfügbarkeit prüfen.
+3. mögliche Pfandrechte, Mieter und Sperren prüfen.
+4. Käufer und Vertretungsberechtigung prüfen.
+5. Kaufbetrag und Nebenkosten über `cnr_banking` reservieren.
+6. Kaufvertrag erzeugen und unterzeichnen.
+7. Eigentum und Registereintrag übertragen.
+8. Zahlung und Steuern buchen.
+9. Zugriffsrechte aktualisieren.
+10. Eigentumshistorie und Übergabeprotokoll speichern.
+
+Ein Objekt mit aktiver Beschlagnahmung oder ungeklärtem Eigentum kann nicht normal verkauft werden.
+
+## 11.11 Immobilienmarkt
+
+Mögliche Funktionen:
+
+- Verkaufsinserate;
+- Mietinserate;
+- Suchfilter;
+- Besichtigungstermine;
+- Kauf- oder Mietangebote;
+- Gegenangebote;
+- Reservierungen;
+- Maklerzuweisung;
+- Angebotsfristen;
+- Eigentums- und Zustandsinformationen;
+- Abschluss über Vertrag und Treuhand.
+
+Inserate zeigen nur freigegebene Informationen. Versteckte Zugänge, Sicherheitsstufen oder private Lagerbestände werden nicht veröffentlicht.
+
+## 11.12 Mietvertrag
+
+Ein Immobilienmietvertrag enthält:
+
+- Vermieter;
+- Mieter;
+- Immobilie oder Einheit;
+- Mietbeginn;
+- optionales Mietende;
+- Miete pro Abrechnungsperiode;
+- Kaution;
+- Nebenkosten;
+- Zahlungsintervall;
+- Nutzungszweck;
+- erlaubte Bewohner oder Mitarbeiter;
+- Kündigungsfrist;
+- Zugriffsrechte;
+- Vertragsstatus.
+
+Mögliche Statuswerte:
+
+- `OFFERED`
+- `PENDING_SIGNATURE`
+- `ACTIVE`
+- `PAYMENT_OVERDUE`
+- `NOTICE_GIVEN`
+- `TERMINATED`
+- `EXPIRED`
+- `CANCELLED`
+
+## 11.13 Mietkaution und Übergabe
+
+Die Kaution wird über `cnr_banking` reserviert oder auf einem Treuhandkonto hinterlegt.
+
+Bei Einzug wird ein Übergabezustand gespeichert:
+
+- Immobilie und Einheit;
+- vorhandene Ausstattung;
+- bekannte Schäden;
+- enthaltene Lager und Schlüssel;
+- Zähler- oder Versorgungsstatus;
+- Zeitpunkt;
+- bestätigende Parteien.
+
+Bei Auszug wird der Zustand erneut erfasst. Zulässige Forderungen werden nachvollziehbar mit der Kaution verrechnet.
+
+## 11.14 Mietrückstand und Räumung
+
+Eine nicht bezahlte Miete führt nicht sofort zum Verschwinden von Eigentum oder Inventar.
+
+Geplanter Ablauf:
+
+1. Zahlung schlägt fehl.
+2. Mieter und Vermieter erhalten eine Mitteilung.
+3. Karenzzeit beginnt.
+4. Mahnung oder Zahlungsvereinbarung ist möglich.
+5. Kündigung kann ausgesprochen werden.
+6. Zugriffsrechte enden erst nach wirksamem Vertragsende.
+7. zurückgelassene Gegenstände werden in gesicherte Verwahrung überführt.
+8. Abholung, Verwertung oder weitere Entscheidung folgt einem geregelten Prozess.
+
+Ein Vermieter kann ein Lager nicht einfach leeren oder Gegenstände erzeugen, löschen oder übernehmen.
+
+## 11.15 Bewohner, Mitarbeiter und Gäste
+
+Mögliche Zugriffsrollen:
+
+- Eigentümer;
+- Miteigentümer;
+- Hauptmieter;
+- Bewohner;
+- Firmenmitarbeiter;
+- Immobilienverwaltung;
+- Reinigung oder Wartung;
+- temporärer Gast;
+- Notdienst;
+- Polizei mit gültiger Maßnahme.
+
+Zugriffe können eingeschränkt werden auf:
+
+- Haupteingang;
+- einzelne Räume;
+- Garage;
+- privates Lager;
+- Firmenlager;
+- Produktionsbereich;
+- Büro;
+- Sicherheitsbereich;
+- bestimmte Zeiträume.
+
+## 11.16 Schlüssel und Zugangssystem
+
+Schlüssel, Karten oder digitale Freigaben verweisen auf serverseitige Zugriffsdatensätze.
+
+Eigenschaften:
+
+- Immobilie oder Bereich;
+- berechtigter Charakter oder Rolle;
+- erlaubte Aktionen;
+- Beginn und Ablauf;
+- ausstellende Person;
+- widerrufen ja/nein;
+- optionales physisches Item.
+
+Ein verlorener Schlüssel überträgt kein Eigentum. Er kann gesperrt oder durch einen Schlosswechsel ungültig gemacht werden.
+
+## 11.17 Türen und Sicherheitsbereiche
+
+Eine Türdefinition enthält:
+
+- Immobilie;
+- Position;
+- Modell oder Türgruppe;
+- Ausgangszustand;
+- zugehörigen Zugriffsbereich;
+- erlaubte Rollen;
+- Einbruchswiderstand;
+- Alarmzuordnung;
+- mögliche Notfallöffnung.
+
+Der Sperrzustand wird serverseitig synchronisiert. Türen werden nicht allein anhand lokaler Clientwerte geöffnet.
+
+## 11.18 Polizeilicher und behördlicher Zugriff
+
+Behördlicher Zugang benötigt einen nachvollziehbaren Grund:
+
+- Einwilligung;
+- akute Gefahr;
+- Durchsuchungsbeschluss;
+- Beschlagnahme;
+- Feuerwehreinsatz;
+- medizinischer Notfall;
+- administrative Fehlerbehebung.
+
+Jeder Sonderzugriff wird mit Person, Zeitpunkt, Immobilie, Grund und möglicher Fallreferenz protokolliert.
+
+Ein Immobilienbesitzer erhält nicht automatisch eine Livewarnung über jede verdeckte behördliche Maßnahme.
+
+## 11.19 Wohnen und Charakterfunktionen
+
+Wohnimmobilien können bieten:
+
+- auswählbaren Spawnpunkt;
+- Kleiderschrank;
+- persönliches Lager;
+- Bett oder Ruhefunktion;
+- Briefkasten;
+- Gästeverwaltung;
+- Hausgarage;
+- Möbel und Dekoration;
+- Alarmanlage;
+- gemeinschaftliche Räume.
+
+Der Spawn in einer Wohnung ist nur möglich, wenn ein aktives Eigentums-, Miet- oder Bewohnerrecht besteht. Gefängnis, Krankenhaus und administrative Spawns besitzen weiterhin höhere Priorität.
+
+## 11.20 Möbel und funktionale Objekte
+
+Möbel werden in visuelle und funktionale Objekte getrennt.
+
+Visuelle Objekte:
+
+- Tische;
+- Stühle;
+- Dekoration;
+- Beleuchtung;
+- Pflanzen;
+- Bilder.
+
+Funktionale Objekte:
+
+- Schrank;
+- Safe;
+- Kleiderschrank;
+- Werkbank;
+- Bett;
+- Kasse;
+- Terminal;
+- Produktionsgerät.
+
+Platzierung wird serverseitig auf Grundstück, Grenzen, erlaubte Modelle und Objektlimits geprüft. Fortgeschrittene freie Möblierung ist nicht Teil des ersten MVP.
+
+## 11.21 Einbruch und Objektschutz
+
+Immobilien sind nicht grundsätzlich unantastbar.
+
+Mögliche Sicherheitsmerkmale:
+
+- Türschloss;
+- verstärkte Tür;
+- Alarmanlage;
+- Kamera;
+- Bewegungsmelder;
+- Safe;
+- Sicherheitsdienst;
+- Zugangskarte;
+- Strom- oder Netzabhängigkeit.
+
+Mögliche Einbruchsspuren:
+
+- beschädigtes Schloss;
+- Werkzeugspuren;
+- Fingerabdrücke;
+- Alarmereignis;
+- Kameraaufnahme;
+- beschädigtes Fenster;
+- zurückgelassene Gegenstände.
+
+Offline-Schutz, Cooldowns und Entnahmegrenzen verhindern, dass ein Spieler nach längerer Abwesenheit vollständig leergeräumt wird. Die genaue Kriminalitätslogik wird im Einbruchssystem geplant.
+
+## 11.22 Hypotheken und Pfandrechte
+
+Hypotheken sind für eine spätere Ausbaustufe vorgesehen.
+
+Mögliche Eigenschaften:
+
+- Kreditgeber;
+- Kreditnehmer;
+- Immobilie als Sicherheit;
+- Kaufpreis;
+- Anzahlung;
+- Darlehenssumme;
+- Zinssatz;
+- Laufzeit;
+- Ratenplan;
+- Restschuld;
+- Zahlungsverzug;
+- Pfand- oder Verwertungsstatus.
+
+Eine belastete Immobilie kann nicht ohne Freigabe des Kreditgebers übertragen werden.
+
+## 11.23 Steuern und Nebenkosten
+
+Mögliche Kosten:
+
+- Grundsteuer;
+- Gewerbemiete;
+- Wohnmiete;
+- Strom;
+- Wasser;
+- Abfall;
+- Sicherheitsdienst;
+- Lagerbetrieb;
+- Gefahrgutzuschlag;
+- Wartung gemeinsamer Bereiche.
+
+Für den MVP werden Kosten bewusst übersichtlich gehalten. Wohnobjekte können mit pauschalen Nebenkosten beginnen, während Produktionsanlagen ihren tatsächlichen Energie- und Betriebsmittelverbrauch berücksichtigen.
+
+Nicht bezahlte Nebenkosten führen zunächst zu Mahnungen und abgestuften Einschränkungen statt zu einem sofortigen vollständigen Lockout.
+
+## 11.24 Lagertypen
+
+- persönliches Lager;
+- Wohnungslager;
+- Firmenlager;
+- allgemeines Warenlager;
+- Palettenlager;
+- Kühlhaus;
+- Gefahrgutlager;
+- Flüssigkeitstank;
+- Rohstoffsilo;
+- Fahrzeug- und Freifläche;
+- Asservatenlager;
+- temporäres Auftragslager;
+- Mietlager beziehungsweise Self-Storage.
+
+## 11.25 Lagerkapazitäten
+
+Kapazität wird abhängig vom Lagertyp gemessen:
+
+- Gewicht;
+- Volumen;
+- Slots;
+- Palettenplätze;
+- Liter;
+- Fahrzeug- oder Stellplätze;
+- maximale Einzelabmessungen;
+- zulässige Gefahrenklasse.
+
+Ein Flüssigkeitstank verwendet Liter und Produktkompatibilität. Ein Palettenlager verwendet Palettenplätze und Gewicht. Ein persönlicher Schrank verwendet Slots und Gewicht.
+
+Eine einzige universelle Kapazitätszahl reicht daher nicht aus.
+
+## 11.26 Lagerhierarchie
+
+Ein großer Lagerstandort kann besitzen:
+
+1. Lagergebäude
+2. Lagerzonen
+3. Regale, Stellplätze oder Tanks
+4. zugehörige Inventare
+5. reservierte Bereiche
+
+Beispiel Raffinerie:
+
+- Rohöllager
+- Zwischenprodukttank
+- Benzintank
+- Dieseltank
+- Nebenproduktlager
+- Ersatzteillager
+- Gefahrstoffbereich
+
+Jeder Bereich besitzt eigene Kapazität, Kompatibilität und Zugriffsrechte.
+
+## 11.27 Lagerzugriffsrechte
+
+Mögliche Rechte:
+
+- Bestand ansehen;
+- Ware einlagern;
+- Ware entnehmen;
+- Bestand reservieren;
+- Reservierung freigeben;
+- Umlagerung durchführen;
+- Inventur durchführen;
+- Korrektur vorschlagen;
+- Korrektur freigeben;
+- Zugriffe verwalten.
+
+Ein Mitarbeiter kann beispielsweise Waren einlagern, aber keine reservierten Kraftstoffchargen entfernen.
+
+## 11.28 Warenchargen und Bestandsführung
+
+Lagerbestände verweisen auf Items, Container oder `cargo lots` aus dem Inventarsystem.
+
+Gespeichert beziehungsweise abgeleitet werden:
+
+- Produkt;
+- Menge;
+- Einheit;
+- Charge;
+- Qualität;
+- Herkunft;
+- Eigentümer;
+- Reservierungsstatus;
+- Ablaufdatum;
+- Kontamination;
+- Lagerposition;
+- letzter Bewegungsvorgang.
+
+Gleichartige Ware mit unterschiedlicher Qualität oder Herkunft wird nicht unkontrolliert zu einer einzigen Charge zusammengeführt.
+
+## 11.29 Reservierungen für Aufträge
+
+Waren können für Produktion, Verkauf oder Lieferaufträge reserviert werden.
+
+Eine Reservierung enthält:
+
+- Lager und Bereich;
+- Ware oder Charge;
+- reservierte Menge;
+- Auftrag oder Vertrag;
+- reservierendes Unternehmen;
+- Beginn;
+- Ablaufzeitpunkt;
+- Status.
+
+Reservierte Ware bleibt sichtbar, steht aber anderen Vorgängen nicht mehr frei zur Verfügung.
+
+## 11.30 Lagerbewegungen
+
+Jede Bewegung besitzt:
+
+- Quelle;
+- Ziel;
+- Ware oder Charge;
+- Menge;
+- ausführenden Charakter;
+- Unternehmen;
+- Grund;
+- Auftrag oder Vertrag;
+- Fahrzeug oder Container optional;
+- Zeitpunkt;
+- Vorgangsnummer.
+
+Beispiele:
+
+- Wareneingang;
+- Entnahme;
+- Umlagerung;
+- Beladung;
+- Entladung;
+- Produktionsverbrauch;
+- Produktionsausgabe;
+- Inventurkorrektur;
+- Beschlagnahmung;
+- Vernichtung.
+
+## 11.31 Inventur und Bestandskorrektur
+
+Eine Inventur vergleicht erwarteten und festgestellten Bestand.
+
+Abweichungen benötigen:
+
+- Lagerbereich;
+- erwarteten Bestand;
+- festgestellten Bestand;
+- Differenz;
+- Grund;
+- ausführende Person;
+- mögliche Freigabe;
+- Audit-Eintrag.
+
+Eine Bestandskorrektur verändert nicht still einen Mengenwert. Sie erzeugt eine nachvollziehbare Lagerbewegung.
+
+## 11.32 Lagervermietung
+
+Ein Mietlagervertrag enthält:
+
+- Vermieter;
+- Mieter;
+- Lager oder Bereich;
+- Kapazität;
+- zulässige Waren;
+- Mietbeginn und Mietende;
+- Miete;
+- Kaution;
+- Zugriffsrechte;
+- Kündigungsregeln;
+- Vertragsstatus.
+
+Nach Vertragsende verschwinden Waren nicht. Sie werden gesperrt oder in geregelte Verwahrung überführt und können nach Frist, Zahlung oder weiterer Entscheidung abgeholt beziehungsweise verwertet werden.
+
+## 11.33 Gefahrgut, Kühlung und Kontamination
+
+Speziallager können zusätzliche Bedingungen besitzen:
+
+- Gefahrgutklasse;
+- zugelassene Stoffe;
+- maximale Menge;
+- Temperaturbereich;
+- Energiebedarf;
+- Belüftung;
+- Sicherheitsstufe;
+- benötigte Lizenz;
+- Schutzkleidung;
+- Reinigungsstatus.
+
+Falsche Lagerung kann Qualität, Haltbarkeit, Sicherheit und Versicherungsschutz beeinflussen.
+
+Für den MVP werden zuerst Produktkompatibilität, Gefahrgutberechtigung und einfache Kontamination umgesetzt. Eine vollständige Temperatursimulation folgt später.
+
+## 11.34 Grundstück und Produktionsanlage
+
+Grundstück, Gebäude und Produktionsanlage sind getrennte Objekte.
+
+Beispiel:
+
+- Ein Unternehmen mietet ein Industriegrundstück.
+- Auf dem Grundstück befindet sich eine Produktionshalle.
+- In der Halle betreibt das Unternehmen eine gemietete Raffinerielinie.
+- Rohöltanks gehören zum Lagerbereich.
+- Maschinen und Tanks können unterschiedliche Eigentümer oder Verträge besitzen.
+
+Der Besitz eines Grundstücks schenkt keine Produktionsanlage. Eine Anlage benötigt Erwerb oder Miete, Installation, Lizenz und Betriebsmittel.
+
+## 11.35 Anlagentypen
+
+- Ölpumpe;
+- Raffinerie;
+- Mischanlage;
+- Abfüllanlage;
+- Werkstatt;
+- Recyclinganlage;
+- Sägewerk;
+- Schmelzerei;
+- Lebensmittelproduktion;
+- Farmbetrieb;
+- Mine;
+- chemische Anlage;
+- Kraftwerk oder Generator;
+- Verpackungsanlage.
+
+## 11.36 Anlagenstatus
+
+- `DRAFT`
+- `INSTALLING`
+- `READY`
+- `RUNNING`
+- `PAUSED`
+- `MAINTENANCE_REQUIRED`
+- `IN_MAINTENANCE`
+- `FAULTED`
+- `SHUTDOWN`
+- `SEALED`
+- `DECOMMISSIONED`
+
+Eine Anlage kann bei fehlender Lizenz, behördlicher Maßnahme, Wartungsmangel oder Sicherheitsproblem eingeschränkt werden.
+
+## 11.37 Maschinen
+
+Eine Anlage kann mehrere Maschineninstanzen besitzen.
+
+Eine Maschine enthält:
+
+- Maschinentyp;
+- Seriennummer;
+- Eigentümer;
+- Anlage und Standort;
+- Kapazität;
+- Geschwindigkeit;
+- Wirkungsgrad;
+- Zustand;
+- Verschleiß;
+- Energiebedarf;
+- kompatible Rezepte;
+- Wartungsintervall;
+- letzte Wartung.
+
+Maschinen werden als dauerhafte Assets behandelt und nicht bei jedem Produktionsvorgang neu erzeugt.
+
+## 11.38 Produktionsrezepte
+
+Ein Rezept definiert:
+
+- Eingangsprodukte;
+- Eingangsmengen;
+- zugelassene Qualität;
+- benötigte Anlage;
+- benötigte Maschinen;
+- Produktionsdauer;
+- Energie und Betriebsmittel;
+- Ausgangsprodukte;
+- mögliche Nebenprodukte;
+- Qualitätsberechnung;
+- Abfall oder Verlust;
+- benötigte Fähigkeit und Lizenz.
+
+Rezepte sind versioniert. Laufende Produktionsaufträge behalten die beim Start gültige Rezeptversion.
+
+## 11.39 Produktionsauftrag
+
+Ein Produktionsauftrag enthält:
+
+- Anlage;
+- Rezeptversion;
+- gewünschte Menge;
+- reservierte Eingangscharge;
+- Ziel-Lagerbereiche;
+- verantwortliches Unternehmen;
+- startender Charakter;
+- Start- und Endzeitpunkt;
+- Qualitätsparameter;
+- Status;
+- Vorgangsnummer.
+
+Mögliche Statuswerte:
+
+- `DRAFT`
+- `QUEUED`
+- `INPUT_RESERVED`
+- `RUNNING`
+- `PAUSED`
+- `COMPLETED`
+- `FAILED`
+- `CANCELLED`
+
+## 11.40 Produktionsablauf
+
+1. Produktionsauftrag erstellen.
+2. Rezept, Anlage und Maschinen prüfen.
+3. Fähigkeit, Lizenz und Unternehmensrecht prüfen.
+4. Eingangsprodukte im Lager reservieren.
+5. freie Ausgangskapazität prüfen.
+6. Energie und Betriebsmittel prüfen.
+7. Auftrag starten.
+8. Produktionszustand serverseitig fortschreiben.
+9. Eingänge kontrolliert verbrauchen.
+10. Ausgänge und Nebenprodukte erzeugen.
+11. Qualität berechnen.
+12. Waren in Ziellager buchen.
+13. Erfahrung, Wartung und Audit-Ereignisse verarbeiten.
+
+Ein Produktionsauftrag kann keine Ausgabe erzeugen, wenn die Eingänge nicht erfolgreich reserviert und verbraucht wurden.
+
+## 11.41 Hintergrundproduktion
+
+Produktion kann serverseitig über Zeiträume weiterlaufen, auch wenn kein Client die Anlage beobachtet.
+
+Regeln:
+
+- Zustand und Endzeit werden in der Datenbank gespeichert;
+- Serverneustarts erzeugen keine doppelte Ausgabe;
+- Produktion läuft nur mit reservierten Ressourcen;
+- Kapazität und Energie bleiben erforderlich;
+- Wartungs- oder Störungszustände können pausieren;
+- eine Anlage ist kein unbegrenzter Offline-Geldgenerator;
+- Auftrag, Lager und Absatz bleiben notwendig.
+
+Der Client zeigt nur den serverseitigen Produktionsstatus an.
+
+## 11.42 Anlagenwartung
+
+Verschleiß kann beeinflusst werden durch:
+
+- Laufzeit;
+- Produktionsmenge;
+- Auslastung;
+- Rohstoffqualität;
+- Bedienerfähigkeit;
+- Wartungszustand;
+- Überlastung;
+- vorherige Störungen.
+
+Wartung benötigt abhängig von Anlage und Maschine:
+
+- Ersatzteile;
+- Werkzeug;
+- qualifizierten Mitarbeiter;
+- Stillstandszeit;
+- Wartungsauftrag;
+- Firmenfreigabe.
+
+Ungewartete Anlagen verlieren zunächst Wirkungsgrad oder Qualität und fallen nicht ohne nachvollziehbare Warnzeichen zufällig vollständig aus.
+
+## 11.43 Energie und Betriebsmittel
+
+Produktionsanlagen können benötigen:
+
+- Strom;
+- Kraftstoff;
+- Wasser;
+- Kühlmittel;
+- Schmierstoffe;
+- Chemikalien;
+- Verpackungsmaterial.
+
+Im MVP werden Energie- und Betriebskosten zunächst als nachvollziehbare Ressourcen oder Kosten pro Produktionsauftrag umgesetzt.
+
+Ein späterer Ausbau kann Stromerzeugung, Netze, Generatoren, Ausfälle und Spieler-Energieunternehmen ergänzen.
+
+## 11.44 Dynamische Erstellung im Ingame-Editor
+
+Administratoren können im Entwurfsmodus erstellen:
+
+- Grundstücksfläche;
+- Adresse;
+- Immobilientyp;
+- Gebäude und Einheit;
+- Ein- und Ausgänge;
+- Innenraum oder Shell;
+- Routing-Bucket-Regeln;
+- Türen und Zugriffsbereiche;
+- Garagen und Stellplätze;
+- Lagerbereiche;
+- Regale, Tanks und Silos;
+- Maschinenplätze;
+- Produktionsanlagen;
+- Liefer- und Interaktionszonen;
+- Kauf- und Mietkonditionen.
+
+Veröffentlichung erfolgt erst nach Validierung von Grenzen, Überschneidungen, Kapazitäten, Spawnpunkten und Pflichtfeldern.
+
+## 11.45 Versionierung von Weltobjekten
+
+Änderungen an veröffentlichten Objekten erhalten eine neue Version.
+
+Gespeichert werden:
+
+- alter und neuer Zustand;
+- ändernde Person;
+- Zeitpunkt;
+- Begründung;
+- Entwurf oder veröffentlicht;
+- betroffene Mieter, Eigentümer und Verträge;
+- mögliche Migrationsaktion.
+
+Eine Änderung an Lagerkapazität oder Grundstücksgrenze darf bestehende Waren oder Verträge nicht stillschweigend ungültig machen.
+
+## 11.46 Benutzeroberflächen
+
+### Immobilienübersicht
+
+- eigene, gemietete und berechtigte Objekte;
+- Adresse;
+- Eigentums- oder Mietstatus;
+- Verträge;
+- Bewohner und Zugriffe;
+- Räume, Lager und Garage;
+- Kosten und offene Vorgänge.
+
+### Lagerverwaltung
+
+- Lagerbereiche;
+- Kapazität und Auslastung;
+- Bestände und Chargen;
+- Reservierungen;
+- Warenein- und -ausgang;
+- Inventur;
+- Zugriffsrechte;
+- Warnungen.
+
+### Anlagenverwaltung
+
+- Anlagen und Maschinen;
+- Status und Auslastung;
+- Produktionsaufträge;
+- Eingänge und Ausgänge;
+- Energie und Betriebsmittel;
+- Wartung;
+- Störungen;
+- Produktionshistorie.
+
+Alle Oberflächen verwenden `cnr_ui` und beachten Eigentümer-, Miet-, Mitarbeiter- und Sicherheitsrechte.
+
+## 11.47 Vorgesehene Tabellen
+
+- `cnr_property_types`
+- `cnr_property_parcels`
+- `cnr_properties`
+- `cnr_property_units`
+- `cnr_property_addresses`
+- `cnr_property_owners`
+- `cnr_property_ownership_history`
+- `cnr_property_listings`
+- `cnr_property_offers`
+- `cnr_property_rental_contracts`
+- `cnr_property_access`
+- `cnr_property_doors`
+- `cnr_property_interiors`
+- `cnr_property_furniture`
+- `cnr_property_utilities`
+- `cnr_property_mortgages`
+- `cnr_property_tax_records`
+- `cnr_storage_definitions`
+- `cnr_storage_locations`
+- `cnr_storage_sections`
+- `cnr_storage_access`
+- `cnr_storage_movements`
+- `cnr_stock_reservations`
+- `cnr_inventory_counts`
+- `cnr_facility_types`
+- `cnr_facilities`
+- `cnr_facility_machines`
+- `cnr_production_recipes`
+- `cnr_production_orders`
+- `cnr_production_events`
+- `cnr_facility_maintenance`
+
+Lagerbestände selbst bleiben mit den Inventaren, Iteminstanzen und Warenchargen aus `cnr_inventory` verknüpft.
+
+## 11.48 Sicherheit und Schutz vor Missbrauch
+
+- Eigentum niemals durch Clientdaten bestimmen;
+- serverseitige Prüfung von Position, Instanz und Zugang;
+- eindeutige IDs statt Koordinaten als Identität;
+- Kauf, Miete und Eigentumswechsel atomar mit Banking und Vertrag;
+- Lagerkapazitäten und Produktkompatibilität serverseitig prüfen;
+- keine direkten Mengenänderungen außerhalb des Inventarsystems;
+- Produktionsausgabe nur nach reserviertem und verbrauchtem Eingang;
+- eindeutige `operation_uuid` pro Kauf, Bewegung und Produktion;
+- Routing Buckets ausschließlich serverseitig zuweisen;
+- Objekt- und Möbellimits;
+- Türzustände serverseitig synchronisieren;
+- Änderungen an Weltobjekten versionieren;
+- Adminaktionen mit Begründung und Audit-Log;
+- sichere Wiederherstellung nach Restart oder Ressourcenfehler.
+
+## 11.49 Control-Panel-Konfiguration
+
+Dynamisch einstellbar:
+
+- Immobilientypen;
+- Nutzungszonen;
+- Kauf- und Mietpreise;
+- Kautionen;
+- Nebenkosten;
+- Kündigungs- und Karenzzeiten;
+- Innenräume und Shells;
+- Zugriffsrollen;
+- Tür- und Sicherheitsstufen;
+- Möbel- und Objektlimits;
+- Lagertypen;
+- Kapazitätsarten;
+- Warenkompatibilität;
+- Gefahrgutregeln;
+- Inventur- und Korrekturfreigaben;
+- Anlagentypen;
+- Maschinendefinitionen;
+- Produktionsrezepte;
+- Produktionsdauer;
+- Energie- und Betriebsmittelverbrauch;
+- Verschleiß und Wartungsgrenzen;
+- Hintergrundproduktionsregeln;
+- Feature Flags für spätere Systeme.
+
+## 11.50 MVP-Umfang
+
+- Grundstücke, Gebäude und Einheiten;
+- eindeutige Adressen;
+- Wohn-, Gewerbe- und Industrieobjekte;
+- physische und instanzierte Innenräume;
+- Kauf und Eigentumsübertragung;
+- Immobilienmiete und Kaution;
+- Bewohner-, Gäste- und Mitarbeiterzugriffe;
+- Türen und Schlüssel;
+- Wohnungsspawn;
+- persönliches Wohnlager;
+- allgemeine Firmenlager;
+- Paletten- und Gefahrgutlager;
+- Flüssigkeitstanks;
+- Lagerbereiche und differenzierte Kapazitäten;
+- Chargen und Reservierungen;
+- Lagerbewegungen;
+- einfache Inventur;
+- Lagervermietung;
+- Anlagen und Maschinen;
+- versionierte Produktionsrezepte;
+- Produktionsaufträge;
+- serverseitige Hintergrundproduktion;
+- Wartungszustand;
+- Ingame-Erstellung von Objekten, Lagern und Anlagen;
+- vollständige Auditierung.
+
+Nicht im ersten MVP:
+
+- komplexe Hypotheken;
+- vollständige Energie- und Wassernetze;
+- freie umfangreiche Möbelplatzierung;
+- tiefes Bau- und Baugenehmigungssystem;
+- dynamische Gebäudegeometrie;
+- vollständige Immobilienversicherung;
+- komplexe Zwangsversteigerungen;
+- umfassendes Einbruchsystem.
+
+---
+
+# 12. Öl- und Kraftstoffwirtschaft
+
+## 12.1 Förderung
 
 - Öl-Farmer-Job oder Lizenz
 - gemieteter oder gekaufter LKW
@@ -3766,7 +4868,7 @@ Nicht im ersten MVP:
 - Maschinenverschleiß und mögliche Defekte
 - Qualität und Chargenverfolgung
 
-## 11.2 Lagerung
+## 12.2 Lagerung
 
 - mobile Tanks
 - gemietete Lager
@@ -3777,7 +4879,7 @@ Nicht im ersten MVP:
 - Versicherung und Sicherheit
 - Ein- und Auslagerungsprotokolle
 
-## 11.3 Raffinerie
+## 12.3 Raffinerie
 
 - öffentliche Verarbeitung gegen Gebühr
 - mietbare oder kaufbare Raffinerie
@@ -3788,7 +4890,7 @@ Nicht im ersten MVP:
 - verschiedene Qualitätsstufen
 - Benzin, Diesel, Kerosin, Heizöl, Schmiermittel, Bitumen und Nebenprodukte
 
-## 11.4 Tankstellen
+## 12.4 Tankstellen
 
 - getrennte Tanks pro Produkt
 - individuelle Kapazitäten und Bestände
@@ -3802,9 +4904,9 @@ Nicht im ersten MVP:
 
 ---
 
-# 12. Weitere geplante Systeme
+# 13. Weitere geplante Systeme
 
-## 12.1 Legale Berufe
+## 13.1 Legale Berufe
 
 - Öl-Farmer
 - LKW-Fahrer
@@ -3829,18 +4931,7 @@ Nicht im ersten MVP:
 
 Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht nur aus dem Abfahren von Markern bestehen.
 
-## 12.2 Lager und Immobilien
-
-- mietbare und kaufbare Lager
-- Gefahrgut- und Kühllager
-- Lagergebühren und Sicherheit
-- Mietwohnungen und Häuser
-- Möbel, Kleiderschrank und Hauslager
-- Schlüssel und Mitbewohner
-- Mietverträge, Nebenkosten und Hypotheken
-- Einbruch und Alarmanlagen
-
-## 12.3 Kriminalität
+## 13.2 Kriminalität
 
 - Laden-, Tankstellen- und Bankraub
 - Geldtransporter
@@ -3855,7 +4946,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Sabotage
 - organisierte Kriminalität
 
-## 12.4 Polizeisystem
+## 13.3 Polizeisystem
 
 - Dienstsystem und Dienstgrade
 - Fahrzeuge und Ausrüstung
@@ -3871,7 +4962,7 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 - Bodycam
 - Polizei-MDT
 
-## 12.5 Beweissystem
+## 13.4 Beweissystem
 
 - Fingerabdrücke
 - DNA
@@ -3887,9 +4978,9 @@ Berufe sollen einen tatsächlichen Nutzen für andere Spieler besitzen und nicht
 
 ---
 
-# 13. Dynamische Administration
+# 14. Dynamische Administration
 
-## 13.1 Ingame-Editor
+## 14.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -3912,7 +5003,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 13.2 Externes Control Panel
+## 14.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -3932,7 +5023,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 14. Einheitliches UI-System
+# 15. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -3953,7 +5044,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 15. Sicherheitsgrundsätze
+# 16. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -3968,7 +5059,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 16. Aktuelle verbindliche Entscheidungen
+# 17. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -4017,9 +5108,18 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Bedarfsaufträge | bevorzugt aus tatsächlichen Beständen und Nachfrage |
 | Unternehmensruf | aus realer Vertragserfüllung statt einfacher Sternebewertung |
 | Insolvenz | geregelter Statusprozess, keine automatische Datenlöschung |
+| Immobilienstruktur | Grundstück, Gebäude, Einheit und Funktionsbereich getrennt |
+| Innenräume | physische MLOs und serverseitig instanzierte Shells |
+| Immobilienzugriff | getrennte Rollen für Eigentümer, Mieter, Bewohner und Mitarbeiter |
+| Mietrückstand | Karenz- und Räumungsprozess, keine sofortige Inventarlöschung |
+| Lagerkapazität | abhängig von Gewicht, Volumen, Slots, Paletten oder Litern |
+| Warenbestand | Chargen, Qualität, Herkunft und Reservierungen bleiben erhalten |
+| Produktionsanlage | getrennt von Grundstück, Gebäude und Lager |
+| Produktion | serverseitig, versioniert und nur mit reservierten Eingängen |
+| Hintergrundproduktion | möglich, aber durch Ressourcen, Kapazität und Wartung begrenzt |
 | Codesprache | Englisch |
 | UI-Sprache | zunächst Deutsch, vollständig übersetzbar |
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird das Immobilien-, Lager-, Grundstücks- und Anlagensystem geplant. Dazu gehören Häuser, Wohnungen, Gewerbeobjekte, Lagerkapazitäten, Zugriffsrechte, Miete, Kauf, Hypotheken, Produktionsanlagen und dynamisch erstellbare Standorte.
+Als Nächstes wird der vollständige Öl-, Raffinerie-, Kraftstoff- und Tankstellenkreislauf im Detail geplant. Dazu gehören Förderung, Pumpen, Rohölqualität, Tanklager, Verarbeitung, Rezepturen, Nebenprodukte, Lieferverträge, Preisbildung, Tankstellenbestände, Gefahrgut und Störfälle.
