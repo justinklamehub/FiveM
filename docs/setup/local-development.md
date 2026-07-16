@@ -10,12 +10,16 @@
 
 ## 1. Checkout and environment
 
+For current Wave 1 work:
+
 ```bash
 git clone <repository>
 cd FiveM
-git switch agent/wave-0-technical-foundation
+git switch agent/wave-1-player-lifecycle
 cp .env.example .env
 ```
+
+Use `agent/wave-0-technical-foundation` only when reviewing or verifying the isolated Wave 0 pull request. Do not start a parallel Wave 1 branch while draft PR #2 is active.
 
 Replace every `replace-with-local-*` value in `.env`. These values are local-only.
 
