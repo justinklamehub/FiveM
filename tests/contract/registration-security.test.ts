@@ -9,6 +9,7 @@ const repository = fs.readFileSync(
   'resources/[cnr]/cnr_registration/server/repositories/registration_repository.lua',
   'utf8',
 );
+const main = fs.readFileSync('resources/[cnr]/cnr_registration/server/main.lua', 'utf8');
 
 describe('registration security boundary', () => {
   it('binds both memory and database session state to the active FiveM source', () => {
@@ -27,5 +28,9 @@ describe('registration security boundary', () => {
   it('compares the stored semantic payload hash before returning a repeated result', () => {
     expect(service).toContain('previous.payload_sha256 ~= hash.payload_sha256');
     expect(service).toContain("failure('CONFLICT', 'registration.error.operation_conflict'");
+  });
+  it('uses the shared core rate-limit export instead of a resource-local core module', () => {
+    expect(main).toContain('exports.cnr_core:consume_rate_limit');
+    expect(main).not.toContain("require('shared.rate_limiter')");
   });
 });

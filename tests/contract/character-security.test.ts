@@ -12,6 +12,7 @@ const policy = fs.readFileSync(
   'resources/[cnr]/cnr_characters/shared/character_policy.lua',
   'utf8',
 );
+const main = fs.readFileSync('resources/[cnr]/cnr_characters/server/main.lua', 'utf8');
 describe('character security boundary', () => {
   it('resolves account and active session from source and requires full access', () => {
     expect(service).toContain('get_session_for_source(player_source)');
@@ -30,5 +31,9 @@ describe('character security boundary', () => {
   it('does not implement selection or spawn', () => {
     expect(service).not.toContain('select_character');
     expect(service).not.toContain('spawn');
+  });
+  it('uses the shared core rate-limit export at runtime', () => {
+    expect(main).toContain('exports.cnr_core:consume_rate_limit');
+    expect(main).not.toContain("require('shared.rate_limiter')");
   });
 });

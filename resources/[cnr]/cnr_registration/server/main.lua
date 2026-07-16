@@ -1,10 +1,6 @@
 -- Exposes rate-limited registration requests and returns correlation-safe results to the caller.
-local RateLimiter = require('shared.rate_limiter')
 local RegistrationService = require('server.services.registration_service')
 local resource_name = GetCurrentResourceName()
-local limiter = RateLimiter.new(function()
-    return GetGameTimer()
-end)
 local status = {
     resource = resource_name,
     version = GetResourceMetadata(resource_name, 'version', 0) or '0.0.0',
@@ -28,15 +24,15 @@ end)
 RegisterNetEvent('cnr:registration:request', function(action, payload)
     local player_source = source
     local correlation_id = exports.cnr_core:create_correlation_id()
-    local allowed, retry_after_ms = limiter:consume(tostring(player_source), 8, 10000)
+    local rate_limit = exports.cnr_core:consume_rate_limit(
+        'registration:' .. tostring(player_source),
+        8,
+        10000,
+        correlation_id
+    )
     local result
-    if not allowed then
-        result = exports.cnr_core:create_error_result(
-            'RATE_LIMITED',
-            'registration.error.rate_limited',
-            { retry_after_ms = retry_after_ms },
-            correlation_id
-        )
+    if not rate_limit.ok then
+        result = rate_limit
     elseif status.status ~= 'ready' then
         result = exports.cnr_core:create_error_result(
             'DEPENDENCY_UNAVAILABLE',

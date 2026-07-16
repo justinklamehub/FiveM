@@ -1,9 +1,5 @@
 -- Exposes rate-limited character lifecycle requests to the existing NUI bridge.
-local RateLimiter = require('shared.rate_limiter')
 local Service = require('server.services.character_service')
-local limiter = RateLimiter.new(function()
-    return GetGameTimer()
-end)
 local resource_name = GetCurrentResourceName()
 local status = {
     resource = resource_name,
@@ -41,15 +37,15 @@ end)
 RegisterNetEvent('cnr:characters:request', function(action, payload)
     local player_source = source
     local correlation_id = exports.cnr_core:create_correlation_id()
-    local allowed, retry_after_ms = limiter:consume(tostring(player_source), 12, 10000)
+    local rate_limit = exports.cnr_core:consume_rate_limit(
+        'characters:' .. tostring(player_source),
+        12,
+        10000,
+        correlation_id
+    )
     local result
-    if not allowed then
-        result = exports.cnr_core:create_error_result(
-            'RATE_LIMITED',
-            'characters.error.rate_limited',
-            { retry_after_ms = retry_after_ms },
-            correlation_id
-        )
+    if not rate_limit.ok then
+        result = rate_limit
     elseif status.status ~= 'ready' then
         result = exports.cnr_core:create_error_result(
             'DEPENDENCY_UNAVAILABLE',
