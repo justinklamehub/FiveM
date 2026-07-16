@@ -52,6 +52,25 @@ export interface ConnectionSession {
   access_state: SessionAccessState;
 }
 
+export interface TechnicalRoleAssignment {
+  code: string;
+  priority: number;
+  starts_at: string;
+  ends_at: string | null;
+}
+
+export interface TechnicalPermissionSnapshot {
+  account_uuid: string;
+  roles: readonly TechnicalRoleAssignment[];
+  permissions: readonly string[];
+}
+
+export interface TechnicalPermissionDecision {
+  account_uuid: string;
+  permission: string;
+  allowed: boolean;
+}
+
 export interface RequestEnvelope<TPayload> {
   request_id: string;
   operation_uuid?: string;
