@@ -45,22 +45,28 @@ pnpm db:migrate
 
 ## Wave 1 technical permissions
 
-1. Connect once so the target account exists, then read its UUID from the database or trusted server tooling.
-2. From the FXServer console, grant the protected bootstrap role:
+1. Connect once so the target account and active session exist.
+2. Read the server-resolved account UUID from the FXServer console:
+
+   ```text
+   cnr_session_show <source>
+   ```
+
+3. Grant the protected bootstrap role from the FXServer console:
 
    ```text
    cnr_role_grant <account_uuid> owner initial_owner
    ```
 
-3. Inspect the resolved role and permission snapshot:
+4. Inspect the resolved role and permission snapshot:
 
    ```text
    cnr_role_show <account_uuid>
    ```
 
-4. Verify that attempting the same grant again returns `CONFLICT` and does not create a duplicate active assignment.
-5. Grant and revoke `administrator`, `moderator`, and `support` from the server console and confirm every mutation produces an audit log.
-6. Confirm an account without `permissions.manage` receives `PERMISSION_DENIED` from normal grant or revoke exports.
-7. Confirm normal mutation exports refuse to assign or revoke `owner`.
-8. Add an expired assignment in a local test database and confirm the next permission evaluation changes it to `EXPIRED`.
-9. Confirm technical role tables contain no character job, police rank, or business employment state.
+5. Verify that attempting the same grant again returns `CONFLICT` and does not create a duplicate active assignment.
+6. Grant and revoke `administrator`, `moderator`, and `support` from the server console and confirm every mutation produces an audit log.
+7. Confirm an account without `permissions.manage` receives `PERMISSION_DENIED` from normal grant or revoke exports.
+8. Confirm normal mutation exports refuse to assign or revoke `owner`.
+9. Add an expired assignment in a local test database and confirm the next permission evaluation changes it to `EXPIRED`.
+10. Confirm technical role tables contain no character job, police rank, or business employment state.
