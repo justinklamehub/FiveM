@@ -19,9 +19,9 @@ cp .env.example .env
 
 Replace every `replace-with-local-*` value in `.env`. These values are local-only.
 
-## 2. Restore the committed lock and install dependencies
+## 2. Materialize the lockfile and install JavaScript dependencies
 
-The pnpm lock is stored losslessly as `pnpm-lock.yaml.gz` to keep the repository transport deterministic. Materialize it before installation:
+The canonical pnpm lock is stored as deterministic text parts because repository connector transport does not preserve binary archives. The materializer concatenates the parts in lexical order and verifies the reconstructed SHA-256 before installation.
 
 ```bash
 ./tools/materialize-lockfile.sh
@@ -29,6 +29,8 @@ corepack enable
 corepack prepare pnpm@11.13.1 --activate
 pnpm install --frozen-lockfile
 ```
+
+Do not edit a generated `pnpm-lock.yaml` manually. Dependency updates must regenerate the canonical lock, refresh the text parts, and update the expected SHA-256 in the materializer within the same reviewed pull request.
 
 ## 3. Start MariaDB and migrate
 
@@ -53,7 +55,7 @@ pnpm test:lua
 lua-language-server --check=. --checklevel=Error
 ```
 
-The generated NUI build is written to `resources/[cnr]/cnr_ui/web/dist` and is ignored because CI rebuilds it from the pinned lock.
+The generated NUI build is written to `resources/[cnr]/cnr_ui/web/dist` and is ignored because CI rebuilds it from the verified lockfile.
 
 ## 6. FXServer configuration
 
