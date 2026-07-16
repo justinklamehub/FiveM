@@ -183,6 +183,18 @@ exports('get_session_for_source', function(player_source)
         access_state = session.access_state,
     }
 end)
+exports('refresh_access_for_source', function(player_source, account_uuid, access_state)
+    local session = source_sessions[player_source]
+    if not session or session.account_uuid ~= account_uuid then
+        return false
+    end
+    if access_state ~= 'LIMITED' and access_state ~= 'FULL' then
+        return false
+    end
+    session.access_state = access_state
+    TriggerEvent('cnr:sessions:access_changed', session)
+    return true
+end)
 
 RegisterCommand('cnr_session_show', function(command_source, arguments)
     if command_source ~= 0 then

@@ -46,6 +46,37 @@ export type AccountStatus = (typeof accountStatuses)[number];
 export const sessionAccessStates = ['ONBOARDING', 'LIMITED', 'FULL'] as const;
 export type SessionAccessState = (typeof sessionAccessStates)[number];
 
+export const registrationContractVersion = 1 as const;
+export interface RegistrationStatus {
+  registered: boolean;
+  account_status: AccountStatus;
+  access_state: SessionAccessState;
+  ruleset_uuid: string | null;
+  ruleset_version: number | null;
+}
+export interface CurrentRuleset {
+  ruleset_uuid: string;
+  version: number;
+  locale: 'de' | 'en';
+  content: string;
+  published_at: string;
+}
+export interface RegistrationSubmission {
+  ruleset_uuid: string;
+  ruleset_version: number;
+  acceptance: true;
+  locale: 'de' | 'en';
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof registrationContractVersion;
+}
+export interface RegistrationOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  account_status: 'PENDING_WHITELIST' | 'ACTIVE';
+  access_state: 'LIMITED' | 'FULL';
+}
+
 export interface ConnectionSession {
   session_uuid: string;
   account_uuid: string;
@@ -120,7 +151,8 @@ export interface ResourceReadiness {
 export type NuiMessage =
   | { version: 1; type: 'ui.shell.open'; payload: { view: string; locale: string } }
   | { version: 1; type: 'ui.shell.close'; payload: Record<string, never> }
-  | { version: 1; type: 'ui.resource.status'; payload: ResourceReadiness };
+  | { version: 1; type: 'ui.resource.status'; payload: ResourceReadiness }
+  | { version: 1; type: 'ui.registration.open'; payload: { locale: 'de' | 'en' } };
 
 export function isResourceStatus(value: unknown): value is ResourceStatus {
   return typeof value === 'string' && resourceStatuses.includes(value as ResourceStatus);
@@ -133,6 +165,10 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
   if (typeof candidate.payload !== 'object' || candidate.payload === null) return false;
   if (candidate.type === 'ui.shell.close') return true;
   if (candidate.type === 'ui.resource.status') return true;
+  if (candidate.type === 'ui.registration.open') {
+    const payload = candidate.payload as { locale?: unknown };
+    return payload.locale === 'de' || payload.locale === 'en';
+  }
   if (candidate.type !== 'ui.shell.open') return false;
   const payload = candidate.payload as { view?: unknown; locale?: unknown };
   return typeof payload.view === 'string' && typeof payload.locale === 'string';

@@ -61,6 +61,7 @@ function SessionService.open(account_uuid, source, player_name, access_state, co
         session_uuid = session_uuid,
         account_uuid = account_uuid,
         access_state = access_state,
+        source = source,
     }, correlation_id)
 end
 

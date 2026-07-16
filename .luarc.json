@@ -23,6 +23,8 @@
     "SetNuiFocus",
     "SetNuiFocusKeepInput",
     "TriggerEvent",
+    "TriggerClientEvent",
+    "TriggerServerEvent",
     "Wait",
     "exports",
     "json"

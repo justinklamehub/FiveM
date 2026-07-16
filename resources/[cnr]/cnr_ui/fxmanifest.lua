@@ -3,7 +3,7 @@ fx_version('cerulean')
 game('gta5')
 
 author("Cops'N'Robbers RP")
-description('Shared React NUI shell, focus bridge, and localization foundation.')
+description('Shared React NUI shell with localized registration flow.')
 version('0.1.0')
 
 dependencies({
@@ -12,6 +12,8 @@ dependencies({
     'cnr_logs',
     'cnr_locales',
     'cnr_config',
+    'cnr_registration',
+    'cnr_sessions',
 })
 
 client_script('client/main.lua')

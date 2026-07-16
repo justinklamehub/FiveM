@@ -94,6 +94,46 @@ button {
   outline: 3px solid #fff;
   outline-offset: 3px;
 }
+.ruleset-meta {
+  margin-top: 1.5rem;
+  color: var(--cnr-accent);
+  font-weight: 700;
+}
+.ruleset-copy {
+  margin-top: 0.75rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--cnr-border);
+  border-radius: 0.75rem;
+  color: var(--cnr-text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.acceptance {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-top: 1.25rem;
+  line-height: 1.4;
+}
+.acceptance input {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--cnr-accent);
+}
+.shell-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.shell-card .close-link {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.25rem;
+  color: var(--cnr-text-muted);
+  background: transparent;
+  font-weight: 500;
+}
 .sr-only {
   position: absolute;
   width: 1px;

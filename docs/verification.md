@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline is green for the current Wave 0 foundation and the implemented Wave 1 connection and technical-permissions slices. A real FXServer smoke test is still pending. Registration, character lifecycle, character selection, spawn, and the complete loadscreen/NUI flow are not implemented yet and therefore are not claimed by this document.
+The automated pipeline covers the Wave 0 foundation and the implemented Wave 1 connection, technical-permissions, and registration slices. A real FXServer smoke test is still pending. Character lifecycle, character selection, spawn, and the complete loadscreen flow are not implemented yet and therefore are not claimed by this document.
 
 Run from a fresh checkout:
 
@@ -23,7 +23,7 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716000300_technical_roles_permissions.sql` as applied.
+- dbmate reports every ordered migration through `20260716000400_registration_activation.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core and implemented Wave 1 tests.
 - no vehicles, characters, character jobs, oil, or crime features exist.
@@ -73,6 +73,13 @@ pnpm db:migrate
 9. Add an expired assignment in a local test database and confirm the next permission evaluation changes it to `EXPIRED`.
 10. Confirm technical role tables contain no character job, police rank, or business employment state.
 
-## Next verification section
+## Wave 1 registration and activation
 
-The next coding slice must add a dedicated registration verification section covering current ruleset delivery, stale-rules rejection, idempotent acceptance, account-status transition, session access refresh, localization, NUI failure handling, and audit records.
+1. Connect with a new account and confirm the localized registration view opens only for the active ONBOARDING session.
+2. Fetch the current ruleset in German and English; verify its UUID and version come from MariaDB.
+3. Submit without acceptance and with an outdated version; confirm both fail without database changes.
+4. Submit a valid operation in every whitelist mode and verify the server-chosen account/access transition.
+5. Repeat the same semantic payload with the same operation UUID and a new request ID; confirm `repeated = true` and one operation/acceptance row.
+6. Change locale, acceptance, ruleset, or contract version while reusing the operation UUID; confirm `CONFLICT`.
+7. End the session and replay the request; confirm `AUTHENTICATION_REQUIRED` and a data-minimized security log.
+8. Confirm `ruleset.accepted` and `account.status_changed` audits carry request/correlation IDs but no raw platform identifier or full rules text.

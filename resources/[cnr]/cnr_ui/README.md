@@ -1,19 +1,19 @@
 # cnr_ui
 
 ## Responsibility
-Bridges the common React NUI shell and central focus ownership.
+Bridges the common React NUI shell, central focus ownership, and localized registration view.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
 
 ## Dependencies
-`/onesync`, `cnr_core`, `cnr_logs`, `cnr_locales`, `cnr_config`
+`/onesync`, `cnr_core`, `cnr_logs`, `cnr_locales`, `cnr_config`, `cnr_registration`, `cnr_sessions`
 
 ## Public exports
 `get_status`
 
 ## Events
-`cnr:ui:open` (server-to-client network event)
+`cnr:ui:open` (server-to-client network event) and registration NUI callbacks.
 
 ## Owned tables
 None.

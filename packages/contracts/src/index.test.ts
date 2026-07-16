@@ -5,6 +5,8 @@ import {
   isResourceStatus,
   resourceStatuses,
   sessionAccessStates,
+  registrationContractVersion,
+  type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
   type TechnicalRoleAssignment,
@@ -48,5 +50,26 @@ describe('core contracts', () => {
 
     expect(snapshot.roles).toContainEqual(customRole);
     expect(decision.allowed).toBe(true);
+  });
+
+  it('exposes a narrow versioned registration submission contract', () => {
+    const request: RegistrationSubmission = {
+      ruleset_uuid: '0190b7a0-0000-7000-8000-000000000001',
+      ruleset_version: 1,
+      acceptance: true,
+      locale: 'de',
+      request_id: 'request-1',
+      operation_uuid: '0190b7a0-0000-7000-8000-000000000002',
+      contract_version: registrationContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual([
+      'acceptance',
+      'contract_version',
+      'locale',
+      'operation_uuid',
+      'request_id',
+      'ruleset_uuid',
+      'ruleset_version',
+    ]);
   });
 });

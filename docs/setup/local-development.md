@@ -80,3 +80,5 @@ set cnr_identifier_pepper "replace-with-at-least-32-random-characters"
 ```
 
 The supported whitelist modes are `open`, `automatic`, `manual`, and `hybrid`. Wave 1 starts with `open` for local development; production policy is chosen separately.
+
+Apply migration `20260716000400_registration_activation.sql` before ensuring `cnr_registration`. The seeded version 1 ruleset is a technical development baseline; publish later versions by retiring the current row and inserting exactly one new `CURRENT` row in an reviewed forward migration or administrative transaction.

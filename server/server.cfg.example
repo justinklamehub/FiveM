@@ -2,7 +2,7 @@
 set onesync on
 set sv_stateBagStrictMode true
 set cnr_maintenance_mode 0
-set cnr_schema_minimum "20260716000300"
+set cnr_schema_minimum "20260716000400"
 set cnr_registration_enabled 1
 set cnr_whitelist_mode "open"
 set cnr_identifier_pepper "replace-with-at-least-32-random-characters"
@@ -18,4 +18,5 @@ ensure cnr_accounts
 ensure cnr_permissions
 ensure cnr_whitelist
 ensure cnr_sessions
+ensure cnr_registration
 ensure cnr_ui
