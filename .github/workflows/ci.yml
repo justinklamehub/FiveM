@@ -1,0 +1,11 @@
+name: Wave 0 CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:

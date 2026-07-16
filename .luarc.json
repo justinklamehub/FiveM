@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime.version": "Lua 5.4",
+  "runtime.path": ["?.lua", "?/init.lua"],
+  "workspace.library": ["resources/[cnr]"],
+  "workspace.checkThirdParty": false,
+  "diagnostics.globals": [
+    "AddEventHandler",
+    "CreateThread",
+    "GetConvar",
+    "GetConvarInt",
+    "GetCurrentResourceName",
+    "GetGameTimer",
+    "GetHashKey",
+    "GetInvokingResource",
+    "GetResourceMetadata",
+    "GetResourceState",
+    "IsDuplicityVersion",
+    "MySQL",
+    "RegisterNUICallback",
+    "RegisterNetEvent",
+    "SendNUIMessage",
+    "SetNuiFocus",
+    "SetNuiFocusKeepInput",
+    "TriggerEvent",
+    "Wait",
+    "exports",
+    "json"
+  ],
+  "diagnostics.disable": ["lowercase-global"]
+}
