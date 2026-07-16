@@ -97,16 +97,16 @@ INSERT INTO cnr_technical_permissions (
     updated_at
 )
 VALUES
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000001'), 'system.status.read', 'permissions.permission.system_status_read.label', 'permissions.permission.system_status_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000002'), 'logs.read', 'permissions.permission.logs_read.label', 'permissions.permission.logs_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000003'), 'accounts.read', 'permissions.permission.accounts_read.label', 'permissions.permission.accounts_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000004'), 'accounts.manage', 'permissions.permission.accounts_manage.label', 'permissions.permission.accounts_manage.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000005'), 'permissions.read', 'permissions.permission.permissions_read.label', 'permissions.permission.permissions_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000006'), 'permissions.manage', 'permissions.permission.permissions_manage.label', 'permissions.permission.permissions_manage.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000007'), 'whitelist.read', 'permissions.permission.whitelist_read.label', 'permissions.permission.whitelist_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000008'), 'whitelist.manage', 'permissions.permission.whitelist_manage.label', 'permissions.permission.whitelist_manage.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-000000000009'), 'sessions.read', 'permissions.permission.sessions_read.label', 'permissions.permission.sessions_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-8000-00000000000a'), 'sessions.terminate', 'permissions.permission.sessions_terminate.label', 'permissions.permission.sessions_terminate.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000001', '-', '')), 'system.status.read', 'permissions.permission.system_status_read.label', 'permissions.permission.system_status_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000002', '-', '')), 'logs.read', 'permissions.permission.logs_read.label', 'permissions.permission.logs_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000003', '-', '')), 'accounts.read', 'permissions.permission.accounts_read.label', 'permissions.permission.accounts_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000004', '-', '')), 'accounts.manage', 'permissions.permission.accounts_manage.label', 'permissions.permission.accounts_manage.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000005', '-', '')), 'permissions.read', 'permissions.permission.permissions_read.label', 'permissions.permission.permissions_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000006', '-', '')), 'permissions.manage', 'permissions.permission.permissions_manage.label', 'permissions.permission.permissions_manage.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000007', '-', '')), 'whitelist.read', 'permissions.permission.whitelist_read.label', 'permissions.permission.whitelist_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000008', '-', '')), 'whitelist.manage', 'permissions.permission.whitelist_manage.label', 'permissions.permission.whitelist_manage.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-000000000009', '-', '')), 'sessions.read', 'permissions.permission.sessions_read.label', 'permissions.permission.sessions_read.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-8000-00000000000a', '-', '')), 'sessions.terminate', 'permissions.permission.sessions_terminate.label', 'permissions.permission.sessions_terminate.description', 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 
 INSERT INTO cnr_technical_roles (
     public_uuid,
@@ -120,10 +120,10 @@ INSERT INTO cnr_technical_roles (
     updated_at
 )
 VALUES
-    (UUID_TO_BIN('018f0000-0000-7000-9000-000000000001'), 'owner', 'permissions.role.owner.label', 'permissions.role.owner.description', 1000, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-9000-000000000002'), 'administrator', 'permissions.role.administrator.label', 'permissions.role.administrator.description', 800, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-9000-000000000003'), 'moderator', 'permissions.role.moderator.label', 'permissions.role.moderator.description', 500, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
-    (UUID_TO_BIN('018f0000-0000-7000-9000-000000000004'), 'support', 'permissions.role.support.label', 'permissions.role.support.description', 300, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+    (UNHEX(REPLACE('018f0000-0000-7000-9000-000000000001', '-', '')), 'owner', 'permissions.role.owner.label', 'permissions.role.owner.description', 1000, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-9000-000000000002', '-', '')), 'administrator', 'permissions.role.administrator.label', 'permissions.role.administrator.description', 800, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-9000-000000000003', '-', '')), 'moderator', 'permissions.role.moderator.label', 'permissions.role.moderator.description', 500, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
+    (UNHEX(REPLACE('018f0000-0000-7000-9000-000000000004', '-', '')), 'support', 'permissions.role.support.label', 'permissions.role.support.description', 300, 1, 1, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 
 INSERT INTO cnr_technical_role_permissions (role_id, permission_id, created_at)
 SELECT
