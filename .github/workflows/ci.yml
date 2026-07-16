@@ -16,10 +16,22 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - run: ./tools/materialize-lockfile.sh
-      - run: corepack enable && corepack prepare pnpm@11.13.1 --activate
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm verify
+      - name: Materialize verified pnpm lockfile
+        run: ./tools/materialize-lockfile.sh
+      - name: Activate pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.13.1 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Lint and validate repository contracts
+        run: pnpm lint
+      - name: Type-check TypeScript projects
+        run: pnpm typecheck
+      - name: Run TypeScript tests
+        run: pnpm test
+      - name: Build production NUI
+        run: pnpm build:nui
 
   lua:
     runs-on: ubuntu-latest
@@ -33,9 +45,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - run: ./tools/materialize-lockfile.sh
-      - run: corepack enable && corepack prepare pnpm@11.13.1 --activate
-      - run: pnpm install --frozen-lockfile
+      - name: Materialize verified pnpm lockfile
+        run: ./tools/materialize-lockfile.sh
+      - name: Activate pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.13.1 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
       - name: Install pinned Lua, LuaRocks, and Busted
         run: |
           sudo apt-get update
@@ -54,8 +69,10 @@ jobs:
           echo "${HOME}/.local/luarocks/bin" >> "${GITHUB_PATH}"
           echo "${HOME}/.luarocks/bin" >> "${GITHUB_PATH}"
           "${HOME}/.local/luarocks/bin/luarocks" --lua-version=5.4 --tree="${HOME}/.luarocks" install busted "${BUSTED_VERSION}"
-      - run: lua -v && luarocks --version && busted --version
-      - run: pnpm test:lua
+      - name: Verify Lua tool versions
+        run: lua -v && luarocks --version && busted --version
+      - name: Run Busted tests
+        run: pnpm test:lua
       - name: Lua Language Server diagnostics
         run: |
           curl -fsSL -o /tmp/lua-ls.tar.gz "https://github.com/LuaLS/lua-language-server/releases/download/${LUA_LS_VERSION}/lua-language-server-${LUA_LS_VERSION}-linux-x64.tar.gz"
@@ -87,9 +104,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - run: ./tools/materialize-lockfile.sh
-      - run: corepack enable && corepack prepare pnpm@11.13.1 --activate
-      - run: pnpm install --frozen-lockfile
+      - name: Materialize verified pnpm lockfile
+        run: ./tools/materialize-lockfile.sh
+      - name: Activate pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.13.1 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
       - name: Fresh migration, rollback, and reapply
         run: |
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --wait --no-dump-schema up
