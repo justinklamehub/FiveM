@@ -28,8 +28,16 @@ jobs:
         run: pnpm exec prettier --check .github
       - name: Check documentation formatting
         run: pnpm exec prettier --check docs
-      - name: Check source formatting
-        run: pnpm exec prettier --check apps packages resources server tests
+      - name: Check application placeholders
+        run: pnpm exec prettier --check apps
+      - name: Check package sources
+        run: pnpm exec prettier --check packages
+      - name: Check resource documentation and web files
+        run: pnpm exec prettier --check resources
+      - name: Check server templates
+        run: pnpm exec prettier --check server
+      - name: Check test sources
+        run: pnpm exec prettier --check tests
       - name: Check tool formatting
         run: pnpm exec prettier --check "tools/**/*.{json,mjs,md}"
       - name: Check pnpm lock formatting
