@@ -9,5 +9,6 @@ coverage/
 .DS_Store
 .vscode/settings.json
 .tools/
+compose.server.yaml
 resources/\[vendor\]/oxmysql/
 resources/\[cnr\]/cnr_ui/web/dist/
