@@ -17,6 +17,7 @@ local function copy(value)
     if type(value) ~= 'table' then
         return value
     end
+
     local result = {}
     for key, item in pairs(value) do
         result[key] = copy(item)
@@ -33,13 +34,25 @@ end
 local function read_dependency(resource)
     local state = GetResourceState(resource)
     if state ~= 'started' then
-        return { resource = resource, version = 'unknown', status = 'unavailable', changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ'), details = { state = state } }
+        return {
+            resource = resource,
+            version = 'unknown',
+            status = 'unavailable',
+            changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ'),
+            details = { state = state },
+        }
     end
     local ok, snapshot = pcall(function()
         return exports[resource]:get_status()
     end)
     if not ok or type(snapshot) ~= 'table' then
-        return { resource = resource, version = 'unknown', status = 'unavailable', changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ'), details = { reason = 'status_export_failed' } }
+        return {
+            resource = resource,
+            version = 'unknown',
+            status = 'unavailable',
+            changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ'),
+            details = { reason = 'status_export_failed' },
+        }
     end
     return snapshot
 end
@@ -123,7 +136,10 @@ exports('is_ready', function()
 end)
 exports('is_mutation_allowed', function()
     if readiness.status ~= 'ready' then
-        return Result.failure(ErrorCodes.DEPENDENCY_UNAVAILABLE, 'core.error.dependency_unavailable')
+        return Result.failure(
+            ErrorCodes.DEPENDENCY_UNAVAILABLE,
+            'core.error.dependency_unavailable'
+        )
     end
     local maintenance = exports.cnr_config:is_maintenance_mode()
     if maintenance then
@@ -134,7 +150,12 @@ end)
 exports('consume_rate_limit', function(key, limit, window_ms, correlation_id)
     local allowed, retry_after_ms = rate_limiter:consume(key, limit, window_ms)
     if not allowed then
-        return Result.failure(ErrorCodes.RATE_LIMITED, 'core.error.rate_limited', { retry_after_ms = retry_after_ms }, correlation_id)
+        return Result.failure(
+            ErrorCodes.RATE_LIMITED,
+            'core.error.rate_limited',
+            { retry_after_ms = retry_after_ms },
+            correlation_id
+        )
     end
     return Result.success({ allowed = true, retry_after_ms = retry_after_ms }, correlation_id)
 end)
