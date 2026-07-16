@@ -14,7 +14,7 @@ CREATE TABLE cnr_character_session_bindings (
     status VARCHAR(16) NOT NULL,
     routing_bucket INT UNSIGNED NOT NULL,
     spawn_uuid BINARY(16) NULL,
-    spawn_state VARCHAR(16) NOT NULL,
+    spawn_state VARCHAR(24) NOT NULL,
     spawn_reason VARCHAR(32) NULL,
     spawn_x DECIMAL(10, 4) NULL,
     spawn_y DECIMAL(10, 4) NULL,

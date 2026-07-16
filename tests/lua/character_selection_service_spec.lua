@@ -58,7 +58,11 @@ local selection = {
 
 describe('character selection service authority', function()
     it('rejects a missing or inactive session', function()
-        local missing_service = load_service({}, nil)
+        local missing_service = load_service({
+            session_for_source = function()
+                return nil
+            end,
+        }, nil)
         local missing = missing_service.select_character(12, selection, 'correlation-1')
         assert.is_false(missing.ok)
         assert.are.equal('AUTHENTICATION_REQUIRED', missing.error.code)
