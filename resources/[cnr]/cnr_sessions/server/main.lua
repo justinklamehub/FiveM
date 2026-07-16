@@ -183,3 +183,27 @@ exports('get_session_for_source', function(player_source)
         access_state = session.access_state,
     }
 end)
+
+RegisterCommand('cnr_session_show', function(command_source, arguments)
+    if command_source ~= 0 then
+        print(('[cnr_sessions] Rejected in-game use from source %s.'):format(command_source))
+        return
+    end
+
+    local player_source = tonumber(arguments[1])
+    if not player_source then
+        print('[cnr_sessions] Usage: cnr_session_show <source>')
+        return
+    end
+
+    local session = source_sessions[player_source]
+    if not session then
+        print(('[cnr_sessions] No active session found for source %s.'):format(player_source))
+        return
+    end
+
+    print(('[cnr_sessions] Source: %s'):format(player_source))
+    print(('[cnr_sessions] Account UUID: %s'):format(session.account_uuid))
+    print(('[cnr_sessions] Session UUID: %s'):format(session.session_uuid))
+    print(('[cnr_sessions] Access state: %s'):format(session.access_state))
+end, false)
