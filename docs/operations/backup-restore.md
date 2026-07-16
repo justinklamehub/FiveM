@@ -12,11 +12,13 @@ docker compose exec -T mariadb mariadb-dump \
 
 ## Isolated restore rehearsal
 
-Restore only into the local test database, never over development or production without an approved change:
+Restore only into the local test database, never over development or production without an approved
+change:
 
 ```bash
 docker compose exec -T mariadb mariadb \
   -uroot -p"$MARIADB_ROOT_PASSWORD" "$CNR_DB_TEST_NAME" < cnr-development.sql
 ```
 
-After restore, run dbmate status against `TEST_DATABASE_URL`. Production backups must be encrypted, stored separately, monitored, and periodically restored in staging.
+After restore, run `TEST_DATABASE_URL="$TEST_DATABASE_URL" dbmate status`. Production backups
+must be encrypted, stored separately, monitored, and periodically restored in staging.

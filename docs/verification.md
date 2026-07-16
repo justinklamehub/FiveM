@@ -3,9 +3,9 @@
 Run from a fresh checkout:
 
 ```bash
+./tools/materialize-lockfile.sh
 cp .env.example .env
 # Replace local placeholders.
-./tools/materialize-lockfile.sh
 corepack enable
 corepack prepare pnpm@11.13.1 --activate
 pnpm install --frozen-lockfile
@@ -22,7 +22,7 @@ Expected results:
 
 - MariaDB health is `healthy`.
 - dbmate reports `20260716000100_core_initialize.sql` as applied.
-- formatting, manifest validation, migration validation, secret scan, lint, type checking, Vitest, and NUI build pass.
+- formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core tests.
 - no gameplay tables, accounts, vehicles, jobs, oil, or crime features exist.
 
