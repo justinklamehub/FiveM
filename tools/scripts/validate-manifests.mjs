@@ -19,6 +19,7 @@ const expected = new Map([
       'cnr_config',
       'cnr_registration',
       'cnr_sessions',
+      'cnr_characters',
     ],
   ],
   [
@@ -65,6 +66,18 @@ const expected = new Map([
       'cnr_core',
       'cnr_accounts',
       'cnr_whitelist',
+      'cnr_sessions',
+    ],
+  ],
+  [
+    'cnr_characters',
+    [
+      '/onesync',
+      'cnr_database',
+      'cnr_logs',
+      'cnr_config',
+      'cnr_core',
+      'cnr_accounts',
       'cnr_sessions',
     ],
   ],

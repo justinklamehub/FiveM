@@ -14,6 +14,7 @@ dependencies({
     'cnr_config',
     'cnr_registration',
     'cnr_sessions',
+    'cnr_characters',
 })
 
 client_script('client/main.lua')

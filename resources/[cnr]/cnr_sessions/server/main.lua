@@ -21,7 +21,7 @@ local function publish(next_status, details)
 end
 
 local function translate(key, parameters)
-    return exports.cnr_locales:translate(key, 'de', parameters)
+    return exports.cnr_locales:translate(key, 'en', parameters)
 end
 
 local function safe_done(deferrals, state, reason)

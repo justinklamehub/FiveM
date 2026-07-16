@@ -134,6 +134,56 @@ button {
   background: transparent;
   font-weight: 500;
 }
+.slot-summary {
+  margin: 1rem 0;
+  color: var(--cnr-accent);
+  font-weight: 700;
+}
+.identity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.identity-grid label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--cnr-text-muted);
+}
+.identity-grid input,
+.identity-grid select {
+  width: 100%;
+  border: 1px solid var(--cnr-border);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+  color: #fff;
+  background: var(--cnr-surface-soft);
+}
+.identity-grid button {
+  grid-column: 1 / -1;
+}
+.character-preview {
+  margin-top: 1.5rem;
+}
+.character-preview dl {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.5rem 1rem;
+}
+.character-preview dt {
+  color: var(--cnr-text-muted);
+}
+.character-preview dd {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .identity-grid {
+    grid-template-columns: 1fr;
+  }
+  .character-preview dl {
+    grid-template-columns: 1fr;
+  }
+}
 .sr-only {
   position: absolute;
   width: 1px;

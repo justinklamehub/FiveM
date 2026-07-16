@@ -57,7 +57,7 @@ export interface RegistrationStatus {
 export interface CurrentRuleset {
   ruleset_uuid: string;
   version: number;
-  locale: 'de' | 'en';
+  locale: 'en';
   content: string;
   published_at: string;
 }
@@ -65,7 +65,7 @@ export interface RegistrationSubmission {
   ruleset_uuid: string;
   ruleset_version: number;
   acceptance: true;
-  locale: 'de' | 'en';
+  locale: 'en';
   request_id: string;
   operation_uuid: string;
   contract_version: typeof registrationContractVersion;
@@ -75,6 +75,62 @@ export interface RegistrationOutcome {
   operation_uuid: string;
   account_status: 'PENDING_WHITELIST' | 'ACTIVE';
   access_state: 'LIMITED' | 'FULL';
+}
+export const characterContractVersion = 1 as const;
+export type CharacterStatus =
+  | 'DRAFT'
+  | 'ACTIVE'
+  | 'INJURED'
+  | 'JAILED'
+  | 'RESTRICTED'
+  | 'ARCHIVED'
+  | 'DECEASED'
+  | 'PENDING_DELETION';
+export interface CharacterBackground {
+  code: string;
+  label: string;
+  description: string;
+}
+export interface CharacterConfiguration {
+  slot_limit: number;
+  minimum_age: number;
+  maximum_age: number;
+  backgrounds: readonly CharacterBackground[];
+}
+export interface CharacterSummary {
+  character_uuid: string;
+  slot_number: number;
+  status: CharacterStatus;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  background_code: string;
+}
+export interface CharacterList {
+  slot_limit: number;
+  characters: readonly CharacterSummary[];
+}
+export interface CreateCharacterDraft {
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  background_code: string;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof characterContractVersion;
+}
+export interface ActivateCharacterDraft {
+  character_uuid: string;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof characterContractVersion;
+}
+export interface CharacterMutationOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  character?: CharacterSummary;
+  character_uuid?: string;
+  status?: 'DRAFT' | 'ACTIVE';
 }
 
 export interface ConnectionSession {
@@ -152,7 +208,8 @@ export type NuiMessage =
   | { version: 1; type: 'ui.shell.open'; payload: { view: string; locale: string } }
   | { version: 1; type: 'ui.shell.close'; payload: Record<string, never> }
   | { version: 1; type: 'ui.resource.status'; payload: ResourceReadiness }
-  | { version: 1; type: 'ui.registration.open'; payload: { locale: 'de' | 'en' } };
+  | { version: 1; type: 'ui.registration.open'; payload: { locale: 'en' } }
+  | { version: 1; type: 'ui.character_creation.open'; payload: Record<string, never> };
 
 export function isResourceStatus(value: unknown): value is ResourceStatus {
   return typeof value === 'string' && resourceStatuses.includes(value as ResourceStatus);
@@ -167,8 +224,9 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
   if (candidate.type === 'ui.resource.status') return true;
   if (candidate.type === 'ui.registration.open') {
     const payload = candidate.payload as { locale?: unknown };
-    return payload.locale === 'de' || payload.locale === 'en';
+    return payload.locale === 'en';
   }
+  if (candidate.type === 'ui.character_creation.open') return true;
   if (candidate.type !== 'ui.shell.open') return false;
   const payload = candidate.payload as { view?: unknown; locale?: unknown };
   return typeof payload.view === 'string' && typeof payload.locale === 'string';

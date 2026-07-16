@@ -40,7 +40,7 @@ function RegistrationPolicy.validate(payload)
         or type(payload.ruleset_version) ~= 'number'
         or payload.ruleset_version % 1 ~= 0
         or payload.acceptance ~= true
-        or (payload.locale ~= 'de' and payload.locale ~= 'en')
+        or payload.locale ~= 'en'
         or type(payload.request_id) ~= 'string'
         or #payload.request_id < 1
         or #payload.request_id > 64

@@ -7,7 +7,7 @@ Bridges the common React NUI shell, central focus ownership, and localized regis
 Does not calculate authoritative prices, rewards, ownership, or permissions.
 
 ## Dependencies
-`/onesync`, `cnr_core`, `cnr_logs`, `cnr_locales`, `cnr_config`, `cnr_registration`, `cnr_sessions`
+`/onesync`, `cnr_core`, `cnr_logs`, `cnr_locales`, `cnr_config`, `cnr_registration`, `cnr_sessions`, `cnr_characters`
 
 ## Public exports
 `get_status`

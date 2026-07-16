@@ -86,12 +86,12 @@ function RegistrationService.ruleset(player_source, locale, correlation_id)
             correlation_id
         )
     end
-    local selected_locale = locale == 'en' and 'en' or 'de'
+    local selected_locale = 'en'
     return success({
         ruleset_uuid = ruleset.public_uuid,
         version = tonumber(ruleset.version),
         locale = selected_locale,
-        content = selected_locale == 'en' and ruleset.content_en or ruleset.content_de,
+        content = ruleset.content_en,
         published_at = ruleset.published_at,
     }, correlation_id)
 end

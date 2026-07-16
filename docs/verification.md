@@ -23,7 +23,7 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716000400_registration_activation.sql` as applied.
+- dbmate reports every ordered migration through `20260716000500_character_lifecycle.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core and implemented Wave 1 tests.
 - no vehicles, characters, character jobs, oil, or crime features exist.
@@ -83,3 +83,13 @@ pnpm db:migrate
 6. Change locale, acceptance, ruleset, or contract version while reusing the operation UUID; confirm `CONFLICT`.
 7. End the session and replay the request; confirm `AUTHENTICATION_REQUIRED` and a data-minimized security log.
 8. Confirm `ruleset.accepted` and `account.status_changed` audits carry request/correlation IDs but no raw platform identifier or full rules text.
+
+## Wave 1 character lifecycle
+
+1. Connect with an ACTIVE account and FULL session; verify the English character creation view opens.
+2. Confirm the server returns the configured slot/age limits and active English background options.
+3. Create three drafts and confirm server-assigned slots 1–3; a fourth must fail without mutation.
+4. Reject invalid names, impossible dates, underage/overage identities, inactive backgrounds, inactive sessions, and foreign character UUIDs.
+5. Repeat identical draft and activation operations; confirm one operation and one result. Reuse either UUID with changed semantic content and confirm `CONFLICT`.
+6. Activate a draft and confirm one unique active state identification card plus `character.activated` and `document.issued` audits.
+7. Confirm no character selection, session binding, spawn, money, inventory, vehicle, or appearance state is created.

@@ -32,7 +32,7 @@ AddEventHandler('onResourceStop', function(stopped)
 end)
 AddEventHandler('cnr:sessions:started', function(session)
     if session and session.access_state == 'ONBOARDING' then
-        TriggerClientEvent('cnr:ui:open', session.source or -1, 'registration', 'de')
+        TriggerClientEvent('cnr:ui:open', session.source or -1, 'registration', 'en')
     end
 end)
 AddEventHandler('playerJoining', function()
@@ -41,7 +41,9 @@ AddEventHandler('playerJoining', function()
         Wait(0)
         local session = exports.cnr_sessions:get_session_for_source(player_source)
         if session and session.access_state == 'ONBOARDING' then
-            TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'de')
+            TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')
+        elseif session and session.access_state == 'FULL' then
+            TriggerClientEvent('cnr:ui:open', player_source, 'characterCreation', 'en')
         end
     end)
 end)

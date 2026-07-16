@@ -10,13 +10,15 @@ import {
 import { claimFocus, initialFocusState, releaseFocus } from './focus';
 import { translate, type Locale } from './i18n';
 import { isBrowserMock, postNui } from './nui';
+import { CharacterCreation } from './CharacterCreation';
 
 const newId = () => crypto.randomUUID();
 
 export function App() {
   const mock = useMemo(isBrowserMock, []);
   const operationUuid = useRef(newId());
-  const [locale, setLocale] = useState<Locale>('de');
+  const [locale, setLocale] = useState<Locale>('en');
+  const [view, setView] = useState<'registration' | 'characterCreation'>('registration');
   const [visible, setVisible] = useState(mock);
   const [focus, setFocus] = useState(initialFocusState);
   const [ruleset, setRuleset] = useState<CurrentRuleset | null>(null);
@@ -65,6 +67,7 @@ export function App() {
       });
       if (!result.ok) throw new Error(result.error.code);
       setMessage(translate(locale, 'registration.success'));
+      setView('characterCreation');
     } catch {
       setMessage(translate(locale, 'registration.error'));
     } finally {
@@ -73,7 +76,7 @@ export function App() {
   }, [accepted, locale, ruleset, submitting]);
 
   useEffect(() => {
-    if (mock) void loadRuleset('de');
+    if (mock) void loadRuleset('en');
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && visible) void close();
     };
@@ -84,11 +87,20 @@ export function App() {
         setVisible(false);
       }
       if (event.data.type === 'ui.shell.open' || event.data.type === 'ui.registration.open') {
-        const nextLocale = event.data.payload.locale === 'en' ? 'en' : 'de';
-        setLocale(nextLocale);
-        setFocus((current) => claimFocus(current, 'registration'));
+        const requestedView =
+          event.data.type === 'ui.shell.open' && event.data.payload.view === 'characterCreation'
+            ? 'characterCreation'
+            : 'registration';
+        setLocale('en');
+        setView(requestedView);
+        setFocus((current) => claimFocus(current, requestedView));
         setVisible(true);
-        void loadRuleset(nextLocale);
+        if (requestedView === 'registration') void loadRuleset('en');
+      }
+      if (event.data.type === 'ui.character_creation.open') {
+        setLocale('en');
+        setView('characterCreation');
+        setVisible(true);
       }
     };
     window.addEventListener('message', listener);
@@ -100,6 +112,15 @@ export function App() {
   }, [close, loadRuleset, mock, visible]);
 
   if (!visible) return null;
+  if (view === 'characterCreation')
+    return (
+      <main className="nui-stage" aria-label="Create Character">
+        <section className="shell-card">
+          <CharacterCreation />
+          <output className="sr-only">Focus owner: {focus.owner ?? 'none'}</output>
+        </section>
+      </main>
+    );
   return (
     <main className="nui-stage" aria-label={translate(locale, 'registration.title')}>
       <section className="shell-card registration-card">

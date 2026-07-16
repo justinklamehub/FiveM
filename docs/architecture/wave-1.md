@@ -9,7 +9,7 @@ Wave 1 implements the player lifecycle defined by the project README without add
 | Connection foundation               | Implemented in draft PR #2 | Accounts, identifiers, whitelist evaluation, one active session, onboarding access state, migration and tests |
 | Technical permissions               | Implemented in draft PR #2 | Database-driven roles and permissions, console-only owner bootstrap, audited mutations and tests              |
 | Registration and account activation | Implemented in draft PR #2 | Versioned rules, idempotent source-bound activation, audit evidence, contracts and localized NUI              |
-| Character lifecycle                 | Pending                    | Three character slots, draft creation, identity and base documents                                            |
+| Character lifecycle                 | Implemented in draft PR #2 | Configurable slots, atomic drafts, validated identity, activation, base state ID and English NUI              |
 | Selection and spawn                 | Pending                    | Character selection, session binding and server-authoritative spawn                                           |
 | Loadscreen and complete NUI flow    | Pending                    | Localized progress, registration and character views, browser mocks and typed contracts                       |
 
@@ -56,6 +56,12 @@ The account already exists before registration and remains `PENDING_REGISTRATION
 The client may submit only the current ruleset reference, explicit acceptance, locale, request ID, operation UUID, contract version, and other fields explicitly approved by the registration contract. The server resolves source, session, account, current ruleset, whitelist decision, target account status, and resulting access state.
 
 Repeated submission of the same operation UUID returns the existing result and cannot create a second acceptance or status transition. Submitting an outdated ruleset, a mismatched payload, an inactive session, or a non-onboarding account fails without changing state.
+
+## Character lifecycle boundary
+
+Character creation requires a server-resolved active FULL session and ACTIVE account. The server allocates the first free configurable slot, validates identity and age rules, and controls the `DRAFT` to `ACTIVE` transition. Draft creation and activation use separate idempotent operation UUIDs.
+
+Activation issues one unique state identification card. Character selection, session binding, appearance, clothing, inventory, banking, deletion, switching, and spawning remain separate later slices. All player-visible text is English.
 
 ## Technical permissions boundary
 

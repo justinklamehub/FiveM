@@ -41,6 +41,34 @@ RegisterNetEvent('cnr:registration:response', function(_, request_id, result)
         callback(result)
     end
 end)
+local pending_characters = {}
+local function character_request(action, payload, callback)
+    local request_id = payload and payload.request_id
+    if type(request_id) ~= 'string' or request_id == '' or pending_characters[request_id] then
+        callback({
+            ok = false,
+            error = {
+                code = 'VALIDATION_ERROR',
+                message_key = 'characters.error.invalid_request',
+            },
+        })
+        return
+    end
+    pending_characters[request_id] = callback
+    TriggerServerEvent('cnr:characters:request', action, payload)
+end
+for _, callback_name in ipairs({ 'configuration', 'list', 'createDraft', 'activate' }) do
+    RegisterNUICallback('characters.' .. callback_name, function(payload, callback)
+        character_request(callback_name, payload, callback)
+    end)
+end
+RegisterNetEvent('cnr:characters:response', function(_, request_id, result)
+    local callback = pending_characters[request_id]
+    if callback then
+        pending_characters[request_id] = nil
+        callback(result)
+    end
+end)
 RegisterNetEvent('cnr:ui:open', function(view, locale)
     if focus_owner and focus_owner ~= view then
         return
