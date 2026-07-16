@@ -56,10 +56,7 @@ local function require_resource_module(module_name)
         if type(native_require) == 'function' then
             return native_require(module_name)
         end
-        error(
-            ('CNR module %s was not found in resource %s.'):format(module_name, resource_name),
-            2
-        )
+        error(('CNR module %s was not found in resource %s.'):format(module_name, resource_name), 2)
     end
 
     loading_modules[module_name] = true
@@ -67,10 +64,7 @@ local function require_resource_module(module_name)
         load(source, ('@%s/%s'):format(resource_name, module_path), 't', _ENV)
     if not chunk then
         loading_modules[module_name] = nil
-        error(
-            ('Unable to compile CNR module %s: %s'):format(module_name, compile_error),
-            2
-        )
+        error(('Unable to compile CNR module %s: %s'):format(module_name, compile_error), 2)
     end
 
     local ok, result = pcall(chunk)
