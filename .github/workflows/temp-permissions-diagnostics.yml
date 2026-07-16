@@ -57,7 +57,13 @@ jobs:
         run: |
           mkdir -p diagnostics
           set -o pipefail
-          pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --wait --no-dump-schema up 2>&1 | tee diagnostics/permissions-db.log
+          {
+            pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --wait --no-dump-schema up
+            pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql status
+            pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema rollback
+            pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema up
+            pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql status
+          } 2>&1 | tee diagnostics/permissions-db.log
 
       - name: Remove successful diagnostic output
         if: steps.migration.outcome == 'success'
@@ -72,7 +78,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- 'resources/[cnr]' tests/lua diagnostics
-          git commit -m 'Format and diagnose technical permissions'
+          git commit -m 'Diagnose technical permissions rollback'
           git push origin HEAD:agent/wave-1-player-lifecycle
 
       - name: Fail when migration failed
