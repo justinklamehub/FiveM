@@ -17,6 +17,7 @@ dependencies({
 server_only('yes')
 
 shared_scripts({
+    'shared/module_path.lua',
     'shared/error_codes.lua',
     'shared/correlation.lua',
     'shared/uuid_v7.lua',
