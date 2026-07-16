@@ -38,7 +38,7 @@ function PermissionRepository.account_exists(account_uuid)
             SELECT EXISTS(
                 SELECT 1
                 FROM cnr_accounts
-                WHERE public_uuid = UUID_TO_BIN(?)
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
                   AND archived_at IS NULL
             ) AS account_exists
         ]],
@@ -56,7 +56,7 @@ function PermissionRepository.find_role(role_code)
     return single(
         [[
             SELECT
-                BIN_TO_UUID(public_uuid) AS public_uuid,
+                id,
                 code,
                 priority,
                 is_system
@@ -82,7 +82,7 @@ function PermissionRepository.get_snapshot(account_uuid)
             FROM cnr_account_technical_roles AS assignment
             INNER JOIN cnr_accounts AS account_row ON account_row.id = assignment.account_id
             INNER JOIN cnr_technical_roles AS role_row ON role_row.id = assignment.role_id
-            WHERE account_row.public_uuid = UUID_TO_BIN(?)
+            WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
               AND account_row.archived_at IS NULL
               AND assignment.status = 'ACTIVE'
               AND assignment.starts_at <= UTC_TIMESTAMP(6)
@@ -106,7 +106,7 @@ function PermissionRepository.get_snapshot(account_uuid)
                 ON role_permission.role_id = role_row.id
             INNER JOIN cnr_technical_permissions AS permission_row
                 ON permission_row.id = role_permission.permission_id
-            WHERE account_row.public_uuid = UUID_TO_BIN(?)
+            WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
               AND account_row.archived_at IS NULL
               AND assignment.status = 'ACTIVE'
               AND assignment.starts_at <= UTC_TIMESTAMP(6)
@@ -139,7 +139,7 @@ function PermissionRepository.has_permission(account_uuid, permission_code)
                     ON role_permission.role_id = role_row.id
                 INNER JOIN cnr_technical_permissions AS permission_row
                     ON permission_row.id = role_permission.permission_id
-                WHERE account_row.public_uuid = UUID_TO_BIN(?)
+                WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
                   AND account_row.archived_at IS NULL
                   AND assignment.status = 'ACTIVE'
                   AND assignment.starts_at <= UTC_TIMESTAMP(6)
@@ -168,7 +168,7 @@ function PermissionRepository.expire_assignments(account_uuid)
                 SET
                     assignment.status = 'EXPIRED',
                     assignment.updated_at = UTC_TIMESTAMP(6)
-                WHERE account_row.public_uuid = UUID_TO_BIN(?)
+                WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
                   AND assignment.status = 'ACTIVE'
                   AND assignment.ends_at IS NOT NULL
                   AND assignment.ends_at <= UTC_TIMESTAMP(6)
@@ -185,13 +185,13 @@ function PermissionRepository.find_active_assignment(account_uuid, role_code)
     return single(
         [[
             SELECT
-                BIN_TO_UUID(assignment.public_uuid) AS public_uuid,
+                assignment.id,
                 assignment.starts_at,
                 assignment.ends_at
             FROM cnr_account_technical_roles AS assignment
             INNER JOIN cnr_accounts AS account_row ON account_row.id = assignment.account_id
             INNER JOIN cnr_technical_roles AS role_row ON role_row.id = assignment.role_id
-            WHERE account_row.public_uuid = UUID_TO_BIN(?)
+            WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
               AND role_row.code = ?
               AND assignment.status = 'ACTIVE'
               AND assignment.starts_at <= UTC_TIMESTAMP(6)
@@ -224,7 +224,7 @@ function PermissionRepository.grant_role(assignment)
                     updated_at
                 )
                 SELECT
-                    UUID_TO_BIN(?),
+                    UNHEX(REPLACE(?, '-', '')),
                     account_row.id,
                     role_row.id,
                     CASE
@@ -232,7 +232,7 @@ function PermissionRepository.grant_role(assignment)
                         ELSE (
                             SELECT actor_row.id
                             FROM cnr_accounts AS actor_row
-                            WHERE actor_row.public_uuid = UUID_TO_BIN(?)
+                            WHERE actor_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
                             LIMIT 1
                         )
                     END,
@@ -245,7 +245,7 @@ function PermissionRepository.grant_role(assignment)
                 FROM cnr_accounts AS account_row
                 INNER JOIN cnr_technical_roles AS role_row
                     ON role_row.code = ? AND role_row.is_active = 1
-                WHERE account_row.public_uuid = UUID_TO_BIN(?)
+                WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
                   AND account_row.archived_at IS NULL
             ]],
             values = {
@@ -280,13 +280,13 @@ function PermissionRepository.revoke_role(revocation)
                         ELSE (
                             SELECT actor_row.id
                             FROM cnr_accounts AS actor_row
-                            WHERE actor_row.public_uuid = UUID_TO_BIN(?)
+                            WHERE actor_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
                             LIMIT 1
                         )
                     END,
                     assignment.revocation_reason_code = ?,
                     assignment.updated_at = UTC_TIMESTAMP(6)
-                WHERE account_row.public_uuid = UUID_TO_BIN(?)
+                WHERE account_row.public_uuid = UNHEX(REPLACE(?, '-', ''))
                   AND role_row.code = ?
                   AND assignment.status = 'ACTIVE'
                   AND assignment.starts_at <= UTC_TIMESTAMP(6)
