@@ -29,6 +29,10 @@ None.
 ## Configuration
 NUI source lives under `packages/ui`; the build is generated into this resource.
 
+For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
+registration view locally. It does not bypass server-side session, status, ruleset, or submission
+validation.
+
 ## Error codes
 Uses the stable Wave 0 result/error contract where applicable.
 

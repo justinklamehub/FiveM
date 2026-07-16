@@ -84,6 +84,9 @@ RegisterNetEvent('cnr:ui:open', function(view, locale)
         payload = { view = view, locale = locale or 'en' },
     })
 end)
+RegisterCommand('cnr_registration_open', function()
+    TriggerEvent('cnr:ui:open', 'registration', 'en')
+end, false)
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         set_focus(nil)

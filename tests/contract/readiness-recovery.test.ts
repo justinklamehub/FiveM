@@ -67,4 +67,11 @@ describe('runtime readiness recovery', () => {
     );
     expect(server).toContain('ready_sources[player_source]');
   });
+
+  it('provides a registration-only client command for manual NUI smoke testing', () => {
+    const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
+    expect(client).toContain("RegisterCommand('cnr_registration_open'");
+    expect(client).toContain("TriggerEvent('cnr:ui:open', 'registration', 'en')");
+    expect(client).not.toContain("RegisterCommand('cnr_character");
+  });
 });
