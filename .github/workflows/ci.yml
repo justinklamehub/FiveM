@@ -1,0 +1,139 @@
+name: Wave 0 CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  repository-and-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Materialize verified pnpm lockfile
+        run: ./tools/materialize-lockfile.sh
+      - name: Activate pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.13.1 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check root formatting
+        run: pnpm exec prettier --check "*.{json,mjs,yaml,yml,md}"
+      - name: Check GitHub formatting
+        run: pnpm exec prettier --check .github
+      - name: Check documentation formatting
+        run: pnpm exec prettier --check docs
+      - name: Check application placeholders
+        run: pnpm exec prettier --check apps
+      - name: Check package sources
+        run: pnpm exec prettier --check packages
+      - name: Check resource documentation and web files
+        run: pnpm exec prettier --check resources
+      - name: Check server templates
+        run: pnpm exec prettier --check server
+      - name: Check test sources
+        run: pnpm exec prettier --check tests
+      - name: Check tool formatting
+        run: pnpm exec prettier --check "tools/**/*.{json,mjs,md}"
+      - name: Check pnpm lock formatting
+        run: pnpm exec prettier --check pnpm-lock.yaml
+      - name: Check StyLua formatting
+        run: pnpm exec stylua --check resources tests/lua
+      - name: Lint and validate repository contracts
+        run: pnpm lint
+      - name: Type-check TypeScript projects
+        run: pnpm typecheck
+      - name: Run TypeScript tests
+        run: pnpm test
+      - name: Build production NUI
+        run: pnpm build:nui
+
+  lua:
+    runs-on: ubuntu-latest
+    env:
+      LUA_VERSION: 5.4.8
+      LUAROCKS_VERSION: 3.13.0
+      BUSTED_VERSION: 2.3.0
+      LUA_LS_VERSION: 3.18.2
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Materialize verified pnpm lockfile
+        run: ./tools/materialize-lockfile.sh
+      - name: Activate pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.13.1 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned Lua, LuaRocks, and Busted
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libreadline-dev unzip
+          curl -fsSL -o /tmp/lua.tar.gz "https://www.lua.org/ftp/lua-${LUA_VERSION}.tar.gz"
+          echo "4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae  /tmp/lua.tar.gz" | sha256sum --check
+          tar -xzf /tmp/lua.tar.gz -C /tmp
+          make -C "/tmp/lua-${LUA_VERSION}" linux
+          make -C "/tmp/lua-${LUA_VERSION}" INSTALL_TOP="${HOME}/.local/lua" install
+          curl -fsSL -o /tmp/luarocks.tar.gz "https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz"
+          tar -xzf /tmp/luarocks.tar.gz -C /tmp
+          cd "/tmp/luarocks-${LUAROCKS_VERSION}"
+          ./configure --prefix="${HOME}/.local/luarocks" --with-lua="${HOME}/.local/lua"
+          make && make install
+          echo "${HOME}/.local/lua/bin" >> "${GITHUB_PATH}"
+          echo "${HOME}/.local/luarocks/bin" >> "${GITHUB_PATH}"
+          echo "${HOME}/.luarocks/bin" >> "${GITHUB_PATH}"
+          "${HOME}/.local/luarocks/bin/luarocks" --lua-version=5.4 --tree="${HOME}/.luarocks" install busted "${BUSTED_VERSION}"
+      - name: Verify Lua tool versions
+        run: lua -v && luarocks --version && busted --version
+      - name: Run Busted tests
+        run: pnpm test:lua
+      - name: Lua Language Server diagnostics
+        run: |
+          curl -fsSL -o /tmp/lua-ls.tar.gz "https://github.com/LuaLS/lua-language-server/releases/download/${LUA_LS_VERSION}/lua-language-server-${LUA_LS_VERSION}-linux-x64.tar.gz"
+          mkdir -p /tmp/lua-ls
+          tar -xzf /tmp/lua-ls.tar.gz -C /tmp/lua-ls
+          /tmp/lua-ls/bin/lua-language-server --check=. --checklevel=Error
+
+  database:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4.10
+        env:
+          MARIADB_ROOT_PASSWORD: ci-root-password
+          MARIADB_DATABASE: cnr_ci
+          MARIADB_USER: cnr_migration
+          MARIADB_PASSWORD: ci-migration-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: mysql://cnr_migration:ci-migration-password@127.0.0.1:3306/cnr_ci
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Materialize verified pnpm lockfile
+        run: ./tools/materialize-lockfile.sh
+      - name: Activate pinned pnpm
+        run: corepack enable && corepack prepare pnpm@11.13.1 --activate
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Fresh migration, rollback, and reapply
+        run: |
+          pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --wait --no-dump-schema up
+          pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql status
+          pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema rollback
+          pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema up
+          pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql status

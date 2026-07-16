@@ -1,0 +1,14 @@
+# Copy values into your local server.cfg. Never commit license keys or passwords.
+set onesync on
+set sv_stateBagStrictMode true
+set cnr_maintenance_mode 0
+set cnr_schema_minimum "20260716000100"
+set mysql_connection_string "mysql://cnr_runtime:replace-locally@127.0.0.1:3307/cnr_development?charset=utf8mb4"
+
+ensure oxmysql
+ensure cnr_database
+ensure cnr_logs
+ensure cnr_locales
+ensure cnr_config
+ensure cnr_core
+ensure cnr_ui

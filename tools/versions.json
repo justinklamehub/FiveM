@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-07-16",
+  "node": "24.18.0",
+  "pnpm": "11.13.1",
+  "lua": "5.4.8",
+  "luaRocks": "3.13.0",
+  "react": "19.2.7",
+  "reactDom": "19.2.7",
+  "typescript": "6.0.3",
+  "vite": "8.1.4",
+  "vitest": "4.1.10",
+  "mariaDb": "11.4.10",
+  "dbmate": "2.34.1",
+  "stylua": "2.5.2",
+  "luaLanguageServer": "3.18.2",
+  "busted": "2.3.0",
+  "oxmysql": "2.14.1",
+  "actionsCheckout": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+  "actionsSetupNode": "820762786026740c76f36085b0efc47a31fe5020"
+}

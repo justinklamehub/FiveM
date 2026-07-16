@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+coverage/
+*.log
+.DS_Store
+.vscode/settings.json
+.tools/
+resources/\[vendor\]/oxmysql/
+resources/\[cnr\]/cnr_ui/web/dist/

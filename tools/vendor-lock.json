@@ -1,0 +1,16 @@
+{
+  "resources": [
+    {
+      "name": "oxmysql",
+      "owner": "overextended",
+      "repository": "https://github.com/overextended/oxmysql",
+      "version": "2.14.1",
+      "tag": "v2.14.1",
+      "commit": "f0385c4",
+      "license": "LGPL-3.0",
+      "purpose": "Pinned MariaDB driver behind cnr_database",
+      "included": false,
+      "installation": "Download the official v2.14.1 release asset and place it at resources/[vendor]/oxmysql after reviewing its checksum."
+    }
+  ]
+}

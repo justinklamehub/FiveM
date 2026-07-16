@@ -1,0 +1,44 @@
+{
+  "name": "cnr-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone FiveM Cops'N'Robbers technical foundation.",
+  "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": "24.18.0",
+    "pnpm": "11.13.1"
+  },
+  "scripts": {
+    "build": "pnpm build:nui",
+    "build:nui": "vite build --config packages/ui/vite.config.ts",
+    "clean": "node -e \"require('node:fs').rmSync('resources/[cnr]/cnr_ui/web/dist',{recursive:true,force:true})\"",
+    "format": "prettier --write . && stylua resources tests/lua",
+    "format:check": "prettier --check . && stylua --check resources tests/lua",
+    "lint": "eslint . --max-warnings=0 && node tools/scripts/validate-manifests.mjs && node tools/scripts/validate-migrations.mjs && node tools/scripts/check-secrets.mjs && node tools/scripts/verify-toolchain.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p packages/contracts/tsconfig.json && tsc --noEmit -p packages/ui/tsconfig.json",
+    "test": "vitest run",
+    "test:lua": "busted --lpath='./resources/[cnr]/cnr_core/?.lua;./resources/[cnr]/cnr_core/?/init.lua;./?.lua' tests/lua",
+    "verify": "prettier --check . && stylua --check resources tests/lua && eslint . --max-warnings=0 && node tools/scripts/validate-manifests.mjs && node tools/scripts/validate-migrations.mjs && node tools/scripts/check-secrets.mjs && node tools/scripts/verify-toolchain.mjs && tsc --noEmit -p tsconfig.json && tsc --noEmit -p packages/contracts/tsconfig.json && tsc --noEmit -p packages/ui/tsconfig.json && vitest run && vite build --config packages/ui/vite.config.ts",
+    "db:up": "docker compose up -d mariadb",
+    "db:down": "docker compose down",
+    "db:migrate": "dbmate --migrations-dir database/migrations --schema-file database/schema.sql --wait up",
+    "db:status": "dbmate --migrations-dir database/migrations --schema-file database/schema.sql status",
+    "db:rollback": "dbmate --migrations-dir database/migrations --schema-file database/schema.sql rollback",
+    "db:schema": "dbmate --migrations-dir database/migrations --schema-file database/schema.sql dump"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@johnnymorganz/stylua-bin": "2.5.2",
+    "@types/node": "24.10.9",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "dbmate": "2.34.1",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0",
+    "vite": "8.1.4",
+    "vitest": "4.1.10"
+  }
+}
