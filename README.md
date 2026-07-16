@@ -203,8 +203,8 @@ Die genauen Werte werden dynamisch gepflegt. Wahlloses Töten und permanenter Ga
 - [x] Entscheidung für Standalone
 - [ ] Regelwerk
 - [ ] UI-Designsystem
-- [ ] verbindliche Entwicklungsrichtlinien
-- [ ] genaue Abgrenzung von MVP, Alpha, Beta und Release
+- [x] verbindliche Entwicklungsrichtlinien
+- [x] genaue Abgrenzung von MVP, Alpha, Beta und Release
 
 ## Phase 1 – Technische Grundlage
 
@@ -847,7 +847,7 @@ Die Auswirkungen sollen nachvollziehbar bleiben und normale Inventarverwaltung n
 - strukturierte Transferprotokolle
 - sichere Wiederherstellung nach Disconnect oder Ressourcenrestart
 
-## 6.14 MVP-Umfang
+## 6.14 Fachmodul-MVP-Umfang
 
 - Spielerinventar
 - Rucksack
@@ -1347,7 +1347,7 @@ Das Control Panel zeigt zusätzlich:
 - größte Geldflüsse
 - fehlgeschlagene oder auffällige Transaktionen
 
-## 7.23 MVP-Umfang
+## 7.23 Fachmodul-MVP-Umfang
 
 - Bargeld-Geldbörse
 - persönliches Girokonto
@@ -1885,7 +1885,7 @@ Administratoren erhalten Auswertungen über:
 - Rufverteilung;
 - Auswirkungen auf Produktion und Wirtschaft.
 
-## 8.26 MVP-Umfang
+## 8.26 Fachmodul-MVP-Umfang
 
 - getrennte Charakterfähigkeiten
 - standardmäßig 20 Level
@@ -2745,7 +2745,7 @@ Dynamisch einstellbar:
 
 Über den Ingame-Editor können Händler, Mietstationen, Garagen, Depots, Stellplätze, Abschlepphöfe und Auslieferungsorte erstellt werden.
 
-## 9.36 MVP-Umfang
+## 9.36 Fachmodul-MVP-Umfang
 
 - dauerhafte Fahrzeugidentität mit VIN;
 - Charakter- und Firmeneigentum;
@@ -3724,7 +3724,7 @@ Dynamisch einstellbar:
 
 Über den Ingame-Editor können Firmenstandorte, Büros, Zeiterfassungspunkte, Betriebshöfe, Niederlassungen und Auftragsbereiche erstellt werden.
 
-## 10.43 MVP-Umfang
+## 10.43 Fachmodul-MVP-Umfang
 
 - Einzelunternehmen und einfache Gesellschaft;
 - Firmengründung;
@@ -4820,7 +4820,7 @@ Dynamisch einstellbar:
 - Hintergrundproduktionsregeln;
 - Feature Flags für spätere Systeme.
 
-## 11.50 MVP-Umfang
+## 11.50 Fachmodul-MVP-Umfang
 
 - Grundstücke, Gebäude und Einheiten;
 - eindeutige Adressen;
@@ -5911,9 +5911,9 @@ Für Balancing und Fehlersuche werden aggregiert:
 
 Die Kennzahlen dienen der kontrollierten Anpassung. Balancingänderungen werden versioniert und nicht heimlich rückwirkend auf abgeschlossene Vorgänge angewendet.
 
-## 12.47 Minimal Viable Product des Ölkreislaufs
+## 12.47 Fachmodul-MVP des Ölkreislaufs
 
-Im ersten spielbaren MVP enthalten:
+Im vollständigen Fachmodul-MVP enthalten:
 
 - mindestens ein staatliches Ölfeld mit mehreren Förderpunkten;
 - Förderauftrag und begrenztes Förderkontingent;
@@ -7644,9 +7644,9 @@ Berechtigte Administratoren können einen Vorgang anhand einer Timeline prüfen:
 
 Korrekturen verwenden Gegenbewegungen, Rückgaben oder begründete Statusereignisse. Historische Einträge werden nicht still gelöscht.
 
-## 13.70 Cops-&-Robbers-MVP
+## 13.70 Cops-&-Robbers-Fachmodul-MVP
 
-Im ersten Cops-&-Robbers-MVP enthalten:
+Im vollständigen Cops-&-Robbers-Fachmodul-MVP enthalten:
 
 - Polizeianstellung, Rollen und Dienstsitzungen;
 - grundlegende Einheiten und Status;
@@ -9224,7 +9224,7 @@ Ein Streitfall kann enthalten:
 
 Objektiv bestätigte Waren- oder Zustandsbewegungen werden nicht gelöscht. Notwendige Korrekturen erfolgen über Gegenbuchungen, Rückgaben, Forderungen oder neu bewertete Abnahme.
 
-## 14.69 Job- und Aktivitäts-MVP
+## 14.69 Job- und Aktivitäts-Fachmodul-MVP
 
 Im MVP enthalten:
 
@@ -10312,9 +10312,821 @@ Da FiveM, Datenbanktreiber, Node.js und Buildwerkzeuge weiterentwickelt werden, 
 
 ---
 
-# 16. Dynamische Administration
+# 16. Verbindlicher MVP-Schnitt
 
-## 16.1 Ingame-Editor
+Dieses Kapitel bündelt die breiteren Fachmodul-MVPs aus den vorherigen Kapiteln zu einem realistisch umsetzbaren ersten spielbaren Build. Wenn eine ältere MVP-Liste mehr Funktionen enthält, hat dieser kapitelübergreifende Schnitt für den ersten Build Vorrang. Die übrigen Funktionen bleiben für spätere Alpha-Stufen geplant.
+
+## 16.1 Ziel des ersten spielbaren Builds
+
+Der erste spielbare Build ist eine geschlossene technische und spielerische Alpha, kein öffentlicher Release.
+
+Er muss beweisen, dass:
+
+- Account, Charakter und Session zuverlässig funktionieren;
+- die technische Basis reproduzierbar gebaut und betrieben werden kann;
+- Geld, Inventar, Fahrzeuge, Waren und Besitz neustartsicher sind;
+- ein legaler Wirtschaftskreislauf vollständig ohne administrative Abkürzung funktioniert;
+- ein illegaler Cops-&-Robbers-Kreislauf vollständig ohne automatische Täterkenntnis funktioniert;
+- Polizei, Beweise, Beschlagnahmung und Haft mit dem Crime-System verbunden sind;
+- alle kritischen Mutationen serverautoritativ, idempotent und auditierbar bleiben;
+- eine kleine eingeladene Testgruppe mehrere Stunden gemeinsam spielen und Fehler reproduzierbar melden kann.
+
+Der MVP muss noch keine große Inhaltsmenge, perfekte Balance oder endgültiges Branding besitzen.
+
+## 16.2 Releasebegriffe
+
+| Stufe | Bedeutung |
+|---|---|
+| technisches Fundament | Server startet reproduzierbar, Kernressourcen und Testwerkzeuge funktionieren. |
+| erster spielbarer MVP | beide vertikalen Referenzabläufe sind vollständig und neustartsicher spielbar. |
+| Closed Alpha | eingeladene Testgruppe prüft Wirtschaft, Crime, Polizei, Recovery und Bedienung. |
+| erweiterte Alpha | weitere Fachmodul-MVPs, Inhalte, Eigentumsformen, Jobs und Verbrechen werden ergänzt. |
+| Beta | vorgesehene Releasefunktionen sind weitgehend vorhanden; Schwerpunkt liegt auf Balance, Skalierung, Sicherheit und Bedienbarkeit. |
+| Release | stabiler öffentlicher Betrieb mit Branding, Regelwerk, Supportabläufen, Monitoring und freigegebenem Inhalt. |
+
+Coding darf mit dem technischen Fundament beginnen. Der Server wird erst als erster spielbarer MVP bezeichnet, wenn alle MVP-Gates dieses Kapitels bestanden sind.
+
+## 16.3 Umfangsklassen
+
+| Klasse | Bedeutung |
+|---|---|
+| vollständig | Der Anwendungsfall muss Ende-zu-Ende funktionieren und besitzt keine administrative Abkürzung im Normalablauf. |
+| Basisversion | Nutzbar, sicher und persistent, aber mit bewusst begrenzten Varianten, Inhalten oder Komfortfunktionen. |
+| später | Nicht Bestandteil des ersten Builds; Datenmodell oder Schnittstellen dürfen vorbereitet sein. |
+| dauerhaft ausgeschlossen | Widerspricht der Servervision und wird nicht als spätere Ausbaustufe eingeplant. |
+
+Eine Basisversion darf weniger Komfort oder Inhalt besitzen. Sie darf niemals Transaktionen, Autorisierung, Audit, Idempotenz, Berechtigungen oder Neustartsicherheit auslassen.
+
+## 16.4 Verbindliche Gesamtmatrix
+
+| System | MVP-Status | Verbindlicher Umfang |
+|---|---|---|
+| Repository und Toolchain | vollständig | Monorepository, Lockdateien, Formatierung, Tests, CI und reproduzierbarer Build |
+| Datenbank und Migrationen | vollständig | MariaDB, `cnr_database`, dbmate, Schema-Prüfung und Transaktionen |
+| Logging und Audit | vollständig | strukturierte Logs, Correlation-IDs, getrennte Auditereignisse |
+| Konfiguration | vollständig | statische Konfiguration sowie versionierte Entwurf-Prüfung-Veröffentlichung |
+| Loadscreen | Basisversion | thematischer Screen, Verbindungsstatus, Regeln-/Communityhinweise und Neuigkeiten |
+| Account und Registrierung | vollständig | Identifierbindung, Registrierung, Status, Bann, Whitelist und eindeutige Session |
+| Warteschlange | Basisversion | normale Reihenfolge, einfache Priorität, verständlicher Status |
+| Charaktere | vollständig | drei Plätze, Erstellung, Auswahl, Status, sicherer Spawn und Wechselregeln |
+| Charakteraussehen | Basisversion | Freemode-Ped, wesentliche Aussehensmerkmale und einfache Startkleidung |
+| Dokumente | Basisversion | Ausweis, Führerschein, LKW- und Gefahrgutlizenz |
+| gemeinsames UI | vollständig | Shell, Design Tokens, Fokus, Lokalisierung, Fehler- und Bestätigungsdialoge |
+| HUD | Basisversion | nur notwendige Statusinformationen, keine überladene Daueranzeige |
+| Interaktionen und Zonen | vollständig | servergeprüfte Punkte, Bereiche, Berechtigungen und Routing-Bezüge |
+| Inventar | vollständig | Spieler, Fahrzeug, persönliches Lager, Firmenlager, Slots, Gewicht, Chargen und Transfers |
+| Banking | vollständig | Bargeld, Giro-, Firmen- und Staatskonten, doppeltes Hauptbuch, Reservierungen und Audit |
+| Rechnungen und Dauerzahlungen | Basisversion | einfache Rechnungen, Mieten, Lohn- und Vertragszahlungen |
+| Fortschritt | Basisversion | ausgewählte Fähigkeiten, Branchenruf und notwendige Lizenzen |
+| Fahrzeugeigentum | vollständig | Kauf, VIN, Schlüssel, Parken, Garage, Zustand und genau eine aktive Entity |
+| Fahrzeugmiete | vollständig | Zugmaschine, Tanktrailer und Alltagsfahrzeug mit Vertrag, Kaution und Rückgabe |
+| Kraftstoff und Schäden | Basisversion | Benzin/Diesel, Kilometer sowie einfache Motor-, Karosserie- und Reifenzustände |
+| Händler | Basisversion | kontrollierter NPC-Basishändler, keine Spielerfahrzeugproduktion |
+| Abschleppen und Verwahrung | Basisversion | einfacher Abschleppdienst sowie Polizei- und Systemverwahrung |
+| Unternehmen | Basisversion | Einzelunternehmen, Firmenkonto, Rollen, Mitarbeiter und einfache Schließung |
+| Verträge und Marktplatz | Basisversion | Liefer-/Transportvertrag, Bedarfssignal, Angebot, Reservierung und Abrechnung |
+| allgemeines Jobmodell | vollständig | Angebote, Aktivitäten, Beiträge, Abbruch, Wiederaufnahme und Auszahlung |
+| Einstiegsjob | Basisversion | genau eine kontrollierte kommunale Recycling- oder Sammelaktivität |
+| Mechaniker | Basisversion | einfache Reparatur und Abschleppleistung, keine tiefe Komponentenwirtschaft |
+| Wohnen | Basisversion | mietbare Starterwohnung, Spawn, Türzugriff und persönliches Lager |
+| Gewerbelager | vollständig | mietbares Lager mit Warenchargen, Zugriff, Kapazität und Reservierungen |
+| Immobilienkauf | später | Eigentumsmarkt, tiefe Verwaltung, Hypotheken und freie Möblierung |
+| Öl- und Kraftstoffkreislauf | vollständig | Förderung, Lager, öffentliche Raffinerie, Transport, Tankstelle, Verkauf und Verbrauch |
+| private Raffinerie und Ölfeld | später | Eigentum, Konzession, Ausbau und private Produktionslinien |
+| Tankstellenbetrieb | Basisversion | mindestens eine durch ein Unternehmen pachtbare Station, NPC-Fallback bei Leerstand |
+| Polizeidienst | vollständig | Dienst, Rollen, Einheitenstatus, Dispatchannahme und Einsatzabschluss |
+| Ladenraub | vollständig | Vorbereitung, Reservierung, Tat, Alarm, Beute, Flucht, Spuren und Verwertung |
+| Fahrzeugdiebstahl | später | folgt nach Stabilisierung des ersten Tatablaufs |
+| Bank- und Großraub | später | Bankfiliale, Lager- und Transportüberfall folgen in der erweiterten Alpha |
+| physische illegale Beute | vollständig | markierte Geldcharge, Herkunft, Teilung, Sicherstellung und keine Duplizierung |
+| Hehler und Geldwäsche | Basisversion | je ein begrenzter, riskanter Verwertungspfad |
+| Dispatch | vollständig | Notruf, Alarm, Einsatz, Einheit, Status und kontrollierte Ortsinformation |
+| MDT und Fälle | Basisversion | Personen-/Fahrzeugsuche, Fahndung, Fall, Bericht und Beweisbezug |
+| Beweissystem | Basisversion | Kamera, Fingerabdruck, Blut/DNA und Werkzeugspur mit Beweiskette |
+| Durchsuchung und Beschlagnahmung | vollständig | rechtmäßiger Kontext, begrenztes Ziel, Asservatbewegung und Audit |
+| Festnahme und Haft | vollständig | Fesseln, Transport, Booking, Tatvorwurf und persistente Haft |
+| Justizrollen und Gerichtsverfahren | später | Richter, Staatsanwalt, Verteidigung und vollständige Verhandlung |
+| Medizin | Basisversion | Bewusstlosigkeit, einfache Verletzung, NPC-/Admin-Notfallhilfe und Krankenhausspawn |
+| Spieler-EMS und Feuerwehr | später | eigene Dienste, Behandlungen, Brände und Großschadenslagen |
+| Ingame-Administration | Basisversion | sichere Commands und Editor für benötigte Punkte, Zonen und Definitionen |
+| externes Control Panel | später | Fastify-API und Weboberfläche nach stabilen internen Adminservices |
+| Analytics | Basisversion | technische und Economy-Kennzahlen ohne umfassendes BI-Portal |
+| Smartphone | später | Kernabläufe verwenden zunächst direkte, einheitliche Fachansichten |
+
+## 16.5 Dauerhaft nicht kürzbare Grundlagen
+
+Auch bei Zeitdruck bleiben vollständig:
+
+- serverautorisierte Fachentscheidungen;
+- parametrisierte Datenbankzugriffe;
+- ausgeglichene Hauptbuchbuchungen;
+- atomare Waren- und Itemtransfers;
+- eindeutige `operation_uuid`;
+- Auditierung kritischer Aktionen;
+- Berechtigungs- und Distanzprüfung;
+- Resource-Readiness und kontrollierte Abhängigkeitsfehler;
+- Disconnect- und Neustartwiederherstellung;
+- Migrations- und Backupstrategie;
+- keine Secrets im Client oder Repository.
+
+Bei Zeitdruck werden Inhalte, Varianten, Animationen oder Komfort reduziert, nicht diese Grundlagen.
+
+## 16.6 Technisches MVP-Fundament
+
+Vollständig erforderlich:
+
+- lokale Development-Umgebung;
+- festgelegter FXServer-Stand;
+- MariaDB und leere Migration;
+- `cnr_database`;
+- `cnr_logs`;
+- `cnr_locales`;
+- `cnr_config`;
+- `cnr_core`;
+- `cnr_ui`;
+- Modulstatus und Wartungsmodus;
+- Request-/Response-Vertrag;
+- Event- und Exportkonventionen;
+- Rate-Limit-Grundlage;
+- Test-Harness;
+- CI;
+- Staging-Anleitung;
+- Backup- und Restore-Anleitung.
+
+Das Fundament muss ohne Gameplaydaten starten und Fehler verständlich melden.
+
+## 16.7 Loadscreen, Zugang und Account
+
+### Vollständig
+
+- FiveM-Identifier als primäre technische Identität;
+- Registrierung eines Accounts beim ersten Zugang;
+- Accountstatus;
+- Bann- und Einschränkungsprüfung;
+- Whitelist in offenem, manuellem oder Hybridmodus;
+- Schutz vor paralleler doppelter Session;
+- isolierter Ladezustand bis alle Pflichtmodule bereit sind;
+- klarer Fehler- und Wiederholungsweg.
+
+### Basisversion
+
+- ein thematisch passender Loadscreen mit vorläufigem Projektnamen;
+- Status der aktuellen Verbindungsphase;
+- statische oder einfach dynamische Neuigkeiten;
+- Link- und Regelhinweise;
+- Warteschlange mit einfacher Priorität.
+
+Endgültiges Branding, Musiklizenzierung, umfangreiche Medienrotation und Community-Portal-Integration blockieren den Coding-Start nicht, müssen aber vor einem öffentlichen Release abgeschlossen sein.
+
+## 16.8 Charakter, Identität und Einstieg
+
+Der MVP unterstützt die verbindlich beschlossenen drei Charakterplätze.
+
+Enthalten:
+
+- Entwurf, Vorschau und Bestätigung;
+- Vor- und Nachname, Geburtsdatum und einfache Hintergrundauswahl;
+- grundlegendes Aussehen;
+- einfache Startkleidung;
+- eindeutige Dokumentnummern;
+- Charakterauswahl;
+- prioritätsbasierter Spawn;
+- kurzer geführter Einstieg;
+- Starterwohnung oder zentraler Spawn;
+- sicherer Charakterwechsel;
+- verzögerte Archivierung statt sofortiger Löschung.
+
+Der Einstieg gewährt:
+
+- einen kleinen konfigurierbaren Bargeld- und Bankstartbestand;
+- notwendige Basisdokumente;
+- kein kostenloses eigenes Fahrzeug;
+- Zugang zu öffentlichen Verkehrsmitteln oder günstiger Kurzzeitmiete;
+- Hinweise zu Einstiegsjob, Fahrzeugmiete und Jobbörse.
+
+## 16.9 UI-Pflichtansichten
+
+Der erste Build benötigt:
+
+- Registrierung und Status;
+- Charaktererstellung und -auswahl;
+- minimales HUD;
+- Inventar;
+- Banking und Transaktionshistorie;
+- Dokumente, Fähigkeiten und Lizenzen;
+- Fahrzeugkauf, Schlüssel, Garage und Miete;
+- Wohnung und Lagerzugriff;
+- Jobbörse und aktive Arbeit;
+- Unternehmensbasis;
+- Öl-Förderung, Raffinerie, Lager und Tankstelle;
+- Dispatch und Polizeidienst;
+- Basis-MDT, Fall und Beweiskette;
+- Festnahme und Booking;
+- Crime-Interaktionen;
+- Admin-Konfiguration der MVP-Inhalte.
+
+Eine Fachansicht darf im ersten Build funktional schlicht sein. Sie muss Fokus, Abbruch, Fehler, Ladezustand, Controller-/Tastaturpfad und serverseitige Ablehnung korrekt behandeln.
+
+## 16.10 Inventar und Banking
+
+### Inventare
+
+- Charakterinventar;
+- Rucksack als einfacher ausrüstbarer Container;
+- Handschuhfach und Kofferraum;
+- persönliches Wohnungslager;
+- Firmen- und Gewerbelager;
+- Trailer- und Tankabteile;
+- Polizei-Asservatenlager;
+- Slots, Gewicht, Chargen, Reservierungen und Historie.
+
+### Geld
+
+- Bargeld-Geldbörse;
+- persönliches Girokonto;
+- Firmenkonto;
+- Staats-/Systemkonten;
+- Überweisung, Ein- und Auszahlung;
+- Rechnung;
+- Miete, Kaution, Lohn und Vertragszahlung;
+- markierte Bargeldcharge;
+- Geldwäsche mit Kapazität und Gebühr.
+
+Nicht enthalten sind Kredite, Spielerbanken, mehrere Währungen, komplexe Pfändung oder vollständige Steuerbuchhaltung.
+
+## 16.11 Fortschritt und Lizenzen
+
+Erste Fähigkeiten:
+
+- Ölförderung;
+- Raffinerieverarbeitung;
+- LKW-Logistik;
+- Fahrzeugmechanik.
+
+Erste Rufbereiche:
+
+- Industrie und Logistik;
+- Polizei;
+- Unterwelt.
+
+Erste Lizenzen:
+
+- Pkw-Führerschein;
+- LKW-Führerschein;
+- Gefahrgutberechtigung.
+
+Die Vorteile bleiben klein und nachvollziehbar. Sie verbessern Qualität, Zeit, Verlust oder Zugang, erzeugen aber keine exponentielle Geldvermehrung.
+
+## 16.12 Fahrzeuge und Mobilität
+
+Vollständig erforderlich:
+
+- Kauf eines Basisfahrzeugs beim NPC-Händler;
+- Charakter- und Firmeneigentum;
+- VIN, Kennzeichen und Eigentumshistorie;
+- Schlüssel und zeitlich begrenzte Zugriffe;
+- genau eine aktive Entity;
+- öffentliche und Firmen-Garage;
+- Zugmaschine und Trailer als getrennte Fahrzeuge;
+- Miete mit Kaution und Zustandsvergleich;
+- Kraftstoffverbrauch;
+- einfache Schäden;
+- serverseitige Einlagerung und Wiederherstellung.
+
+Basisversion:
+
+- einfacher Abschleppauftrag;
+- System- und Polizeiverwahrung;
+- einfache Reparatur;
+- begrenzter Händlerbestand oder kontrollierte Verfügbarkeit.
+
+Nicht erforderlich sind Tuning, Finanzierung, Versicherungen, Fahrzeugproduktion, Luftfahrzeuge und tiefe Komponentenphysik.
+
+## 16.13 Unternehmen, Verträge und Jobs
+
+Ein Charakter kann im MVP:
+
+- ein Einzelunternehmen gründen;
+- ein Firmenkonto führen;
+- Mitarbeiter mit einfachen Rollen beschäftigen;
+- Firmenfahrzeug und Lagerzugriff zuweisen;
+- Lohn oder Auftragsvergütung zahlen;
+- einen Liefer- oder Transportvertrag abschließen;
+- Bedarf als Angebot veröffentlichen;
+- einen Auftrag reservieren, durchführen, teilweise oder vollständig abschließen.
+
+Verbindliche Jobfamilien:
+
+1. Öl, Raffinerie und Kraftstofflogistik;
+2. einfacher Mechaniker- und Abschleppdienst;
+3. eine kontrollierte kommunale Recycling- oder Sammelaktivität;
+4. Polizeidienst als öffentlicher Dienst.
+
+Taxi, Bus, umfangreiche Müllwirtschaft, Bewerbungsportal, Schichtplanung und weitere Branchen folgen später.
+
+## 16.14 Wohnen, Lager und Anlagen
+
+### Basiswohnung
+
+- mietbarer Vertrag;
+- Kaution;
+- Türzugriff;
+- Wohnungsspawn;
+- persönliches Lager;
+- begrenzte Bewohner- oder Gastfreigabe;
+- Rückstands- und Kündigungsstatus ohne sofortige Itemlöschung.
+
+### Gewerbelager
+
+- Mietvertrag;
+- Rollen und Zugriff;
+- Gewicht, Volumen oder Literkapazität;
+- Chargen;
+- Ein- und Auslagerung;
+- Reservierung;
+- Inventur und Audit.
+
+### Anlagen
+
+Im ersten Build werden Ölfeld, Raffinerie, Depot und Tankstelle als vorkonfigurierte öffentliche oder pachtbare Fachanlagen verwendet. Freier Anlagenkauf, Ausbau, komplexe Wartungsteams und private Förderkonzessionen folgen später.
+
+## 16.15 Verbindlicher Ölkreislauf
+
+Der legale Hauptablauf enthält:
+
+1. reales Bedarfssignal einer Tankstelle;
+2. Auftrag mit reserviertem Budget;
+3. staatliches Ölfeld mit begrenztem Förderkontingent;
+4. aktive Förderung einer Rohölcharge;
+5. geeignete eigene oder gemietete Zugmaschine;
+6. geeigneten eigenen oder gemieteten Tanktrailer;
+7. Transfer in Tankabteil oder gemietetes Lager;
+8. Anlieferung an eine öffentliche Raffinerie;
+9. neustartsicheren Produktionsauftrag;
+10. mindestens Benzin, Diesel, Nebenprodukt und Abfall;
+11. Lagerung der erzeugten Charge;
+12. Lieferauftrag zu einer Tankstelle;
+13. Tankstellentank und Zapfsäule mit realem Bestand;
+14. Betreiberpreis innerhalb von Leitplanken;
+15. Tankvorgang eines anderen Fahrzeugs;
+16. vollständige Waren-, Vertrags-, Lohn-, Steuer- und Geldspur.
+
+Vereinfachungen:
+
+- genau ein Grundrezept pro Kraftstoffart;
+- öffentliche Raffinerie statt Spielerbesitz;
+- keine Rohrleitungen;
+- keine tiefe Chemiesimulation;
+- einfache Wartungszustände;
+- kontrollierte Leckage statt großer Umweltsimulation;
+- teure, mengenbegrenzte NPC-Notversorgung;
+- ein begrenzter Exportweg als Überlauf, nicht als beste Gewinnquelle.
+
+## 16.16 Tankstellenbetrieb
+
+Mindestens eine Tankstelle kann durch ein einfaches Unternehmen gepachtet und betrieben werden.
+
+Der Betreiber kann:
+
+- Benzin- und Dieselpreis innerhalb von Leitplanken setzen;
+- Mindestbestand und Nachbestellgrenze festlegen;
+- Lieferung beauftragen;
+- Bestand, Umsatz und offene Bestellungen sehen;
+- Mitarbeiterzugriffe vergeben.
+
+Wenn kein Betreiber vorhanden ist, bleibt eine öffentliche Station mit begrenzter NPC-Notversorgung verfügbar. Der Fallback darf Spielerlieferungen nicht dauerhaft verdrängen.
+
+## 16.17 Verbindlicher Crime-Ablauf
+
+Der einzige vollständig erforderliche Tattyp des ersten Builds ist ein Laden- oder Tankstellenraub.
+
+Er enthält:
+
+1. gültiges Ziel und serverseitige Tatdefinition;
+2. Prüfung von Cooldown, Teilnehmern, Werkzeug und verfügbarer Polizei;
+3. Reservierung von Ziel und maximaler Beute;
+4. mindestens einen stillen oder gewaltsamen Zugangspfad;
+5. Alarm mit nachvollziehbarer Quelle und möglicher Verzögerung;
+6. physische markierte Beute;
+7. Kamera-, Fingerabdruck-, Blut- oder Werkzeugspur entsprechend den Aktionen;
+8. Flucht ohne automatische dauerhafte Liveortung;
+9. Hehler oder begrenzte Geldwäsche;
+10. mögliche Sicherstellung;
+11. persistente Tat- und Audit-Timeline;
+12. Disconnect- und Neustartwiederherstellung.
+
+Fahrzeugdiebstahl, Bankraub, Lagerüberfall und Großtransport werden erst ergänzt, wenn dieser Ablauf alle Gates besteht.
+
+## 16.18 Polizei, Dispatch und Beweise
+
+Vollständig erforderlich:
+
+- Polizeianstellung und einfacher Rang;
+- Dienstbeginn und Dienstende;
+- Einheitenstatus;
+- Notruf und automatischer Alarm;
+- Dispatchzuweisung;
+- kontrollierte Orts- und Täterbeschreibung;
+- Fesseln, Begleiten und Transport;
+- begrenzte Durchsuchung;
+- Beschlagnahmung mit Asservatbewegung;
+- Booking, Tatvorwurf und persistente Haft;
+- Personen-, Kennzeichen- und VIN-Fahndung.
+
+Basisversion:
+
+- MDT-Suche;
+- Fallanlage;
+- versionierter Bericht;
+- Kamera-, Fingerabdruck-, Blut/DNA- und Werkzeugspur;
+- Beweismittelbeutel;
+- Beweiskette;
+- einfache Analyse;
+- einfacher Durchsuchungsbeschluss durch eine freigegebene Rolle, solange kein Justizsystem existiert.
+
+Polizei erhält Gehalt aus dem Staatskonto und keine persönliche Prämie pro Festnahme, Beschlagnahmung oder Tötung.
+
+## 16.19 Medizinischer Mindestumfang
+
+Damit Crime und PvP nicht in einen undefinierten Zustand führen, enthält der MVP:
+
+- Bewusstlosigkeitszustand;
+- einfache Blutungs- oder Verletzungsmarker;
+- Sperre kritischer Aktionen;
+- Hilferuf;
+- zeitlich kontrollierte NPC- oder Admin-Notfallhilfe;
+- Krankenhausspawn;
+- definierte Item-, Geld-, Haft- und Crime-Folgen;
+- Disconnect- und Neustartverhalten.
+
+Ein vollständiger Spieler-Rettungsdienst, Behandlungssystem, Feuerwehr und Versicherungsabrechnung folgen in einer späteren Alpha.
+
+## 16.20 Dynamische Administration im MVP
+
+Vollständig als sichere administrative Anwendungsfälle:
+
+- Spieler- und Accountstatus prüfen;
+- Whitelist und technische Rollen verwalten;
+- Wartungsmodus;
+- protokollierte Geld-, Item- und Fahrzeugkorrektur;
+- Modulstatus und Health sehen;
+- Entwürfe validieren und veröffentlichen;
+- Audit-Timeline einsehen.
+
+Basis-Editor oder Commands für:
+
+- Interaktionspunkt;
+- Zone;
+- Spawn;
+- Garage und Mietstation;
+- Wohnung und Lager;
+- Ölfeld-Förderpunkt;
+- Raffinerie, Tank und Tankstelle;
+- Jobangebot und Aktivitätsdefinition;
+- Raubziel;
+- Polizeistation, Beweisraum und Haftbereich.
+
+Es gibt keine freien SQL-, Lua- oder Konsolenbefehle innerhalb einer Job- oder Crime-Definition. Das externe Control Panel ist nicht Teil des ersten Builds.
+
+## 16.21 Mindestinhalt
+
+Der erste integrierte Teststand benötigt mindestens:
+
+| Inhalt | Mindestanzahl |
+|---|---:|
+| zentraler Start-/Tutorialbereich | 1 |
+| mietbare Starterwohnungs-Vorlage | 1 |
+| persönlicher Lagerbereich | 1 |
+| Gewerbelager/Depot | 1 |
+| NPC-Basishändler | 1 |
+| öffentliche Garage | 1 |
+| Mietstation für Zugmaschine und Trailer | 1 |
+| Abschlepp-/Verwahrpunkt | 1 |
+| Werkstattpunkt | 1 |
+| staatliches Ölfeld | 1 |
+| Förderpunkte im Ölfeld | mindestens 3 |
+| öffentliche Raffinerie | 1 |
+| Tankstellen | mindestens 2 |
+| pachtbare Tankstelle | mindestens 1 |
+| Recycling-/Sammelaktivität | 1 |
+| Polizeistation | 1 |
+| Beweisraum | 1 |
+| Booking- und Haftbereich | 1 |
+| raubfähige Läden oder Tankstellen | mindestens 2 |
+| Hehler | 1 |
+| Geldwäschezugang | 1 |
+| Krankenhausspawn | 1 |
+
+Der MVP verwendet vorzugsweise vorhandene GTA-Orte und rechtlich nutzbare Assets. Kostenpflichtige MLOs oder Custom-Fahrzeuge sind keine technische Voraussetzung für den Coding-Start.
+
+## 16.22 Startwirtschaft
+
+Beim Erstellen der ersten produktionsnahen Testwelt existieren kontrollierte Systemkonten und Anfangsbestände für:
+
+- Staatskonto;
+- öffentliche Infrastruktur;
+- öffentliche Raffinerie;
+- NPC-Notversorgung;
+- Einstiegsjob-Budget;
+- Fahrzeughändler und Vermietung;
+- Polizei;
+- notwendige Marktliquidität.
+
+Spieler erhalten einen kleinen konfigurierbaren Startbestand, aber kein kostenloses eigenes Fahrzeug und kein kostenloses Unternehmen.
+
+Wichtige Geldsenken:
+
+- Fahrzeug- und Trailermiete;
+- Kautionen;
+- Kraftstoff;
+- Lager- und Wohnungsmiete;
+- Lizenzen;
+- Reparatur und Wartung;
+- Unternehmensgründung;
+- Steuern und Gebühren;
+- Crime-Werkzeuge und Geldwäschekosten;
+- Verwahrung und Haftfolgen.
+
+Neue Systemgelder dürfen nur aus benannten, begrenzten Quellen entstehen. Balancingwerte werden erst nach Telemetrie aus der Closed Alpha endgültig gesetzt.
+
+## 16.23 Abhängigkeitskarte der vertikalen Abläufe
+
+| Ablauf | Pflichtmodule |
+|---|---|
+| Verbindung und Charakter | `cnr_core`, `cnr_database`, `cnr_logs`, `cnr_config`, `cnr_accounts`, `cnr_sessions`, `cnr_characters`, `cnr_permissions`, `cnr_ui` |
+| Inventar und Geld | `cnr_items`, `cnr_inventory`, `cnr_banking`, `cnr_ui` |
+| Fahrzeug und Miete | `cnr_vehicles`, `cnr_garages`, `cnr_rentals`, `cnr_banking`, `cnr_inventory` |
+| Unternehmen und Job | `cnr_businesses`, `cnr_employment`, `cnr_contracts`, `cnr_jobs`, `cnr_banking`, `cnr_progression` |
+| Ölkreislauf | `cnr_industry`, `cnr_logistics`, `cnr_storage`, `cnr_facilities`, `cnr_fuel`, Fahrzeuge, Jobs, Inventar und Banking |
+| Ladenraub | `cnr_crime`, `cnr_inventory`, `cnr_banking`, `cnr_dispatch`, `cnr_evidence` |
+| Polizeireaktion | `cnr_police`, `cnr_dispatch`, `cnr_evidence`, `cnr_inventory`, `cnr_characters`, `cnr_banking` |
+| Admin-Veröffentlichung | `cnr_admin`, `cnr_world_editor`, `cnr_config`, `cnr_permissions`, `cnr_logs` |
+
+Eine höhere Welle beginnt erst, wenn die benötigten unteren Module ihren vereinbarten Vertrag stabil bereitstellen.
+
+## 16.24 Umsetzungswellen
+
+### Welle 0 – Repository und technische Basis
+
+- Toolchain;
+- lokale Umgebung;
+- Migrationen;
+- Core;
+- Datenbankfassade;
+- Logs und Audit;
+- Konfiguration;
+- Lokalisierung;
+- UI-Shell;
+- Tests und CI.
+
+### Welle 1 – Spielerlebenszyklus
+
+- Loadscreen;
+- Verbindung;
+- Registrierung;
+- Whitelist;
+- Session;
+- Charaktererstellung;
+- Spawn;
+- Basisdokumente.
+
+### Welle 2 – Wirtschaftliche Grundbausteine
+
+- Items und Inventare;
+- Banking und Hauptbuch;
+- Interaktionen und Zonen;
+- Fortschritt und Lizenzen;
+- Wohnung und persönliches Lager.
+
+### Welle 3 – Fahrzeuge, Unternehmen und Arbeit
+
+- Fahrzeuge und Garagen;
+- Miete und Trailer;
+- Unternehmen und Mitarbeiter;
+- Gewerbelager;
+- allgemeines Job- und Vertragsmodell;
+- Recycling-/Sammelaktivität;
+- Mechaniker-/Abschleppbasis.
+
+### Welle 4 – Legaler vertikaler Schnitt
+
+- Ölfeld;
+- Flüssigkeitstransfer;
+- Raffinerie;
+- Produktionsauftrag;
+- Tankstelle;
+- dynamischer Bedarf;
+- Lieferung, Verkauf und Verbrauch;
+- vollständige Abrechnung und Progression.
+
+### Welle 5 – Illegaler vertikaler Schnitt
+
+- Polizeidienst;
+- Dispatch;
+- Ladenraub;
+- physische Beute;
+- Hehler und Geldwäsche;
+- Beweise und Fälle;
+- Durchsuchung, Beschlagnahmung, Booking und Haft;
+- medizinischer Mindestumfang.
+
+### Welle 6 – Integration und Closed Alpha
+
+- Restart- und Disconnect-Tests;
+- Parallelitäts- und Exploit-Tests;
+- Backup-Restore;
+- Performanceprofil;
+- Economy-Balancing;
+- UX-Korrekturen;
+- Regelwerk für Tester;
+- Staging- und Releaseablauf.
+
+## 16.25 Abnahme des legalen Referenzablaufs
+
+Der legale Ablauf besteht erst, wenn:
+
+1. ein neuer Spieler Account und Charakter ohne Adminhilfe anlegt;
+2. der Charakter Startkonto, Inventar und Dokumente erhält;
+3. eine notwendige Lizenz erspielt oder erworben werden kann;
+4. ein Auftrag aus echtem Tankstellenbedarf entsteht;
+5. Budget, Warenziel und Kapazität reserviert werden;
+6. Zugmaschine und Tanktrailer gemietet werden;
+7. Rohöl gefördert und als Charge gespeichert wird;
+8. Transport und Flüssigkeitstransfer keine Menge erzeugen oder vernichten;
+9. die Raffinerie Benzin und Diesel neustartsicher produziert;
+10. eine Tankstelle die Lieferung tatsächlich einlagert;
+11. ein zweiter Spieler ein Fahrzeug aus genau diesem Bestand betankt;
+12. Firma, Fahrer, Vermietung, Staat und Lieferant korrekt abgerechnet werden;
+13. Erfahrung und Ruf nur aus bestätigtem Beitrag entstehen;
+14. der gesamte Ablauf nach Serverneustart an definierten Punkten fortgesetzt werden kann;
+15. keine administrative Waren- oder Geldgabe Teil des Normalablaufs ist.
+
+## 16.26 Abnahme des illegalen Referenzablaufs
+
+Der illegale Ablauf besteht erst, wenn:
+
+1. zwei Spieler ein gültiges Raubziel auswählen;
+2. Ziel, Teilnehmer, Werkzeug, Cooldown und Polizei serverseitig geprüft werden;
+3. maximale Beute reserviert wird;
+4. Tataktionen Alarm und passende Spuren erzeugen;
+5. Dispatch einen Einsatz ohne automatische Täteridentität erstellt;
+6. Täter mit physischer markierter Beute fliehen können;
+7. Polizei Tatort und Beweise sichert;
+8. eine unbekannte Spur zunächst unbekannt bleiben kann;
+9. Beute gehehlt, gewaschen oder beschlagnahmt werden kann;
+10. Fall, Bericht und Beweiskette versioniert bleiben;
+11. eine rechtmäßige begrenzte Durchsuchung möglich ist;
+12. Festnahme, Booking und Haft persistent funktionieren;
+13. weder Disconnect noch Neustart Beute, Beweise oder Haft entfernen oder duplizieren;
+14. Kills keine beste Belohnungs- oder Fortschrittsquelle darstellen;
+15. alle kritischen Schritte für berechtigte Administration nachvollziehbar sind.
+
+## 16.27 Technische und sicherheitsbezogene Abnahmetests
+
+Pflichttests:
+
+- frische Datenbank vollständig migrieren;
+- Release aus frischem Checkout bauen;
+- fehlende Pflichtresource kontrolliert erkennen;
+- Datenbankausfall während einer Mutation ohne Teilbuchung behandeln;
+- dieselbe `operation_uuid` mehrfach senden;
+- zwei Spieler gleichzeitig denselben Bestand kaufen oder reservieren lassen;
+- manipulierte Preis-, Mengen-, Rollen- und Positionsdaten senden;
+- internes Event unberechtigt als Client auslösen;
+- unerlaubten State-Bag-Wert setzen;
+- während Förderung, Transfer, Produktion, Raub, Beschlagnahmung und Haft neu starten;
+- während kritischer Zustände disconnecten und wieder verbinden;
+- veraltete Konfigurationsrevision veröffentlichen;
+- Audit- und Fachhistorie mit Gegenbuchung korrigieren;
+- Backup in isolierte Datenbank zurückspielen;
+- beide Referenzabläufe auf wiederhergestellter Datenbank fortsetzen.
+
+## 16.28 Closed-Alpha-Gates
+
+### Gate A – Fundament
+
+- Build und CI grün;
+- leere Migration erfolgreich;
+- keine Secrets;
+- Pflichtmodule melden `ready`;
+- Backup und Restore dokumentiert.
+
+### Gate B – Spielerlebenszyklus
+
+- Verbindung bis Spawn ohne Adminhilfe;
+- drei Charakterplätze;
+- sicherer Wechsel und Reconnect;
+- keine doppelte aktive Session.
+
+### Gate C – Legale Wirtschaft
+
+- legaler Referenzablauf vollständig;
+- Hauptbuch ausgeglichen;
+- Warenbilanz erhalten;
+- Nachfrage und Spielerlieferung verbunden;
+- NPC-Notversorgung bleibt begrenzt.
+
+### Gate D – Cops & Robbers
+
+- illegaler Referenzablauf vollständig;
+- Polizei erhält nur begründete Informationen;
+- Beute und Beweise bleiben physisch und nachvollziehbar;
+- Haft und Beschlagnahmung sind persistent.
+
+### Gate E – Härtung
+
+- kritische Pflichttests bestanden;
+- keine bekannte Geld-, Item-, Fahrzeug- oder Warenduplizierung;
+- keine bekannte unberechtigte Admin- oder Gameplaymutation;
+- Restart-, Disconnect- und Restore-Probe bestanden;
+- relevante Fehler besitzen Correlation-ID und Auditbezug.
+
+### Gate F – Geschlossener Spieltest
+
+- mehrstündige Mehrspieler-Testsitzung;
+- mindestens ein vollständiger legaler und illegaler Durchlauf;
+- kontrollierter Serverneustart während laufender Vorgänge;
+- keine offenen Fehler, die Datenverlust, Duplizierung, Rechteausweitung oder unspielbare Hauptabläufe verursachen;
+- bekannte kleinere Probleme sind dokumentiert und priorisiert.
+
+## 16.29 Erweiterte Alpha nach dem MVP
+
+Priorisierte nächste Ausbaustufen:
+
+1. Fahrzeugdiebstahl und Fahrzeugverwertung;
+2. Bankfilialraub;
+3. Lager- oder Transportüberfall;
+4. Immobilienkauf und tiefere Mietverwaltung;
+5. Spielerbesitz oder langfristige Pacht von Raffinerie und Anlagen;
+6. weitere Tankstellen- und Unternehmensformen;
+7. Taxi/Bus und tiefere Mechanikerwirtschaft;
+8. Spieler-Rettungsdienst;
+9. Justizrollen und Gerichtsverfahren;
+10. tiefere Verträge, Versicherung und Unternehmensverwaltung;
+11. weitere Industriezweige;
+12. externes Control Panel.
+
+Die Reihenfolge darf anhand von Closed-Alpha-Erkenntnissen angepasst werden. Neue Systeme müssen weiterhin die gleichen Sicherheits-, Transaktions- und Recovery-Regeln erfüllen.
+
+## 16.30 Beta und Release
+
+### Beta
+
+- vorgesehene Startsysteme feature-komplett;
+- größere Inhaltsmenge;
+- Economy-Balancing über längere Laufzeit;
+- Last- und Skalierungstests;
+- vollständiges Moderations- und Supportwerkzeug;
+- Onboarding- und UI-Polish;
+- Datenschutz-, Lizenz- und Sicherheitsprüfung;
+- dokumentierte Betriebs- und Notfallabläufe.
+
+### Release
+
+- finaler Servername und Branding;
+- freigegebenes Regelwerk;
+- rechtlich nutzbare Medien und Assets;
+- stabile Hosting- und Backupumgebung;
+- Support- und Communityprozesse;
+- freigegebene Start-Economy;
+- keine offenen kritischen Fehler;
+- getesteter Rollback-, Restore- und Incident-Ablauf.
+
+## 16.31 Verbindliche Ausschlüsse
+
+Dauerhaft ausgeschlossen:
+
+- kaufbare Erfahrung oder Gameplayvorteile gegen Echtgeld;
+- Cliententscheidungen über Geld, Besitz, Items oder Belohnungen;
+- automatische Täteridentität ohne Informationsquelle;
+- wahlloses Töten als Hauptfortschritt;
+- unendliche, risikofreie Systemgeldquellen;
+- Admin-Korrekturen ohne Audit;
+- freie SQL- oder Lua-Ausführung aus Editor oder Control Panel;
+- heimliches Löschen gebuchter Finanz-, Beweis- oder Besitzhistorie.
+
+## 16.32 Coding-Freigabe
+
+Paket D ist mit diesem Kapitel konzeptionell abgeschlossen.
+
+Das Grundkonzept ist bereit für den Coding-Start, weil nun feststehen:
+
+- technischer Stack;
+- Modulgrenzen;
+- Sicherheits- und Datenbankregeln;
+- erster spielbarer Umfang;
+- ausdrücklich spätere Funktionen;
+- Abhängigkeiten und Umsetzungswellen;
+- legaler und illegaler Referenzablauf;
+- Testfälle und Release-Gates.
+
+Der erste Coding-Chat soll mit Welle 0 beginnen. Erweiterungswünsche werden weiterhin in dieser Planung gesammelt, erweitern aber nicht automatisch den freigegebenen MVP.
+
+---
+
+# 17. Dynamische Administration
+
+## 17.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -10337,7 +11149,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 16.2 Externes Control Panel
+## 17.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -10357,7 +11169,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 17. Einheitliches UI-System
+# 18. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -10378,7 +11190,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 18. Sicherheitsgrundsätze
+# 19. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -10393,7 +11205,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 19. Aktuelle verbindliche Entscheidungen
+# 20. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -10428,6 +11240,19 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | Teststack | Busted, echte MariaDB-Integrationstests, Vitest, Playwright und FXServer-Smoke-Tests |
 | Deployment | reproduzierbares Releaseartefakt über Development, Staging und Production |
 | Secrets | ausschließlich außerhalb von Repository, NUI und Clientcode |
+| erster spielbarer Build | geschlossene Alpha mit kleiner eingeladener Testgruppe |
+| MVP-Leitregel | ein vollständiger legaler und ein vollständiger illegaler vertikaler Ablauf vor Inhaltsbreite |
+| legaler MVP-Hauptablauf | Ölförderung, Raffinerie, Transport, Tankstellenversorgung und realer Verbrauch |
+| illegaler MVP-Hauptablauf | Laden- oder Tankstellenraub, Dispatch, Beweise, Beuteverwertung, Durchsuchung und Haft |
+| MVP-Industrie | öffentliches Ölfeld und öffentliche Raffinerie; privates Eigentum später |
+| MVP-Tankstelle | mindestens eine pachtbare Station mit begrenztem NPC-Fallback |
+| MVP-Wohnen | mietbare Starterwohnung und persönliches Lager; Immobilienkauf später |
+| MVP-Jobs | Öl/Logistik, einfache Mechanik/Abschleppen, eine Recycling-/Sammelaktivität und Polizei |
+| MVP-Crime | Ladenraub vollständig; Fahrzeugdiebstahl, Bank- und Großraub später |
+| MVP-Medizin | Bewusstlosigkeit, Notfallhilfe und Krankenhausspawn; Spieler-EMS später |
+| MVP-Administration | sichere Commands und begrenzter Ingame-Editor; externes Control Panel später |
+| MVP-Assets | vorhandene GTA-Orte und rechtlich nutzbare Assets genügen; kostenpflichtige MLOs sind keine Voraussetzung |
+| Scope-Änderung | neue Ideen erweitern den freigegebenen MVP nur nach ausdrücklicher Planungsentscheidung |
 | Inventar | Kombination aus Slots und Gewicht |
 | Flüssigkeiten | Warenchargen mit Menge und Qualität |
 | Finanzmodell | doppeltes Hauptbuch mit ausgeglichenen Buchungen |
@@ -10525,9 +11350,9 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 20. Planungsreife und Coding-Start
+# 21. Planungsreife und Coding-Start
 
-## 20.1 Aktueller Stand
+## 21.1 Aktueller Stand
 
 Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortgeschritten. Detailliert geplant sind:
 
@@ -10550,11 +11375,13 @@ Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortges
 - Resource-Abhängigkeiten, Verträge, Events und Fehlerformate;
 - NUI-, OneSync-, State-Bag- und Entity-Regeln;
 - Test-, CI-, Logging-, Audit-, Deployment- und Backupstrategie;
+- den verbindlichen MVP-Schnitt mit vollständigen, vereinfachten und späteren Funktionen;
+- Mindestinhalt, Abhängigkeitskarte, Umsetzungswellen und Closed-Alpha-Gates;
 - grundlegende Admin-, UI- und Sicherheitsprinzipien.
 
-Damit stehen die RP-, Economy-, Cops-&-Robbers-, Job- und Technikgrundlagen. Vor dem produktiven Coding fehlt nur noch der verbindliche MVP-Schnitt aus Paket D.
+Damit stehen die RP-, Economy-, Cops-&-Robbers-, Job-, Technik- und MVP-Grundlagen. Alle vier notwendigen Konzeptpakete sind abgeschlossen. Das Grundkonzept ist für den Coding-Start freigegeben.
 
-## 20.2 Noch notwendige Konzeptpakete vor dem Coding
+## 21.2 Konzeptpakete vor dem Coding
 
 ### Abgeschlossen – Paket A: Cops-&-Robbers-Kern
 
@@ -10601,36 +11428,38 @@ Paket C ist mit Kapitel 15 abgeschlossen. Verbindlich definiert sind:
 - Development-, Staging- und Production-Ablauf;
 - Backup, Wiederherstellung und Deployment.
 
-### Paket D – Verbindlicher MVP-Schnitt
+### Abgeschlossen – Paket D: Verbindlicher MVP-Schnitt
 
-Für jedes System wird festgelegt:
+Paket D ist mit Kapitel 16 abgeschlossen. Festgelegt sind:
 
-- im ersten spielbaren Build enthalten;
-- nur als einfache Grundversion enthalten;
-- ausdrücklich später;
-- Abhängigkeiten;
-- Abnahmekriterien;
-- Testfälle;
-- benötigte Inhalte und Kartenobjekte.
+- Status jedes Systems als vollständig, Basisversion oder später;
+- erster legaler Öl- und Kraftstoffkreislauf;
+- erster illegaler Ladenraub- und Polizeiablauf;
+- technische und spielerische Pflichtgrundlagen;
+- Mindestinhalt und Startwirtschaft;
+- Abhängigkeiten und Umsetzungswellen;
+- Restart-, Disconnect-, Parallelitäts- und Exploit-Tests;
+- Closed-Alpha-Gates;
+- Abgrenzung von erweiterter Alpha, Beta und Release.
 
-Das verhindert, dass beim Scripting gleichzeitig ein Core, eine vollständige Wirtschaft, alle Jobs, alle Verbrechen und ein Control Panel fertiggestellt werden sollen.
+## 21.3 Empfohlener Zeitpunkt für den Coding-Start
 
-## 20.3 Empfohlener Zeitpunkt für den Coding-Start
+Der Coding-Start wird ab jetzt empfohlen.
 
-Der Coding-Start wird nach Abschluss des letzten verbleibenden Konzeptpakets D empfohlen.
+Der erste Coding-Chat beginnt mit Welle 0 aus Kapitel 16:
 
-Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kann beginnen, sobald:
+- Repository- und Toolchain-Grundgerüst;
+- lokale Development-Umgebung;
+- Migrationen und Datenbankfassade;
+- Core, Logs, Audit, Konfiguration und Lokalisierung;
+- UI-Shell;
+- Test-Harness und CI.
 
-- der MVP-Umfang verbindlich feststeht;
-- der Cops-&-Robbers-Hauptablauf definiert ist;
-- der technische Stack entschieden ist;
-- Modulgrenzen und zentrale Datenverträge widerspruchsfrei sind;
-- Sicherheits- und Transaktionsregeln feststehen;
-- mindestens ein legaler und ein illegaler vertikaler Testablauf beschrieben sind.
+Danach folgen die Wellen für Spielerlebenszyklus, Wirtschaftsgrundbausteine, Fahrzeuge und Unternehmen, den legalen Ölkreislauf sowie den illegalen Cops-&-Robbers-Kreislauf.
 
-Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Branchen und Zusatzinhalte weiter geplant werden.
+Finaler Servername, endgültiges Branding, vollständiges Regelwerk und visueller UI-Polish blockieren den technischen Coding-Start nicht. Sie müssen vor der jeweils zugehörigen Closed-Alpha- oder Releasefreigabe abgeschlossen sein.
 
-## 20.4 Empfohlene erste vertikale Abläufe
+## 21.4 Empfohlene erste vertikale Abläufe
 
 ### Legaler Ablauf
 
@@ -10655,21 +11484,25 @@ Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Br
 8. Fahndung, Beschluss, Durchsuchung, Festnahme und Haft folgen nur aus dem tatsächlichen Verlauf.
 9. Waren-, Beweis- und Geldspur bleibt vollständig nachvollziehbar.
 
-## 20.5 Definition of Ready für das Repository
+## 21.5 Definition of Ready für das Repository
 
-Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
+Die konzeptionelle Definition of Ready ist erfüllt:
 
-- freigegebene MVP-Matrix;
-- freigegebene Modul- und Abhängigkeitskarte;
-- Namens- und Eventkonventionen;
-- technische Stackentscheidung;
-- Migrationsstrategie;
-- lokale Entwicklungsanleitung;
-- Teststrategie;
-- Sicherheitscheckliste;
-- Konfigurations- und Secret-Konzept;
-- Akzeptanzabläufe für die ersten vertikalen Schnitte.
+- [x] freigegebene MVP-Matrix;
+- [x] freigegebene Modul- und Abhängigkeitskarte;
+- [x] Namens- und Eventkonventionen;
+- [x] technische Stackentscheidung;
+- [x] Migrationsstrategie;
+- [x] Zielbild der lokalen Entwicklungsumgebung;
+- [x] Teststrategie;
+- [x] Sicherheitscheckliste;
+- [x] Konfigurations- und Secret-Konzept;
+- [x] Akzeptanzabläufe für die ersten vertikalen Schnitte.
+
+Die konkrete Setup-Anleitung, Lockdateien, Toolkonfigurationen und CI-Dateien sind keine weitere Konzeptphase, sondern die ersten Ergebnisse von Welle 0.
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird Paket D, der verbindliche MVP-Schnitt, geplant. Für jedes System wird festgelegt, was im ersten spielbaren Build vollständig, vereinfacht oder noch nicht enthalten ist. Daraus entstehen die MVP-Matrix, Abhängigkeiten, Umsetzungsreihenfolge, Testfälle und klare Abnahmekriterien. Nach Abschluss dieses Pakets ist das Grundkonzept bereit für den Coding-Start in den dafür vorgesehenen Projektchats.
+Das Grundkonzept steht und ist codingbereit. Der nächste separate Coding-Chat soll Welle 0 – Repository, Toolchain, lokale Umgebung, Datenbank, Core, Konfiguration, Logs, UI-Shell, Tests und CI – umsetzen.
+
+Dieser Chat bleibt für weitere Planung, Balancing, Inhalte, Branding, Regelwerk und spätere Ausbaustufen zuständig. Neue Ideen werden zuerst einer Releasephase zugeordnet und verändern den MVP nicht automatisch.
