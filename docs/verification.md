@@ -32,3 +32,13 @@ For a destructive local migration rehearsal only:
 pnpm db:rollback
 pnpm db:migrate
 ```
+
+## Wave 1 connection foundation
+
+- Connect with a Rockstar `license` or Cfx.re `fivem` identifier and verify that an account is created once.
+- Confirm that `ip:` is never persisted in `cnr_account_identifiers`.
+- Attempt two concurrent connections with the same account and verify that only one session becomes active.
+- Restart only `cnr_sessions` and confirm the active session can still be closed by `playerDropped`.
+- Restart only `cnr_core` and confirm the server instance UUID remains unchanged. Restart the full FXServer and confirm sessions from the replaced instance become `STALE`.
+- Test all four whitelist modes with and without an active entry.
+- Confirm rejection messages expose a correlation ID but no raw identifier or SQL detail.

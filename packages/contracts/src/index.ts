@@ -11,6 +11,13 @@ export type ResourceStatus = (typeof resourceStatuses)[number];
 export const errorCodes = [
   'VALIDATION_ERROR',
   'AUTHENTICATION_REQUIRED',
+  'IDENTIFIER_REQUIRED',
+  'IDENTIFIER_CONFLICT',
+  'REGISTRATION_DISABLED',
+  'ACCOUNT_BANNED',
+  'ACCOUNT_RESTRICTED',
+  'WHITELIST_REQUIRED',
+  'SESSION_ALREADY_ACTIVE',
   'CHARACTER_REQUIRED',
   'PERMISSION_DENIED',
   'RATE_LIMITED',
@@ -24,6 +31,26 @@ export const errorCodes = [
   'INTERNAL_ERROR',
 ] as const;
 export type ErrorCode = (typeof errorCodes)[number];
+
+export const accountStatuses = [
+  'PENDING_REGISTRATION',
+  'PENDING_WHITELIST',
+  'ACTIVE',
+  'SUSPENDED',
+  'BANNED',
+  'RESTRICTED',
+  'ARCHIVED',
+] as const;
+export type AccountStatus = (typeof accountStatuses)[number];
+
+export const sessionAccessStates = ['ONBOARDING', 'LIMITED', 'FULL'] as const;
+export type SessionAccessState = (typeof sessionAccessStates)[number];
+
+export interface ConnectionSession {
+  session_uuid: string;
+  account_uuid: string;
+  access_state: SessionAccessState;
+}
 
 export interface RequestEnvelope<TPayload> {
   request_id: string;

@@ -64,3 +64,15 @@ and release creation rebuild it from the lockfile.
 Copy the relevant settings from `server/server.cfg.example`, replace the local connection string, and
 ensure resources in the documented order. A migrated schema and a ready oxmysql resource are required
 before `cnr_database` can become `ready`.
+
+## Wave 1 connection settings
+
+Before starting the account resources, configure a server-only identifier pepper with at least 32 random characters. Never replicate it to clients or commit the real value.
+
+```cfg
+set cnr_registration_enabled 1
+set cnr_whitelist_mode "open"
+set cnr_identifier_pepper "replace-with-at-least-32-random-characters"
+```
+
+The supported whitelist modes are `open`, `automatic`, `manual`, and `hybrid`. Wave 1 starts with `open` for local development; production policy is chosen separately.
