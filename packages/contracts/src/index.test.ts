@@ -8,6 +8,10 @@ import {
   sessionAccessStates,
   registrationContractVersion,
   characterContractVersion,
+  characterAppearanceContractVersion,
+  characterSelectionContractVersion,
+  type SaveCharacterAppearance,
+  type SelectCharacter,
   type CreateCharacterDraft,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
@@ -39,6 +43,44 @@ describe('core contracts', () => {
         'document_number',
       ]),
     );
+  });
+
+  it('keeps character selection and appearance free of session and spawn authority', () => {
+    const selection: SelectCharacter = {
+      character_uuid: '0190b7a0-2000-7000-8000-000000000001',
+      request_id: 'selection-1',
+      operation_uuid: '0190b7a0-2000-7000-8000-000000000002',
+      contract_version: characterSelectionContractVersion,
+    };
+    const appearance: SaveCharacterAppearance = {
+      model: 'mp_m_freemode_01',
+      shape_first: 0,
+      shape_second: 21,
+      shape_mix: 50,
+      skin_mix: 50,
+      face_features: Array.from({ length: 20 }, () => 0),
+      hair_style: 0,
+      hair_texture: 0,
+      hair_color: 0,
+      hair_highlight: 0,
+      eye_color: 0,
+      outfit_code: 'starter_casual',
+      request_id: 'appearance-1',
+      operation_uuid: '0190b7a0-2000-7000-8000-000000000003',
+      contract_version: characterAppearanceContractVersion,
+    };
+    for (const payload of [selection, appearance]) {
+      expect(Object.keys(payload)).not.toEqual(
+        expect.arrayContaining([
+          'account_uuid',
+          'session_uuid',
+          'binding_uuid',
+          'spawn_uuid',
+          'spawn_x',
+          'status',
+        ]),
+      );
+    }
   });
 
   it('keeps stable baseline error codes', () => {

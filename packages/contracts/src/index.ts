@@ -133,6 +133,79 @@ export interface CharacterMutationOutcome {
   status?: 'DRAFT' | 'ACTIVE';
 }
 
+export const characterSelectionContractVersion = 1 as const;
+export const characterAppearanceContractVersion = 1 as const;
+export type CharacterSelectionNextState = 'APPEARANCE_REQUIRED' | 'SPAWN_PENDING' | 'SPAWNED';
+export interface CharacterSelectionStatus {
+  selected: boolean;
+  binding_uuid: string | null;
+  character: CharacterSummary | null;
+  next_state: CharacterSelectionNextState | null;
+}
+export interface SelectCharacter {
+  character_uuid: string;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof characterSelectionContractVersion;
+}
+export interface CharacterSelectionOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  binding_uuid: string;
+  character: CharacterSummary;
+  next_state: CharacterSelectionNextState;
+}
+export type FreemodeModel = 'mp_m_freemode_01' | 'mp_f_freemode_01';
+export interface CharacterAppearance {
+  model: FreemodeModel;
+  shape_first: number;
+  shape_second: number;
+  shape_mix: number;
+  skin_mix: number;
+  face_features: readonly number[];
+  hair_style: number;
+  hair_texture: number;
+  hair_color: number;
+  hair_highlight: number;
+  eye_color: number;
+  outfit_code: 'starter_casual';
+}
+export interface CharacterAppearanceConfiguration {
+  models: readonly FreemodeModel[];
+  parent_minimum: number;
+  parent_maximum: number;
+  face_feature_count: 20;
+  face_feature_minimum: number;
+  face_feature_maximum: number;
+  hair_style_maximum: number;
+  hair_texture_maximum: number;
+  hair_color_maximum: number;
+  eye_color_maximum: number;
+  outfit_codes: readonly ['starter_casual'];
+  defaults: CharacterAppearance;
+}
+export interface SaveCharacterAppearance extends CharacterAppearance {
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof characterAppearanceContractVersion;
+}
+export interface CharacterAppearanceOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  appearance_version: number;
+  next_state: 'SPAWN_PENDING';
+}
+export interface CharacterSpawnInstruction {
+  spawn_uuid: string;
+  binding_uuid: string;
+  reason: 'CENTRAL_DEFAULT' | 'LAST_SAFE';
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  appearance: CharacterAppearance;
+}
+
 export interface ConnectionSession {
   session_uuid: string;
   account_uuid: string;
@@ -220,6 +293,11 @@ export type NuiMessage =
   | { version: 1; type: 'ui.resource.status'; payload: ResourceReadiness }
   | { version: 1; type: 'ui.registration.open'; payload: { locale: 'en' } }
   | { version: 1; type: 'ui.character_creation.open'; payload: Record<string, never> }
+  | {
+      version: 1;
+      type: 'ui.character.spawn_failed';
+      payload: { correlation_id: string };
+    }
   | NuiRequestResponse;
 
 export function isResourceStatus(value: unknown): value is ResourceStatus {
@@ -238,6 +316,10 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
     return payload.locale === 'en';
   }
   if (candidate.type === 'ui.character_creation.open') return true;
+  if (candidate.type === 'ui.character.spawn_failed') {
+    const payload = candidate.payload as { correlation_id?: unknown };
+    return typeof payload.correlation_id === 'string';
+  }
   if (candidate.type === 'ui.request.response') {
     const payload = candidate.payload as {
       event?: unknown;

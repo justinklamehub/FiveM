@@ -197,6 +197,7 @@ AddEventHandler('playerDropped', function(reason, _, client_drop_reason)
     local session = source_sessions[player_source]
     source_sessions[player_source] = nil
     if session then
+        TriggerEvent('cnr:sessions:ending', session)
         SessionService.close(session.session_uuid, 'ENDED', reason:sub(1, 128), client_drop_reason)
     else
         SessionRepository.close_by_source(

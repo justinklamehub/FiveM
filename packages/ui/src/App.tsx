@@ -10,7 +10,7 @@ import {
 import { claimFocus, initialFocusState, releaseFocus } from './focus';
 import { translate, type Locale } from './i18n';
 import { isBrowserMock, postNui } from './nui';
-import { CharacterCreation } from './CharacterCreation';
+import { CharacterLifecycle } from './CharacterLifecycle';
 
 const newId = () => crypto.randomUUID();
 
@@ -19,7 +19,7 @@ export function App() {
   const operationUuid = useRef(newId());
   const browserReadySent = useRef(false);
   const [locale, setLocale] = useState<Locale>('en');
-  const [view, setView] = useState<'registration' | 'characterCreation'>('registration');
+  const [view, setView] = useState<'registration' | 'characterLifecycle'>('registration');
   const [visible, setVisible] = useState(mock);
   const [focus, setFocus] = useState(initialFocusState);
   const [ruleset, setRuleset] = useState<CurrentRuleset | null>(null);
@@ -47,9 +47,10 @@ export function App() {
   }, []);
 
   const close = useCallback(async () => {
+    const result = await postNui<{ ok: boolean }>('close', {});
+    if (!result.ok) return;
     setFocus((current) => releaseFocus(current, current.owner ?? 'cnr_ui'));
     setVisible(false);
-    await postNui<{ ok: boolean }>('close', {});
   }, []);
 
   const submit = useCallback(async () => {
@@ -67,8 +68,8 @@ export function App() {
         contract_version: registrationContractVersion,
       });
       if (!result.ok) throw new Error(result.error.code);
-      setMessage(translate(locale, 'registration.success'));
-      setView('characterCreation');
+      setMessage(null);
+      setView('characterLifecycle');
     } catch {
       setMessage(translate(locale, 'registration.error'));
     } finally {
@@ -89,8 +90,10 @@ export function App() {
       }
       if (event.data.type === 'ui.shell.open' || event.data.type === 'ui.registration.open') {
         const requestedView =
-          event.data.type === 'ui.shell.open' && event.data.payload.view === 'characterCreation'
-            ? 'characterCreation'
+          event.data.type === 'ui.shell.open' &&
+          (event.data.payload.view === 'characterLifecycle' ||
+            event.data.payload.view === 'characterCreation')
+            ? 'characterLifecycle'
             : 'registration';
         setLocale('en');
         setView(requestedView);
@@ -100,7 +103,14 @@ export function App() {
       }
       if (event.data.type === 'ui.character_creation.open') {
         setLocale('en');
-        setView('characterCreation');
+        setView('characterLifecycle');
+        setVisible(true);
+      }
+      if (event.data.type === 'ui.character.spawn_failed') {
+        setMessage(
+          `The controlled spawn could not be confirmed. Reference: ${event.data.payload.correlation_id}`,
+        );
+        setView('characterLifecycle');
         setVisible(true);
       }
     };
@@ -119,11 +129,12 @@ export function App() {
   }, [close, loadRuleset, mock, visible]);
 
   if (!visible) return null;
-  if (view === 'characterCreation')
+  if (view === 'characterLifecycle')
     return (
       <main className="nui-stage" aria-label="Create Character">
-        <section className="shell-card">
-          <CharacterCreation />
+        <section className="shell-card lifecycle-card">
+          <CharacterLifecycle />
+          {message && <p role="alert">{message}</p>}
           <output className="sr-only">Focus owner: {focus.owner ?? 'none'}</output>
         </section>
       </main>

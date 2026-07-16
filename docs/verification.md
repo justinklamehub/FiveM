@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation and the implemented Wave 1 connection, technical-permissions, and registration slices. A real FXServer smoke test is still pending. Character lifecycle, character selection, spawn, and the complete loadscreen flow are not implemented yet and therefore are not claimed by this document.
+The automated pipeline covers the Wave 0 foundation and the implemented Wave 1 connection, technical-permissions, registration, character lifecycle, selection, appearance, and controlled-spawn slices. A real FXServer smoke test for the new selection and appearance flow is still pending. The final loadscreen flow is not implemented and is not claimed by this document.
 
 Run from a fresh checkout:
 
@@ -23,10 +23,10 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716000500_character_lifecycle.sql` as applied.
+- dbmate reports every ordered migration through `20260716000600_character_selection_appearance.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core and implemented Wave 1 tests.
-- no vehicles, characters, character jobs, oil, or crime features exist.
+- no vehicles, character jobs, economy, inventory, oil, or crime features exist.
 
 For a destructive local migration rehearsal only:
 
@@ -77,7 +77,7 @@ pnpm db:migrate
 
 ## Wave 1 registration and activation
 
-1. Connect with a new account and confirm the localized registration view opens only for the active ONBOARDING session.
+1. Connect with a new account and confirm the English registration view opens only for the active ONBOARDING session.
    If automatic opening must be isolated during diagnosis, run `cnr_registration_open` in the client
    F8 console. Confirm the ruleset replaces the loading state; a missing server response must show an
    English retry action within ten seconds rather than leaving the NUI pending indefinitely.
@@ -97,4 +97,17 @@ pnpm db:migrate
 4. Reject invalid names, impossible dates, underage/overage identities, inactive backgrounds, inactive sessions, and foreign character UUIDs.
 5. Repeat identical draft and activation operations; confirm one operation and one result. Reuse either UUID with changed semantic content and confirm `CONFLICT`.
 6. Activate a draft and confirm one unique active state identification card plus `character.activated` and `document.issued` audits.
-7. Confirm no character selection, session binding, spawn, money, inventory, vehicle, or appearance state is created.
+7. Confirm activation does not itself select, bind, customize, or spawn the character.
+
+## Wave 1 character selection, appearance, and controlled spawn
+
+1. Remove the default `basic-gamemode` from the CNR recipe, start `spawnmanager` before `cnr_ui`, connect with an ACTIVE account and FULL session, and verify the English character selection view opens automatically.
+2. Confirm only ACTIVE characters owned by the source-resolved account are listed. Submit a foreign, DRAFT, or malformed character UUID and confirm no binding or routing change occurs.
+3. Select an ACTIVE character and confirm exactly one ACTIVE row in `cnr_character_session_bindings`, an isolated routing bucket for first-time appearance, and a `character.selected` audit with request/correlation IDs.
+4. Repeat the same selection operation and payload; confirm the existing binding is returned. Reuse the operation UUID with another character or session and confirm `CONFLICT`.
+5. In the customization editor, change both freemode models, heritage blends, facial sliders, hair, and eyes. Confirm live preview works in isolation and invalid ranges or unexpected account/session/spawn fields are rejected server-side.
+6. Save appearance twice with the same operation UUID and content; confirm one appearance operation, one current appearance row, and the same pending spawn. Reuse that UUID with changed appearance and confirm `CONFLICT`.
+7. Confirm the server chooses `LAST_SAFE` when a safe location exists and otherwise uses the configured `CENTRAL_DEFAULT`; the client request must contain no coordinates, heading, routing bucket, or spawn state.
+8. Confirm the player remains frozen, invincible, collision-disabled, and unable to close the lifecycle view until the matching server-issued spawn UUID is acknowledged. A wrong or stale token must not release controls.
+9. Reconnect and confirm the stored appearance is applied without creating a duplicate appearance row. Confirm the new session receives a new binding and the prior binding is `ENDED`.
+10. Restart the character resource after ending a session and confirm stale bindings recover to `ENDED`. Verify `character.appearance_saved` and `character.spawned` audits contain UUIDs and correlation data but no raw platform identifiers or appearance JSON.

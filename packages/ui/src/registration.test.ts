@@ -10,7 +10,7 @@ describe('registration browser mock', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('delivers a localized current ruleset without FiveM', async () => {
+  it('delivers the English current ruleset without FiveM', async () => {
     const result = await postNui<Result<CurrentRuleset>>('registrationRuleset', { locale: 'en' });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.data.locale).toBe('en');

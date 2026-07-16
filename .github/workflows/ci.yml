@@ -137,6 +137,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y mariadb-client
           MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/registration_mariadb.sql
           MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/character_mariadb.sql
+          MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/character_selection_appearance_mariadb.sql
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema rollback
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema up
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql status

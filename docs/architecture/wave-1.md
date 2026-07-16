@@ -8,9 +8,9 @@ Wave 1 implements the player lifecycle defined by the project README without add
 | ----------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Connection foundation               | Implemented in draft PR #2 | Accounts, identifiers, whitelist evaluation, one active session, onboarding access state, migration and tests |
 | Technical permissions               | Implemented in draft PR #2 | Database-driven roles and permissions, console-only owner bootstrap, audited mutations and tests              |
-| Registration and account activation | Implemented in draft PR #2 | Versioned rules, idempotent source-bound activation, audit evidence, contracts and localized NUI              |
+| Registration and account activation | Implemented in draft PR #2 | Versioned rules, idempotent source-bound activation, audit evidence, contracts and English NUI                |
 | Character lifecycle                 | Implemented in draft PR #2 | Configurable slots, atomic drafts, validated identity, activation, base state ID and English NUI              |
-| Selection and spawn                 | Pending                    | Character selection, session binding and server-authoritative spawn                                           |
+| Selection, appearance and spawn     | Implemented in draft PR #2 | Owned-character selection, session binding, persistent appearance and token-confirmed controlled spawn        |
 | Loadscreen and complete NUI flow    | Pending                    | Localized progress, registration and character views, browser mocks and typed contracts                       |
 
 Automated CI is green for the implemented slices. A real FXServer connection and permission smoke test remains required before Wave 1 can be considered runtime-verified.
@@ -35,7 +35,7 @@ Automated CI is green for the implemented slices. A real FXServer connection and
    - one idempotent registration mutation per operation UUID
    - account status transition decided by the server and whitelist policy
    - session access refresh without trusting client-supplied account state
-   - localized registration NUI with typed request and result contracts
+   - English registration NUI with typed request and result contracts
 4. **Character lifecycle**
    - three configurable character slots
    - atomic draft creation and activation
@@ -44,6 +44,8 @@ Automated CI is green for the implemented slices. A real FXServer connection and
    - secure character selection
    - reconnect-safe session binding
    - server-authoritative spawn decision
+   - persistent freemode appearance and isolated customization preview
+   - server-issued spawn token and client acknowledgement before controls are released
 6. **Loadscreen and complete NUI flow**
    - localized connection progress
    - registration and character views
@@ -61,7 +63,9 @@ Repeated submission of the same operation UUID returns the existing result and c
 
 Character creation requires a server-resolved active FULL session and ACTIVE account. The server allocates the first free configurable slot, validates identity and age rules, and controls the `DRAFT` to `ACTIVE` transition. Draft creation and activation use separate idempotent operation UUIDs.
 
-Activation issues one unique state identification card. Character selection, session binding, appearance, clothing, inventory, banking, deletion, switching, and spawning remain separate later slices. All player-visible text is English.
+Activation issues one unique state identification card. An ACTIVE character can then be selected only through its source-owned FULL session. The binding is unique per session, its selection operation is idempotent, and stale bindings are ended during resource recovery.
+
+The first selection requires a curated freemode appearance. The server validates and persists every appearance field, places the player in an isolated routing bucket during preview, and chooses either the last safe location or the configured central default. The client executes the server-issued spawn instruction and remains frozen until the matching spawn UUID is acknowledged. Clothing expansion, inventory, banking, deletion, switching, property spawn choices, jail, hospital, and tutorial priority remain later slices. All player-visible text is English.
 
 ## Technical permissions boundary
 
@@ -83,6 +87,6 @@ The next coding chat continues the existing Wave 1 branch and draft PR. It must 
 - FiveM sources are ephemeral and are never stored as durable identities.
 - Only server-generated UUIDs and normalized identifiers cross repository boundaries.
 - Duplicate active sessions and duplicate active technical role assignments are rejected by database constraints.
-- Registration, role changes, whitelist decisions, character creation, and document issuance are auditable.
+- Registration, role changes, whitelist decisions, character creation, selection, appearance persistence, document issuance, and controlled spawn are auditable.
 - Registration mutations require the current server ruleset and a server-resolved onboarding session.
 - No economic, vehicle, job, oil, or crime gameplay is part of Wave 1.

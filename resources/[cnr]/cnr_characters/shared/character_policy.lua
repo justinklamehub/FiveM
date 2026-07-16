@@ -131,4 +131,101 @@ function CharacterPolicy.validate_activation(payload)
     return payload
 end
 
+local function valid_request(payload, allowed, version)
+    if type(payload) ~= 'table' then
+        return false
+    end
+    for key in pairs(payload) do
+        if not allowed[key] then
+            return false
+        end
+    end
+    return payload.contract_version == version
+        and CharacterPolicy.is_uuid(payload.operation_uuid)
+        and type(payload.request_id) == 'string'
+        and #payload.request_id >= 1
+        and #payload.request_id <= 64
+end
+
+function CharacterPolicy.validate_selection(payload)
+    local allowed = {
+        character_uuid = true,
+        request_id = true,
+        operation_uuid = true,
+        contract_version = true,
+    }
+    if
+        not valid_request(payload, allowed, 1)
+        or not CharacterPolicy.is_uuid(payload.character_uuid)
+    then
+        return nil, 'VALIDATION_ERROR'
+    end
+    return payload
+end
+
+local function integer_between(value, minimum, maximum)
+    return type(value) == 'number' and value % 1 == 0 and value >= minimum and value <= maximum
+end
+
+function CharacterPolicy.validate_appearance(payload)
+    local allowed = {
+        model = true,
+        shape_first = true,
+        shape_second = true,
+        shape_mix = true,
+        skin_mix = true,
+        face_features = true,
+        hair_style = true,
+        hair_texture = true,
+        hair_color = true,
+        hair_highlight = true,
+        eye_color = true,
+        outfit_code = true,
+        request_id = true,
+        operation_uuid = true,
+        contract_version = true,
+    }
+    if not valid_request(payload, allowed, 1) then
+        return nil, 'VALIDATION_ERROR'
+    end
+    if
+        (payload.model ~= 'mp_m_freemode_01' and payload.model ~= 'mp_f_freemode_01')
+        or not integer_between(payload.shape_first, 0, 45)
+        or not integer_between(payload.shape_second, 0, 45)
+        or not integer_between(payload.shape_mix, 0, 100)
+        or not integer_between(payload.skin_mix, 0, 100)
+        or not integer_between(payload.hair_style, 0, 76)
+        or not integer_between(payload.hair_texture, 0, 10)
+        or not integer_between(payload.hair_color, 0, 63)
+        or not integer_between(payload.hair_highlight, 0, 63)
+        or not integer_between(payload.eye_color, 0, 31)
+        or payload.outfit_code ~= 'starter_casual'
+        or type(payload.face_features) ~= 'table'
+        or #payload.face_features ~= 20
+    then
+        return nil, 'VALIDATION_ERROR'
+    end
+    for key, value in pairs(payload.face_features) do
+        if not integer_between(key, 1, 20) or not integer_between(value, -100, 100) then
+            return nil, 'VALIDATION_ERROR'
+        end
+    end
+    return payload
+end
+
+function CharacterPolicy.validate_spawn_ack(payload)
+    if type(payload) ~= 'table' then
+        return nil, 'VALIDATION_ERROR'
+    end
+    for key in pairs(payload) do
+        if key ~= 'spawn_uuid' then
+            return nil, 'VALIDATION_ERROR'
+        end
+    end
+    if not CharacterPolicy.is_uuid(payload.spawn_uuid) then
+        return nil, 'VALIDATION_ERROR'
+    end
+    return payload
+end
+
 return CharacterPolicy

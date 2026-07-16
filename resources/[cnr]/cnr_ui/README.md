@@ -1,14 +1,14 @@
 # cnr_ui
 
 ## Responsibility
-Bridges the common React NUI shell, central focus ownership, and localized registration view.
+Bridges the common React NUI shell, central focus ownership, English registration and character lifecycle views, local appearance preview, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
 
 ## Dependencies
 
-The manifest declares only the client-compatible `/onesync` constraint. Server-side integrations with
+The manifest declares only the client-compatible `/onesync` constraint and stock `spawnmanager`. Server-side integrations with
 `cnr_core`, `cnr_registration`, `cnr_sessions`, and `cnr_characters` are ordered by `server.cfg` and
 guarded by runtime readiness checks; declaring server-only resources as hard dependencies would make
 the FiveM client reject `cnr_ui` because those resources have no client package.
@@ -19,7 +19,7 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 ## Events
 
 `uiReady` (browser-to-Lua NUI callback), `cnr:ui:ready` (client-to-server readiness handshake),
-`cnr:ui:open` (server-to-client network event), and registration NUI callbacks. The server derives
+`cnr:ui:open` (server-to-client network event), registration NUI callbacks, character lifecycle callbacks, and controlled-spawn events. The server derives
 the view from the source-owned session; the client cannot select its access state or onboarding
 destination.
 
@@ -45,11 +45,10 @@ validation.
 Uses the stable Wave 0 result/error contract where applicable.
 
 ## Security boundary
-One focus owner, one correlated response, validated versioned messages, bounded pending requests, and
-a defined Escape/close path.
+One focus owner, one correlated response, validated versioned messages, bounded pending requests, and a lifecycle lock that releases only after the server confirms the issued spawn UUID. Appearance preview cannot send an account, session, character, routing bucket, or spawn location.
 
 ## Lifecycle and recovery
 Reports `ready` or `degraded` to `cnr_core` and releases focus on client resource stop.
 
 ## Tests
-Focus, localization, contracts, manifests, and the production build are checked in CI.
+Focus, English visual text, lifecycle browser mocks, contracts, manifests, and the production build are checked in CI.

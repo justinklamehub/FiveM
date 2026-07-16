@@ -84,3 +84,19 @@ The supported whitelist modes are `open`, `automatic`, `manual`, and `hybrid`. W
 Apply migration `20260716000400_registration_activation.sql` before ensuring `cnr_registration`. The seeded version 1 ruleset is a technical development baseline; publish later versions by retiring the current row and inserting exactly one new `CURRENT` row in an reviewed forward migration or administrative transaction.
 
 Apply `20260716000500_character_lifecycle.sql` before ensuring `cnr_characters`. Slot limits, age limits, backgrounds, and document types are database-driven so a later control panel can change them without rebuilding resources. Player-visible runtime and NUI text is English.
+
+Apply `20260716000600_character_selection_appearance.sql` before starting the current Wave 1 resources and set the minimum schema to `20260716000600`. The stock `spawnmanager` resource must start before `cnr_ui`; do not start the default `basic-gamemode` in the CNR production recipe because CNR owns spawn authorization.
+
+The server chooses the controlled central fallback spawn. Clients cannot submit coordinates, routing buckets, session IDs, or spawn state.
+
+```cfg
+set cnr_schema_minimum "20260716000600"
+set cnr_spawn_default_x "215.76"
+set cnr_spawn_default_y "-810.12"
+set cnr_spawn_default_z "30.73"
+set cnr_spawn_default_heading "157.0"
+
+ensure spawnmanager
+ensure cnr_characters
+ensure cnr_ui
+```

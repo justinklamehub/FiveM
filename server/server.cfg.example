@@ -2,13 +2,18 @@
 set onesync on
 set sv_stateBagStrictMode true
 set cnr_maintenance_mode 0
-set cnr_schema_minimum "20260716000500"
+set cnr_schema_minimum "20260716000600"
 set cnr_registration_enabled 1
 set cnr_whitelist_mode "open"
 set cnr_identifier_pepper "replace-with-at-least-32-random-characters"
+set cnr_spawn_default_x "215.76"
+set cnr_spawn_default_y "-810.12"
+set cnr_spawn_default_z "30.73"
+set cnr_spawn_default_heading "157.0"
 set mysql_connection_string "mysql://cnr_runtime:replace-locally@127.0.0.1:3307/cnr_development?charset=utf8mb4"
 
 ensure oxmysql
+ensure spawnmanager
 ensure cnr_database
 ensure cnr_logs
 ensure cnr_locales

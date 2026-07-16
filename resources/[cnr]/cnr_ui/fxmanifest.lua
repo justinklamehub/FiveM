@@ -3,11 +3,12 @@ fx_version('cerulean')
 game('gta5')
 
 author("Cops'N'Robbers RP")
-description('Shared React NUI shell with localized registration flow.')
+description('Shared English React NUI shell with character customization and spawn execution.')
 version('0.1.0')
 
 dependencies({
     '/onesync',
+    'spawnmanager',
 })
 
 client_script('client/main.lua')

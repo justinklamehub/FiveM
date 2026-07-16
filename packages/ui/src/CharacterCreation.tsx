@@ -16,7 +16,11 @@ export const findRecoverableDraft = (
   characters: readonly CharacterSummary[],
 ): CharacterSummary | null => characters.find((character) => character.status === 'DRAFT') ?? null;
 
-export function CharacterCreation() {
+export function CharacterCreation({
+  onActivated,
+}: {
+  onActivated?: (character: CharacterSummary) => void;
+}) {
   const createOperation = useRef(newId());
   const activateOperation = useRef(newId());
   const [configuration, setConfiguration] = useState<CharacterConfiguration | null>(null);
@@ -98,9 +102,7 @@ export function CharacterCreation() {
         contract_version: characterContractVersion,
       });
       if (!result.ok) throw new Error('activation_failed');
-      setMessage(
-        'Character activated. Selection and spawning will be added in the next development slice.',
-      );
+      setMessage('Character activated. You can now select it for this session.');
       if (result.data.character) {
         const activated = result.data.character;
         setDraft(activated);
@@ -109,6 +111,7 @@ export function CharacterCreation() {
             character.character_uuid === activated.character_uuid ? activated : character,
           ),
         );
+        onActivated?.(activated);
       }
     } catch {
       setMessage('The character could not be activated. Please try again.');

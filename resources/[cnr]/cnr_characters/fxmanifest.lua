@@ -1,9 +1,9 @@
--- Declares server-authoritative character drafts, identity, activation, and base documents.
+-- Declares server-authoritative character identity, selection, appearance, and spawn state.
 fx_version('cerulean')
 game('gta5')
 
 author("Cops'N'Robbers RP")
-description('Atomic character lifecycle and identity foundation.')
+description('Atomic character lifecycle, persistent appearance, and controlled spawn authority.')
 version('0.1.0')
 
 dependencies({

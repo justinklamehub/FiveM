@@ -11,6 +11,10 @@ const bridgedEvents = new Set([
   'characters.list',
   'characters.createDraft',
   'characters.activate',
+  'characters.selectionStatus',
+  'characters.select',
+  'characters.appearanceConfiguration',
+  'characters.appearanceSave',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -133,7 +137,20 @@ function browserMock(event: string, body: unknown): unknown {
   if (event === 'characters.list')
     return {
       ok: true,
-      data: { slot_limit: 3, characters: [] },
+      data: {
+        slot_limit: 3,
+        characters: [
+          {
+            character_uuid: '0190b7a0-2000-7000-8000-000000000001',
+            slot_number: 1,
+            status: 'ACTIVE',
+            first_name: 'Alex',
+            last_name: 'Morgan',
+            date_of_birth: '1995-05-20',
+            background_code: 'local',
+          },
+        ],
+      },
       correlation_id: 'mock-character-list',
     };
   if (event === 'characters.createDraft')
@@ -171,6 +188,80 @@ function browserMock(event: string, body: unknown): unknown {
         },
       },
       correlation_id: 'mock-character-activate',
+    };
+  if (event === 'characters.selectionStatus')
+    return {
+      ok: true,
+      data: {
+        selected: false,
+        binding_uuid: null,
+        character: null,
+        next_state: null,
+      },
+      correlation_id: 'mock-character-selection-status',
+    };
+  if (event === 'characters.select')
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        binding_uuid: '0190b7a0-2100-7000-8000-000000000001',
+        character: {
+          character_uuid: '0190b7a0-2000-7000-8000-000000000001',
+          slot_number: 1,
+          status: 'ACTIVE',
+          first_name: 'Alex',
+          last_name: 'Morgan',
+          date_of_birth: '1995-05-20',
+          background_code: 'local',
+        },
+        next_state: 'APPEARANCE_REQUIRED',
+      },
+      correlation_id: 'mock-character-select',
+    };
+  if (event === 'characters.appearanceConfiguration')
+    return {
+      ok: true,
+      data: {
+        models: ['mp_m_freemode_01', 'mp_f_freemode_01'],
+        parent_minimum: 0,
+        parent_maximum: 45,
+        face_feature_count: 20,
+        face_feature_minimum: -100,
+        face_feature_maximum: 100,
+        hair_style_maximum: 76,
+        hair_texture_maximum: 10,
+        hair_color_maximum: 63,
+        eye_color_maximum: 31,
+        outfit_codes: ['starter_casual'],
+        defaults: {
+          model: 'mp_m_freemode_01',
+          shape_first: 0,
+          shape_second: 21,
+          shape_mix: 50,
+          skin_mix: 50,
+          face_features: Array.from({ length: 20 }, () => 0),
+          hair_style: 0,
+          hair_texture: 0,
+          hair_color: 0,
+          hair_highlight: 0,
+          eye_color: 0,
+          outfit_code: 'starter_casual',
+        },
+      },
+      correlation_id: 'mock-appearance-configuration',
+    };
+  if (event === 'characters.appearanceSave')
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        appearance_version: 1,
+        next_state: 'SPAWN_PENDING',
+      },
+      correlation_id: 'mock-appearance-save',
     };
   return { ok: true };
 }

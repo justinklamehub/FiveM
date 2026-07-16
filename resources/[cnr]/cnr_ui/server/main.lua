@@ -54,7 +54,7 @@ local function open_for_session(player_source)
         TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')
         return true
     elseif session and session.access_state == 'FULL' then
-        TriggerClientEvent('cnr:ui:open', player_source, 'characterCreation', 'en')
+        TriggerClientEvent('cnr:ui:open', player_source, 'characterLifecycle', 'en')
         return true
     end
     return false
