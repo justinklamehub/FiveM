@@ -4,14 +4,14 @@ Wave 1 implements the player lifecycle defined by the project README without add
 
 ## Current implementation status
 
-| Slice | Status | Evidence |
-|---|---|---|
-| Connection foundation | Implemented in draft PR #2 | Accounts, identifiers, whitelist evaluation, one active session, onboarding access state, migration and tests |
-| Technical permissions | Implemented in draft PR #2 | Database-driven roles and permissions, console-only owner bootstrap, audited mutations and tests |
-| Registration and account activation | Next | Rule acceptance, idempotent server-authoritative registration, account transition and NUI |
-| Character lifecycle | Pending | Three character slots, draft creation, identity and base documents |
-| Selection and spawn | Pending | Character selection, session binding and server-authoritative spawn |
-| Loadscreen and complete NUI flow | Pending | Localized progress, registration and character views, browser mocks and typed contracts |
+| Slice                               | Status                     | Evidence                                                                                                      |
+| ----------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Connection foundation               | Implemented in draft PR #2 | Accounts, identifiers, whitelist evaluation, one active session, onboarding access state, migration and tests |
+| Technical permissions               | Implemented in draft PR #2 | Database-driven roles and permissions, console-only owner bootstrap, audited mutations and tests              |
+| Registration and account activation | Next                       | Rule acceptance, idempotent server-authoritative registration, account transition and NUI                     |
+| Character lifecycle                 | Pending                    | Three character slots, draft creation, identity and base documents                                            |
+| Selection and spawn                 | Pending                    | Character selection, session binding and server-authoritative spawn                                           |
+| Loadscreen and complete NUI flow    | Pending                    | Localized progress, registration and character views, browser mocks and typed contracts                       |
 
 Automated CI is green for the implemented slices. A real FXServer connection and permission smoke test remains required before Wave 1 can be considered runtime-verified.
 
