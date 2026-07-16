@@ -24,34 +24,44 @@ local function translate(key, parameters)
     return exports.cnr_locales:translate(key, 'en', parameters)
 end
 
-local function safe_done(deferrals, state, reason)
+local function capture_deferrals(deferrals)
+    -- The FXServer deferral object is a transient proxy. Capture its call references before any
+    -- database export yields so later continuations never index an invalidated proxy.
+    return {
+        defer = deferrals.defer,
+        update = deferrals.update,
+        done = deferrals.done,
+    }
+end
+
+local function safe_done(callbacks, state, reason)
     if state.done then
         return
     end
     state.done = true
-    deferrals.done(reason)
+    callbacks.done(reason)
 end
 
-local function reject(deferrals, state, correlation_id, code, message_key)
+local function reject(callbacks, state, correlation_id, code, message_key)
     exports.cnr_logs:log('warn', 'cnr_sessions', 'connection.rejected', {
         code = code,
         correlation_id = correlation_id,
     })
-    safe_done(deferrals, state, translate(message_key, { correlation_id = correlation_id }))
+    safe_done(callbacks, state, translate(message_key, { correlation_id = correlation_id }))
 end
 
-local function handle_connection(player_source, player_name, deferrals, already_deferred)
+local function handle_connection(player_source, player_name, callbacks, already_deferred)
     local state = { done = false }
     local correlation_id = exports.cnr_core:create_correlation_id()
     if not already_deferred then
-        deferrals.defer()
+        callbacks.defer()
         Wait(0)
     end
-    deferrals.update(translate('sessions.progress.checking_connection'))
+    callbacks.update(translate('sessions.progress.checking_connection'))
 
     local mutation = exports.cnr_core:is_mutation_allowed()
     if not mutation.ok then
-        reject(deferrals, state, correlation_id, mutation.error.code, mutation.error.message_key)
+        reject(callbacks, state, correlation_id, mutation.error.code, mutation.error.message_key)
         return
     end
 
@@ -59,7 +69,7 @@ local function handle_connection(player_source, player_name, deferrals, already_
         exports.cnr_accounts:resolve_connection(GetPlayerIdentifiers(player_source), correlation_id)
     if not account_result.ok then
         reject(
-            deferrals,
+            callbacks,
             state,
             correlation_id,
             account_result.error.code,
@@ -68,12 +78,12 @@ local function handle_connection(player_source, player_name, deferrals, already_
         return
     end
 
-    deferrals.update(translate('sessions.progress.checking_access'))
+    callbacks.update(translate('sessions.progress.checking_access'))
     local account = account_result.data.account
     local whitelist_result = exports.cnr_whitelist:evaluate(account.public_uuid, correlation_id)
     if not whitelist_result.ok then
         reject(
-            deferrals,
+            callbacks,
             state,
             correlation_id,
             whitelist_result.error.code,
@@ -84,11 +94,11 @@ local function handle_connection(player_source, player_name, deferrals, already_
 
     local access = AccessPolicy.evaluate(account.status, whitelist_result.data)
     if not access.allowed then
-        reject(deferrals, state, correlation_id, access.code, 'sessions.error.access_denied')
+        reject(callbacks, state, correlation_id, access.code, 'sessions.error.access_denied')
         return
     end
 
-    deferrals.update(translate('sessions.progress.creating_session'))
+    callbacks.update(translate('sessions.progress.creating_session'))
     local session_result = SessionService.open(
         account.public_uuid,
         player_source,
@@ -98,7 +108,7 @@ local function handle_connection(player_source, player_name, deferrals, already_
     )
     if not session_result.ok then
         reject(
-            deferrals,
+            callbacks,
             state,
             correlation_id,
             session_result.error.code,
@@ -109,7 +119,7 @@ local function handle_connection(player_source, player_name, deferrals, already_
 
     source_sessions[player_source] = session_result.data
     TriggerEvent('cnr:sessions:started', session_result.data)
-    safe_done(deferrals, state)
+    safe_done(callbacks, state)
 end
 
 CreateThread(function()
@@ -135,27 +145,28 @@ end)
 
 AddEventHandler('playerConnecting', function(player_name, _, deferrals)
     local player_source = source
+    local callbacks = capture_deferrals(deferrals)
     local already_deferred = false
     if status.status ~= 'ready' then
-        deferrals.defer()
+        callbacks.defer()
         Wait(0)
         already_deferred = true
         for _ = 1, 300 do
             if status.status == 'ready' then
                 break
             end
-            deferrals.update('Session services are starting. Please wait…')
+            callbacks.update('Session services are starting. Please wait…')
             Wait(100)
         end
         if status.status ~= 'ready' then
-            deferrals.done(translate('sessions.error.unavailable'))
+            callbacks.done(translate('sessions.error.unavailable'))
             return
         end
     end
 
     -- Do not wrap this yielding flow in pcall. FXServer deferral proxies must remain on the
     -- event coroutine that owns them; yielding across a protected C API call can invalidate done.
-    handle_connection(player_source, player_name, deferrals, already_deferred)
+    handle_connection(player_source, player_name, callbacks, already_deferred)
 end)
 
 AddEventHandler('playerDropped', function(reason, _, client_drop_reason)
