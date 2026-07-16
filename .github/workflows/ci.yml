@@ -22,8 +22,18 @@ jobs:
         run: corepack enable && corepack prepare pnpm@11.13.1 --activate
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile
-      - name: Check Prettier formatting
-        run: pnpm exec prettier --check .
+      - name: Check root formatting
+        run: pnpm exec prettier --check "*.{json,mjs,yaml,yml,md}"
+      - name: Check GitHub formatting
+        run: pnpm exec prettier --check .github
+      - name: Check documentation formatting
+        run: pnpm exec prettier --check docs
+      - name: Check source formatting
+        run: pnpm exec prettier --check apps packages resources server tests
+      - name: Check tool formatting
+        run: pnpm exec prettier --check "tools/**/*.{json,mjs,md}"
+      - name: Check pnpm lock formatting
+        run: pnpm exec prettier --check pnpm-lock.yaml
       - name: Check StyLua formatting
         run: pnpm exec stylua --check resources tests/lua
       - name: Lint and validate repository contracts
