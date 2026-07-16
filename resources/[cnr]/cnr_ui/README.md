@@ -7,7 +7,11 @@ Bridges the common React NUI shell, central focus ownership, and localized regis
 Does not calculate authoritative prices, rewards, ownership, or permissions.
 
 ## Dependencies
-`/onesync`, `cnr_core`, `cnr_logs`, `cnr_locales`, `cnr_config`, `cnr_registration`, `cnr_sessions`, `cnr_characters`
+
+The manifest declares only the client-compatible `/onesync` constraint. Server-side integrations with
+`cnr_core`, `cnr_registration`, `cnr_sessions`, and `cnr_characters` are ordered by `server.cfg` and
+guarded by runtime readiness checks; declaring server-only resources as hard dependencies would make
+the FiveM client reject `cnr_ui` because those resources have no client package.
 
 ## Public exports
 `get_status`

@@ -8,13 +8,6 @@ version('0.1.0')
 
 dependencies({
     '/onesync',
-    'cnr_core',
-    'cnr_logs',
-    'cnr_locales',
-    'cnr_config',
-    'cnr_registration',
-    'cnr_sessions',
-    'cnr_characters',
 })
 
 client_script('client/main.lua')

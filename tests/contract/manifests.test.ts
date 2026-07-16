@@ -20,4 +20,19 @@ describe('FiveM manifest contract', () => {
     expect(manifest).toMatch(/game\s*\(?['"]gta5['"]\)?/);
     expect(manifest).not.toMatch(/lua54\s*\(?['"]yes['"]\)?/);
   });
+
+  it('does not expose server-only CNR dependencies to the client UI resolver', () => {
+    const manifest = fs.readFileSync('resources/[cnr]/cnr_ui/fxmanifest.lua', 'utf8');
+    for (const dependency of [
+      'cnr_core',
+      'cnr_logs',
+      'cnr_locales',
+      'cnr_config',
+      'cnr_registration',
+      'cnr_sessions',
+      'cnr_characters',
+    ]) {
+      expect(manifest).not.toMatch(new RegExp(`['"]${dependency}['"]`));
+    }
+  });
 });

@@ -9,19 +9,7 @@ const expected = new Map([
   ['cnr_locales', ['/onesync']],
   ['cnr_config', ['/onesync', 'cnr_logs', 'cnr_locales']],
   ['cnr_core', ['/onesync', 'cnr_database', 'cnr_logs', 'cnr_locales', 'cnr_config']],
-  [
-    'cnr_ui',
-    [
-      '/onesync',
-      'cnr_core',
-      'cnr_logs',
-      'cnr_locales',
-      'cnr_config',
-      'cnr_registration',
-      'cnr_sessions',
-      'cnr_characters',
-    ],
-  ],
+  ['cnr_ui', ['/onesync']],
   [
     'cnr_accounts',
     ['/onesync', 'cnr_database', 'cnr_logs', 'cnr_locales', 'cnr_config', 'cnr_core'],
