@@ -374,10 +374,12 @@ Nicht im Core gespeichert werden Geld, Inventar, Fahrzeuge, Jobs, Immobilien ode
 
 - einheitlicher Datenbankadapter
 - Transaktionen
-- Migrationen
+- Prüfung von Schemaversion und Migrationsstatus
 - Fehlerbehandlung
 - Erkennung langsamer Abfragen
 - Datenbankstatus
+
+Produktive Migrationen werden vor dem FXServer-Start durch das festgelegte Migrationswerkzeug ausgeführt. `cnr_database` verändert das Schema beim normalen Start nicht selbst.
 
 ### `cnr_config`
 
@@ -429,11 +431,12 @@ cnr_module_name/
 ├── locales/
 │   ├── de.lua
 │   └── en.lua
-├── migrations/
 └── tests/
 ```
 
 Jede Datei erhält einen englischen Kopfkommentar mit Zweck, Verantwortlichkeit, Abhängigkeiten und sicherheitsrelevanten Hinweisen.
+
+Produktive SQL-Migrationen liegen zentral unter `database/migrations` und tragen den Namen des verantwortlichen Moduls.
 
 ## 3.4 Kommunikation zwischen Modulen
 
@@ -456,8 +459,10 @@ Standardablauf:
 ## 3.5 Namenskonventionen
 
 - Ressource: `cnr_banking`
-- Serverevent: `cnr_banking:server:transferMoney`
-- Clientevent: `cnr_banking:client:openAccount`
+- Clientanfrage: `cnr:banking:transfer_request`
+- Serverantwort: `cnr:banking:transfer_result`
+- lokales Domain-Ereignis: `cnr:banking:transfer_posted`
+- Export: `transfer_funds`
 - Tabelle: `cnr_bank_transactions`
 - Spalten: `character_id`, `created_at`, `is_active`
 - Fehlercodes: `INSUFFICIENT_FUNDS`, `PERMISSION_DENIED`
@@ -658,15 +663,15 @@ Audit-Logs ersetzen keine fachlichen Tabellen wie Banktransaktionen oder Itemüb
 
 ## 5.8 Migrationen
 
-Jedes Modul besitzt nummerierte Migrationen:
+Produktive Migrationen liegen zentral, werden aber eindeutig einem Modul zugeordnet. Sie verwenden timestampbasierte Namen:
 
 ```text
-0001_create_accounts
-0002_create_account_identifiers
-0003_add_account_language
+20260716120000_accounts_create_accounts.sql
+20260716121000_accounts_create_identifiers.sql
+20260716122000_accounts_add_language.sql
 ```
 
-Destruktive Produktivmigrationen werden nicht unkontrolliert beim normalen Serverstart ausgeführt. Backup und Testlauf sind vorher Pflicht.
+Eine bereits ausgeführte Migration wird nicht verändert. Destruktive Produktivmigrationen werden nicht unkontrolliert beim normalen Serverstart ausgeführt. Backup, CI-Test und Staging-Probelauf sind vorher Pflicht.
 
 ## 5.9 Backups
 
@@ -9317,9 +9322,999 @@ Das Job- und Aktivitäts-MVP gilt fachlich als funktionsfähig, wenn:
 
 ---
 
-# 15. Dynamische Administration
+# 15. Technischer Implementierungsrahmen
 
-## 15.1 Ingame-Editor
+Dieses Kapitel ist der verbindliche technische Rahmen für die spätere Umsetzung. Es entscheidet nicht über zusätzliche Gameplay-Inhalte, sondern darüber, wie alle geplanten Fachsysteme sicher, testbar und austauschbar implementiert werden.
+
+## 15.1 Technische Leitprinzipien
+
+- Der Server ist für Geld, Items, Besitz, Positionen, Berechtigungen, Fortschritt und Ergebnisse autoritativ.
+- Fachlogik bleibt von FiveM-Natives, UI, Datenbanktreiber und externen Diensten möglichst getrennt.
+- Jedes Fachmodul besitzt seine Daten und seine Schreiboperationen.
+- Kritische Änderungen sind atomar, idempotent und auditierbar.
+- Ressourcen dürfen kontrolliert ausfallen, ohne Geld, Waren oder Besitz zu duplizieren.
+- Abhängigkeiten werden klein gehalten, fest versioniert und vor Aufnahme geprüft.
+- Entwicklung, Staging und Produktion verwenden denselben Buildprozess, aber getrennte Daten und Secrets.
+- Das Repository bleibt ein Monorepository mit klaren Resource-, Datenbank-, Test- und Werkzeugbereichen.
+- Der erste Build optimiert auf Verständlichkeit und Korrektheit; Performanceoptimierungen folgen aus Messwerten.
+
+## 15.2 Verbindlicher Stack
+
+| Bereich | Entscheidung |
+|---|---|
+| FiveM Client und Server | CfxLua auf Lua 5.4 |
+| Resource-Manifest | `fxmanifest.lua`, `fx_version 'cerulean'`, `game 'gta5'` |
+| Netzwerkgrundlage | OneSync verpflichtend |
+| NUI | React, TypeScript und Vite |
+| UI-Paketverwaltung | Corepack-verwaltetes, im Repository festgelegtes pnpm |
+| Build-Werkzeuge | Node.js 24 LTS außerhalb des FiveM-Runtimes |
+| spätere Control-Panel-API | Fastify mit TypeScript und JSON-Schema-validierten Routen |
+| Datenbank | MariaDB 11.4 LTS als Startbasis |
+| Datenbanktreiber | fest versioniertes `oxmysql` hinter `cnr_database` |
+| Migrationen | fest versioniertes dbmate mit vorwärtsgerichteten SQL-Migrationen |
+| Lua-Formatierung | StyLua |
+| Lua-Diagnostik | Lua Language Server mit Projektannotationen |
+| Lua-Tests | Busted für FiveM-unabhängige Fachlogik |
+| TypeScript-Tests | Vitest |
+| Browser-End-to-End-Tests | Playwright |
+| Zeitzone | Speicherung und Serverprozesse in UTC |
+| Codesprache | Englisch |
+| Dokumentation und erste UI-Sprache | Deutsch, vollständig lokalisierbar |
+
+Die exakten Versionen werden beim Anlegen des Repositories in Lockdateien, Toolkonfigurationen und einer Abhängigkeitsübersicht festgeschrieben. Ein späteres Update erfolgt nur über einen geprüften Pull Request und einen Staging-Test.
+
+## 15.3 Sprach- und Laufzeitaufteilung
+
+### CfxLua
+
+CfxLua wird verwendet für:
+
+- FiveM-Clientlogik;
+- FiveM-Serverlogik;
+- serverautorisierte Fachservices;
+- Interaktionen mit FiveM-Natives;
+- Resource-Exports und Events;
+- Sitzungs-, Charakter- und Entity-Lebenszyklen.
+
+Fachliche Berechnungen werden als möglichst reine Lua-Module geschrieben. Zeit, Zufall, UUID-Erzeugung, Datenbank und FiveM-Natives werden als Adapter übergeben, damit die Logik ohne laufenden Gameserver getestet werden kann.
+
+### TypeScript
+
+TypeScript wird verwendet für:
+
+- die NUI;
+- Build- und Entwicklungswerkzeuge;
+- das spätere externe Control Panel;
+- dessen spätere API;
+- Browser- und Vertragstests.
+
+Das Control Panel gehört nicht automatisch zum ersten Gameplay-MVP. Wenn es umgesetzt wird, läuft seine Fastify-API als eigener Node.js-Dienst. Eingaben und Antworten werden an jeder Route durch JSON Schemas geprüft. Die API kommuniziert ausschließlich über geprüfte administrative Anwendungsfälle und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
+
+Für das Control Panel gelten zusätzlich:
+
+- TLS am Reverse Proxy;
+- kurzlebige, serverseitig widerrufbare Sitzungen;
+- Schutz gegen Cross-Site-Request-Forgery bei Cookieauthentifizierung;
+- rollen- und berechtigungsbasierte Endpunkte;
+- Rate-Limits und Bodygrößenlimits;
+- erneute Bestätigung besonders kritischer Aktionen;
+- optimistische Versionsprüfung bei Konfigurationsänderungen;
+- vollständiges Audit für Lesen sensibler Daten und jede Mutation;
+- kein öffentlich erreichbarer Datenbankport.
+
+### Kein Mischbetrieb ohne Grund
+
+- Gameplay-Ressourcen werden nicht beliebig zwischen Lua und JavaScript aufgeteilt.
+- TypeScript-Code entscheidet nicht direkt innerhalb der NUI über Fachzustände.
+- Gemeinsame Verträge werden als dokumentierte Schemas und nicht durch kopierte, implizite Annahmen geteilt.
+
+## 15.4 Resource-Manifeste
+
+Jede Resource besitzt ein `fxmanifest.lua` mit:
+
+- `fx_version 'cerulean'`;
+- `game 'gta5'`;
+- eindeutiger Beschreibung und Version;
+- expliziten Shared-, Client- und Serverdateien;
+- expliziten Resource-Abhängigkeiten;
+- `dependency '/onesync'`, wenn die Resource OneSync benötigt;
+- einer `ui_page` und vollständig deklarierten Dateien nur bei NUI-Ressourcen.
+
+Verbindliche Regeln:
+
+- Die veraltete Manifestoption `lua54 'yes'` wird nicht eingetragen, weil Lua 5.4 bereits Standard ist.
+- Experimentelle OAL-Funktionen werden im ersten Build nicht aktiviert.
+- Wildcards werden nur dort genutzt, wo ihre Ladefolge eindeutig und getestet ist.
+- Eine Resource darf nicht stillschweigend auf eine andere Resource vertrauen.
+- Manifest- und Resource-Versionen sind Teil der Diagnoseausgabe.
+
+## 15.5 Repository-Struktur
+
+Geplante oberste Bereiche:
+
+```text
+FiveM/
+├── resources/
+│   ├── [cnr]/
+│   └── [vendor]/
+├── packages/
+│   ├── ui/
+│   └── contracts/
+├── apps/
+│   ├── control-panel/
+│   └── control-panel-api/
+├── database/
+│   ├── migrations/
+│   ├── seeds/
+│   └── schema.sql
+├── tests/
+│   ├── integration/
+│   ├── contract/
+│   └── e2e/
+├── tools/
+├── docs/
+└── server/
+```
+
+Dabei gilt:
+
+- `resources/[cnr]` enthält selbst entwickelte FiveM-Ressourcen.
+- `resources/[vendor]` enthält überprüfte, fest versionierte Fremdressourcen.
+- `packages/ui` enthält das gemeinsame NUI-Designsystem und die Anwendung.
+- `packages/contracts` enthält maschinenlesbare, versionskontrollierte Datenverträge.
+- `apps` wird erst mit dem Control-Panel-Ausbau produktiv benötigt.
+- `database` ist die einzige Quelle für produktive Migrationen und definierte Seeds.
+- `server` enthält dokumentierte Konfigurationsvorlagen, aber keine echten Secrets.
+
+## 15.6 Einheitliche Resource-Struktur
+
+Eine normale Fachresource besitzt:
+
+```text
+cnr_module/
+├── fxmanifest.lua
+├── README.md
+├── config/
+├── shared/
+├── client/
+├── server/
+│   ├── services/
+│   ├── repositories/
+│   └── handlers/
+├── locales/
+└── tests/
+```
+
+Nicht jeder Ordner muss künstlich vorhanden sein. Clientlose Ressourcen erhalten keinen leeren Clientbereich. NUI-Buildausgaben werden nur bei der zuständigen UI-Resource ausgeliefert.
+
+Jede Resource-README dokumentiert:
+
+- Verantwortung und Nichtverantwortung;
+- Abhängigkeiten;
+- öffentliche Exports;
+- öffentliche und lokale Events;
+- eigene Tabellen;
+- Konfigurationsschlüssel;
+- Fehlercodes;
+- Sicherheitsgrenzen;
+- Start-, Stop- und Wiederherstellungsverhalten;
+- relevante Tests.
+
+## 15.7 Modulbesitz und Grenzen
+
+| Regel | Bedeutung |
+|---|---|
+| Tabellenbesitz | Nur das verantwortliche Modul schreibt seine Tabellen. |
+| Fachentscheidung | Nur der zuständige Service bestätigt eine fachliche Zustandsänderung. |
+| Fremdbezug | Andere Module speichern stabile IDs und verwenden dokumentierte Verträge. |
+| Lesen | Direkte Fremdtabellen-Lesezugriffe werden vermieden; freigegebene Read Models sind möglich. |
+| Transaktion | Der koordinierende Anwendungsfall besitzt die Transaktionsgrenze. |
+| Ereignis | Nach einem erfolgreichen Commit werden fachliche Ereignisse veröffentlicht. |
+| Ausfall | Fehlende Pflichtabhängigkeiten sperren Mutationen kontrolliert. |
+
+`cnr_core` bleibt klein. Es stellt Verbindungslebenszyklus, Modulstatus, Request-Kontext, gemeinsame Resultate, Rate-Limit-Grundlagen und technische Registry-Funktionen bereit. Es speichert keine Fachzustände für Bank, Inventar, Fahrzeuge, Immobilien, Jobs oder Kriminalität.
+
+## 15.8 Datenbankfassade
+
+`cnr_database` kapselt den konkreten Treiber. Fachmodule greifen ausschließlich über eigene Repository-Module darauf zu.
+
+Die Fassade stellt mindestens bereit:
+
+- parametrisierte Abfragen;
+- Einzelzeilen- und Listenabfragen;
+- Inserts und Updates;
+- Transaktionen;
+- kontrollierte Sperr- und Versionsmuster;
+- Zeitmessung und Slow-Query-Erkennung;
+- standardisierte Datenbankfehler;
+- Bereitschafts- und Schema-Prüfung;
+- UUID-Konvertierung an der Datenbankgrenze.
+
+Verboten sind:
+
+- SQL aus Client oder NUI;
+- frei zusammengesetzte Werte in SQL-Strings;
+- direkte Treiberaufrufe in Eventhandlern;
+- unkontrollierte Fremdtabellen-Schreibzugriffe;
+- automatische produktive DDL-Änderungen beim normalen Resource-Start.
+
+`oxmysql` wird als austauschbarer Adapter behandelt. Die beim Coding aktuelle, geprüfte Version wird exakt festgeschrieben und nicht über eine ungebundene Versionsreferenz geladen.
+
+## 15.9 MariaDB-Standard
+
+Die Startbasis ist MariaDB 11.4 LTS. Vor einem späteren Wechsel auf eine neuere LTS-Version erfolgen Integrationstest, Migrationsprobe und Staging-Betrieb.
+
+Verbindliche Datenbankregeln:
+
+- InnoDB;
+- `utf8mb4`;
+- UTC als Datenbanksitzungs-Zeitzone;
+- strikter SQL-Modus;
+- `DATETIME(6)` für fachliche Zeitstempel;
+- `BIGINT` für Geld in kleinster Währungseinheit;
+- `BIGINT` für Flüssigkeiten in Millilitern;
+- explizite Fremdschlüssel, wo Lebenszyklen eindeutig sind;
+- explizite Indizes für Such-, Join-, Status- und Zeitfelder;
+- keine fachlich wichtigen Werte als Gleitkommazahl;
+- keine stillen Kaskadenlöschungen wertvoller oder auditrelevanter Daten.
+
+## 15.10 Identitäten, Zeit und Versionsfelder
+
+- Interne relationale Primärschlüssel können `BIGINT` verwenden.
+- Nach außen gegebene dauerhafte Objektidentitäten verwenden serverseitig erzeugte UUIDv7.
+- UUIDs werden indexfreundlich als `BINARY(16)` gespeichert und an Systemgrenzen kanonisch als String dargestellt.
+- FiveM-Source, Entity-Handle, Netzwerk-ID, Kennzeichen oder Koordinate sind niemals dauerhafte Fachidentitäten.
+- Jeder veränderliche Hauptdatensatz besitzt ein geeignetes `updated_at` und bei konkurrierenden Änderungen eine Versionsnummer.
+- Erstell-, Wirksamkeits- und Abschlusszeit werden getrennt gespeichert, wenn sie fachlich unterschiedliche Bedeutungen haben.
+- Zeitangaben aus Clients sind nur Hinweise und keine autoritative Abrechnungsgrundlage.
+
+## 15.11 Transaktionen und Parallelität
+
+Eine Datenbanktransaktion umfasst genau einen fachlich atomaren Vorgang, beispielsweise:
+
+- Geldtransfer mit Hauptbuchzeilen;
+- Itemtransfer zwischen zwei Inventaren;
+- Jobannahme mit Budget- und Assetreservierung;
+- Fahrzeugmiete mit Kaution und Fahrzeugzuordnung;
+- Flüssigkeitstransfer zwischen zwei Tanks;
+- Beschlagnahmung mit Beweiskette;
+- Veröffentlichung einer neuen Konfigurationsversion.
+
+Verwendet werden je nach Fall:
+
+- eindeutige Constraints;
+- `SELECT ... FOR UPDATE`;
+- atomare bedingte Updates;
+- optimistische Versionsprüfung;
+- Reservierungsdatensätze;
+- idempotente Vorgangsnummern.
+
+Netzwerkaufrufe, Discord-Nachrichten oder langsame externe Dienste werden nicht innerhalb einer offenen Datenbanktransaktion ausgeführt.
+
+## 15.12 Migrationen
+
+dbmate führt vorwärtsgerichtete, timestampbasierte SQL-Migrationen aus.
+
+Namensbeispiel:
+
+```text
+20260716120000_accounts_create_accounts.sql
+20260716121000_banking_create_ledger.sql
+20260716122000_inventory_create_item_stacks.sql
+```
+
+Regeln:
+
+- Produktive Migrationen liegen zentral unter `database/migrations`.
+- Der Modulname ist Bestandteil des Dateinamens.
+- Eine bereits ausgeführte Migration wird nicht verändert.
+- Korrekturen erfolgen durch eine neue Migration.
+- Jede Migration muss auf einer leeren Datenbank und auf dem letzten freigegebenen Schema funktionieren.
+- `database/schema.sql` wird reproduzierbar aus den Migrationen erzeugt.
+- CI prüft Migrationsreihenfolge, Status und Aufbau einer frischen Datenbank.
+- Der FXServer führt in Produktion keine Migration automatisch aus.
+- Ressourcen prüfen beim Start, ob das unterstützte Schema vorhanden ist.
+- Destruktive Änderungen verwenden einen mehrstufigen Expand-Migrate-Contract-Ablauf.
+
+Produktive Rückabwicklungen erfolgen bevorzugt als neue vorwärtsgerichtete Korrektur. Eine Codeversion darf nur zurückgerollt werden, wenn sie mit dem bereits migrierten Schema kompatibel ist.
+
+## 15.13 Seed- und Referenzdaten
+
+Seeds werden getrennt:
+
+- technische Referenzdaten;
+- lokale Entwicklungsdaten;
+- Staging-Testdaten;
+- niemals produktive Spielervermögen oder reale Secrets.
+
+Technische Referenzdaten sind wiederholbar und konfliktfrei. Entwicklungsseeds dürfen Beispielcharaktere, Beispielunternehmen und Testanlagen erzeugen, sind aber eindeutig als nicht produktiv markiert.
+
+Produktive Wirtschaftswerte, Standorte, Rezepte und Preise werden über versionierte Konfigurationen veröffentlicht und nicht als unkontrollierter Seed überschrieben.
+
+## 15.14 Resource-Startreihenfolge
+
+Die Startreihenfolge folgt den Architektur-Ebenen:
+
+1. geprüfte Vendor-Ressourcen;
+2. `cnr_database`, `cnr_logs`, `cnr_locales`, `cnr_config`;
+3. `cnr_core` und `cnr_ui`;
+4. Account-, Sitzungs-, Charakter- und Berechtigungsmodule;
+5. Inventar, Banking, Fortschritt, Interaktionen und Zonen;
+6. Eigentum, Unternehmen und Wirtschaft;
+7. Jobs, Industrie, Crime, Polizei, Dispatch und Beweise;
+8. Administration und Analytics.
+
+Manifestabhängigkeiten bilden Pflichtbeziehungen ab. Zusätzlich veröffentlicht jedes Modul einen Status:
+
+- `starting`;
+- `ready`;
+- `degraded`;
+- `unavailable`;
+- `stopping`.
+
+Ein Modul nimmt schreibende Anfragen erst in `ready` an. Optionale Leseansichten dürfen in `degraded` mit klarer Meldung weiterarbeiten. Abhängigkeitszyklen sind unzulässig.
+
+## 15.15 Kommunikationsarten
+
+| Mechanismus | Verwendung |
+|---|---|
+| lokale Lua-Funktion | innerhalb eines Moduls |
+| Server-Export | synchroner, dokumentierter Anwendungsfall zwischen Ressourcen |
+| lokales Serverevent | Benachrichtigung über ein bereits bestätigtes Domain-Ereignis |
+| Netzwerkevent | ausschließlich notwendige Client-Server-Kommunikation |
+| NUI-Callback | Anfrage zwischen Browser-UI und Clientresource |
+| NUI-Message | Darstellung eines vom Client freigegebenen UI-Zustands |
+
+Für Ereignisse innerhalb desselben Kontexts wird `AddEventHandler` verwendet. `RegisterNetEvent` wird nur registriert, wenn ein Ereignis tatsächlich über die Netzwerkgrenze laufen muss.
+
+Server-Exports dürfen keine zyklischen, blockierenden Abhängigkeiten erzeugen. Ein Event ist keine Abkürzung, um eine erforderliche synchrone Erfolgsbestätigung zu umgehen.
+
+## 15.16 Namenskonventionen für Verträge
+
+- Resource: `cnr_banking`
+- Clientanfrage: `cnr:banking:transfer_request`
+- Serverantwort: `cnr:banking:transfer_result`
+- lokales Domain-Ereignis: `cnr:banking:transfer_posted`
+- Export: `transfer_funds`
+- Tabelle: `cnr_bank_transactions`
+- Spalte: `character_id`
+- Fehlercode: `INSUFFICIENT_FUNDS`
+- Übersetzungsschlüssel: `banking.error.insufficient_funds`
+
+Namen sind englisch, klein geschrieben und fachlich präzise. Bestehende öffentliche Verträge werden nicht still umbenannt, sondern versioniert und mit einer Übergangsfrist ersetzt.
+
+## 15.17 Request- und Response-Vertrag
+
+Eine mutierende Clientanfrage enthält höchstens:
+
+```text
+request_id
+operation_uuid
+contract_version
+payload
+```
+
+Der Server ergänzt aus seiner eigenen Sitzung:
+
+- Source;
+- Account;
+- Session;
+- Charakter;
+- Routing Bucket;
+- Berechtigungs- und Rate-Limit-Kontext;
+- serverseitige Zeit.
+
+Der Client darf keine autoritativen Felder für Auszahlung, Preis, Besitz, Qualität, Erfahrung, Abschluss oder Rolle bestimmen.
+
+Erfolgsantwort:
+
+```text
+ok: true
+data: freigegebene Antwortdaten
+correlation_id: Diagnosebezug
+```
+
+Fehlerantwort:
+
+```text
+ok: false
+error.code: stabiler technischer Code
+error.message_key: lokalisierbarer Schlüssel
+error.safe_details: nur freigabefähige Details
+error.correlation_id: Diagnosebezug
+```
+
+Stacktraces, SQL, Secrets, interne Risikowerte und nicht freigegebene Identitäten werden niemals an den Client gesendet.
+
+## 15.18 Prüfung einer Clientanfrage
+
+Die Standardreihenfolge lautet:
+
+1. Event und Vertragsversion erkennen.
+2. Payloadtyp, Länge und erlaubte Felder prüfen.
+3. Rate-Limit prüfen.
+4. aktive Source, Session und Charakterbindung prüfen.
+5. Wartungs- und Modulstatus prüfen.
+6. Rolle und Berechtigung prüfen.
+7. Routing Bucket, Position, Entfernung und Entitybezug serverseitig prüfen.
+8. aktuellen Fachzustand aus autoritativer Quelle laden.
+9. Vorgang atomar ausführen.
+10. Audit und Ergebnis erzeugen.
+11. nur notwendige Änderungen an berechtigte Clients verteilen.
+
+Eine ungültige Anfrage verändert keinen Zustand. Wiederholte, ungewöhnliche Fehler können zusätzlich ein Sicherheitssignal erzeugen, führen aber nicht allein zu einer automatischen Sanktion.
+
+## 15.19 Idempotenz
+
+Jede kritische Mutation erhält eine `operation_uuid`. Dazu gehören mindestens:
+
+- Zahlungen und Gegenbuchungen;
+- Item- und Warentransfers;
+- Fahrzeugkauf, Miete und Rückgabe;
+- Lager- und Tanktransfers;
+- Jobannahme und Abrechnung;
+- Beuteverteilung und Geldwäsche;
+- Beschlagnahmung und Freigabe;
+- administrative Korrekturen.
+
+Der Server speichert Vorgang, Ergebnis und Status. Eine Wiederholung mit derselben UUID:
+
+- führt den Vorgang nicht erneut aus;
+- liefert nach Möglichkeit das bereits bestätigte Ergebnis;
+- meldet bei abweichendem Payload einen Konflikt;
+- bleibt auch nach Resource- oder Serverneustart sicher.
+
+## 15.20 Fehlerklassen
+
+Stabile Fehlerklassen:
+
+- `VALIDATION_ERROR`;
+- `AUTHENTICATION_REQUIRED`;
+- `CHARACTER_REQUIRED`;
+- `PERMISSION_DENIED`;
+- `RATE_LIMITED`;
+- `NOT_FOUND`;
+- `CONFLICT`;
+- `PRECONDITION_FAILED`;
+- `INSUFFICIENT_FUNDS`;
+- `INSUFFICIENT_CAPACITY`;
+- `DEPENDENCY_UNAVAILABLE`;
+- `MAINTENANCE_MODE`;
+- `INTERNAL_ERROR`.
+
+Fachmodule ergänzen präzisere Codes. UI-Texte werden nicht im Service fest verdrahtet, sondern über `message_key` lokalisiert. Logs behalten Fehlercode, Correlation-ID, Modul und sichere Kontextfelder.
+
+## 15.21 NUI-Architektur
+
+`cnr_ui` ist eine gemeinsame React-Anwendung mit:
+
+- Design Tokens;
+- wiederverwendbaren Komponenten;
+- Router oder View-Registry;
+- zentraler Fokusverwaltung;
+- Benachrichtigungen und Bestätigungen;
+- Eingabevalidierung für Benutzerkomfort;
+- Lokalisierung;
+- barrierearmen Tastatur- und Controllerpfaden;
+- Entwicklungs-Mocks für Browserbetrieb;
+- Featureansichten der Fachmodule.
+
+Die NUI ist Präsentationsschicht. Sie:
+
+- berechnet keine endgültigen Preise oder Belohnungen;
+- besitzt keinen direkten Datenbankzugriff;
+- entscheidet nicht über Besitz oder Berechtigungen;
+- zeigt nur serverseitig freigegebene Daten;
+- behandelt jede Antwort als potenziell veraltet und reagiert auf Versionskonflikte.
+
+Vite erzeugt reproduzierbare statische Builddateien für die FiveM-Resource. TypeScript läuft im strikten Modus. Neben dem Vite-Build wird `tsc --noEmit` als eigene Prüfung ausgeführt.
+
+## 15.22 NUI-Nachrichten und Fokus
+
+NUI-Nachrichten verwenden versionierte Namen wie:
+
+- `banking.account.open`;
+- `jobs.offer.updated`;
+- `crime.activity.state_changed`;
+- `ui.notification.push`.
+
+Jeder NUI-Callback antwortet genau einmal, auch im Fehlerfall. Offene Requests erhalten Timeouts und eine verständliche Wiederholungsmöglichkeit.
+
+Die Fokusverwaltung besitzt:
+
+- höchstens einen aktiven Fokusbesitzer;
+- einen zentralen Modal-Stack;
+- definierte Escape- und Abbruchwege;
+- Wiederherstellung nach Resource-Neustart;
+- Schutz vor gleichzeitig geöffneten Vollbildansichten;
+- getrennte Cursor-, Tastatur- und Gameplay-Eingabesperren.
+
+## 15.23 OneSync und Entities
+
+OneSync ist Pflicht. Dauerhafte oder sicherheitsrelevante Entities werden nach Möglichkeit serverseitig erzeugt und einem stabilen Fachdatenobjekt zugeordnet.
+
+Regeln:
+
+- Persistentes Fahrzeug und aktuelle Entity bleiben getrennt.
+- Eine Entity besitzt eine nachvollziehbare Zuordnung zur dauerhaften UUID.
+- Netzwerk-ID und Entity-Handle dürfen nach Neustart oder Streamingwechsel nicht als dauerhafter Schlüssel dienen.
+- Routing, Spawn und Despawn werden serverseitig koordiniert.
+- Clientseitig gemeldete Entityzustände werden vor Speicherung plausibilisiert.
+- Scope-Ereignisse werden nicht als allgemeiner hochfrequenter Synchronisationsmechanismus verwendet.
+- Bei Ressourcenstop werden kontrollierte Zustände gespeichert und temporäre Entities aufgeräumt.
+
+## 15.24 State Bags
+
+State Bags enthalten nur kleine, nicht sensible Darstellungszustände, beispielsweise:
+
+- öffentlich sichtbarer Dienststatus;
+- Interaktionszustand einer Entity;
+- harmlose Animations- oder UI-Hinweise;
+- serverbestätigter Zustandsmarker.
+
+Nicht in State Bags gehören:
+
+- Kontostände;
+- Inventarinhalte;
+- versteckte Rollen oder Berechtigungen;
+- interne Kriminalitäts- oder Risikowerte;
+- geheime Ermittlungsinformationen;
+- Sessiontokens oder andere Secrets.
+
+Keys werden granular statt als große verschachtelte Objekte angelegt. `sv_stateBagStrictMode true` ist für Staging und Produktion vorgesehen, damit Clients keine beliebigen State-Bag-Werte schreiben.
+
+## 15.25 Routing Buckets und Instanzen
+
+- Routing Buckets werden nur serverseitig zugewiesen.
+- Ein Charakter erhält keinen Bucket allein aufgrund einer Clientangabe.
+- Shell-Interieurs, Tutorials und instanzierte Szenarien besitzen einen fachlichen Instanzdatensatz.
+- Spieler, Fahrzeuge, Beute und Missionsobjekte werden gemeinsam und atomar einer gültigen Instanz zugeordnet.
+- Verlassen, Disconnect und Neustart besitzen definierte Rückführungsregeln.
+- Buckets ersetzen keine Berechtigungs-, Besitz- oder Distanzprüfung.
+
+## 15.26 Konfigurationsebenen
+
+### Statische Repository-Konfiguration
+
+Für:
+
+- technische Konstanten;
+- Abhängigkeitsgrenzen;
+- feste Sicherheitslimits;
+- erlaubte Event- und Schritttypen;
+- Build- und Laufzeitoptionen;
+- Standardwerte für lokale Entwicklung.
+
+### Dynamische Datenbankkonfiguration
+
+Für:
+
+- Preise und Steuern;
+- Vergütungsgrenzen;
+- Positionen und Zonen;
+- Lager- und Anlagenkapazitäten;
+- Rezepte;
+- Cooldowns;
+- Levelkurven;
+- Job- und Crime-Definitionen;
+- Feature Flags.
+
+### Secrets
+
+Für:
+
+- Datenbankzugänge;
+- externe Webhooks;
+- API-Schlüssel;
+- Signatur- und Sitzungsschlüssel;
+- Backup-Zugänge.
+
+Secrets liegen außerhalb des Repositories in Umgebungsvariablen, geschützten ConVars oder einem späteren Secret Store. Eine Beispieldatei enthält nur Schlüsselnamen und sichere Platzhalter.
+
+## 15.27 Konfigurationsveröffentlichung
+
+Eine dynamische Änderung durchläuft:
+
+1. Entwurf;
+2. Schema- und Werteprüfung;
+3. fachliche Plausibilitätsprüfung;
+4. Vorschau;
+5. Berechtigungsprüfung;
+6. Veröffentlichung als unveränderliche Revision;
+7. Cache-Aktualisierung;
+8. Audit;
+9. kontrollierte Rückkehr zu einer älteren gültigen Revision bei Bedarf.
+
+Laufende Verträge, Jobs, Produktionen und Taten behalten ihre gespeicherte Versionsmomentaufnahme. Eine neue Konfiguration verändert keinen bereits begonnenen Vorgang rückwirkend.
+
+## 15.28 Umgebungen
+
+### Development
+
+- lokaler FXServer;
+- lokale MariaDB in einem reproduzierbaren Container;
+- Entwicklungsseeds;
+- Browser-Mock der NUI;
+- ausführlichere Diagnostik;
+- keine produktiven Secrets.
+
+### Staging
+
+- eigener FXServer und eigene Datenbank;
+- produktionsnahe Konfiguration;
+- anonymisierte oder künstliche Testdaten;
+- vollständige Migrationen;
+- Smoke-, Last- und Wiederherstellungstests;
+- keine Verbindung zu produktiven Wirtschaftsdaten.
+
+### Production
+
+- unterstützte Linux-Umgebung;
+- festgelegtes FXServer-Artefakt;
+- eigene Secrets und Datenbankkonten;
+- verschlüsselte Backups;
+- restriktive Logs und Zugriffsrechte;
+- Deployment nur aus freigegebenem Build.
+
+Eine Umgebung darf nie durch Umschalten eines einzelnen UI-Schalters mit einer anderen Datenbank verbunden werden.
+
+## 15.29 Protokollierung
+
+Anwendungslogs werden strukturiert erzeugt und enthalten mindestens:
+
+- Zeit in UTC;
+- Level;
+- Modul;
+- Event oder Operation;
+- Correlation-ID;
+- sichere Account-, Charakter- oder Objektbezüge;
+- Ergebnis und Dauer;
+- Fehlercode bei Fehlschlag.
+
+Nicht protokolliert werden:
+
+- Secrets;
+- vollständige Tokens;
+- Datenbankpasswörter;
+- unnötige personenbezogene Freitexte;
+- komplette sensible Payloads;
+- SQL mit vertraulichen Werten.
+
+Entwicklungslogs dürfen lesbar formatiert sein. Staging und Produktion verwenden maschinenlesbare strukturierte Ausgabe.
+
+## 15.30 Auditierung
+
+Audit und normales Debug-Logging bleiben getrennt.
+
+Auditpflichtig sind mindestens:
+
+- administrative Änderungen;
+- Rollen- und Whiteliständerungen;
+- Geld- und Inventarkorrekturen;
+- Eigentumsübertragungen;
+- veröffentlichte Konfigurationen;
+- Beweis- und Asservatbewegungen;
+- Sanktionen;
+- sensible Datenabfragen;
+- Migrationen und Deployments.
+
+Ein Auditdatensatz enthält Akteur, Ziel, Grund, vorherige und neue sichere Referenzen, Zeitpunkt, Operation und Correlation-ID. Gebuchte oder rechtlich relevante Vorgänge werden nicht still gelöscht.
+
+## 15.31 Metriken und Health
+
+Technische Metriken:
+
+- Requestanzahl, Fehlerquote und Dauer pro Operation;
+- Event-Rate und Rate-Limit-Treffer;
+- Datenbanklatenz und Slow Queries;
+- Transaktionskonflikte und Deadlocks;
+- Resource-Status und Neustarts;
+- aktive Sessions und Routing-Instanzen;
+- NUI-Fehler;
+- Job-, Crime- und Recovery-Warteschlangen;
+- Backup- und Migrationsstatus.
+
+Health-Prüfungen unterscheiden:
+
+- Prozess lebt;
+- Resource gestartet;
+- Pflichtabhängigkeiten bereit;
+- Datenbank erreichbar;
+- unterstützte Schemaversion vorhanden;
+- schreibende Operationen freigegeben.
+
+Gameplay-Metriken werden nur aggregiert für Balancing genutzt und ersetzen keine fachliche Prüfung einzelner Spieler.
+
+## 15.32 Performance-Regeln
+
+- Keine dauerhaften 0-ms-Schleifen ohne nachgewiesenen Bedarf.
+- Eventbasierte Aktualisierung wird Polling vorgezogen.
+- State Bags werden klein und granular gehalten.
+- Datenbankzugriffe werden gebündelt, parametrisiert und indiziert.
+- Listen verwenden Pagination und feste Obergrenzen.
+- Caches speichern nur ableitbare Lesezustände und niemals die einzige Wahrheit.
+- Cache-Invalidierung folgt bestätigten Domain-Ereignissen.
+- Große NUI-Payloads werden vermieden.
+- Scope- und Positionsprüfungen nutzen angemessene Intervalle und räumliche Strukturen.
+- Langsame Abläufe werden mit FiveM-Profiler, Datenbankanalyse und Staging-Messung untersucht.
+
+Vor einer Optimierung wird ein Messwert und ein Zielbudget definiert. Geld- oder Inventarkorrektheit wird nicht für geringere Latenz geopfert.
+
+## 15.33 Testarchitektur
+
+### Lua-Unit-Tests
+
+Busted testet reine:
+
+- Geld- und Rundungsregeln;
+- Inventarkapazitäten;
+- Reservierungen;
+- Produktionsbilanzen;
+- Jobzustände;
+- Crime-Zustände;
+- Berechtigungen;
+- Fehlerzuordnungen;
+- Idempotenzentscheidungen.
+
+Datenbank, Uhr, UUID, Zufall und externe Adapter werden durch Fakes ersetzt.
+
+### Datenbank-Integrationstests
+
+Gegen eine echte temporäre MariaDB werden getestet:
+
+- alle Migrationen aus leerem Zustand;
+- Constraints und Indizes;
+- Transaktionen und Sperren;
+- gleichzeitige Buchungen;
+- Repository-Abfragen;
+- Neustart- und Recovery-Szenarien.
+
+### TypeScript-Tests
+
+Vitest testet Komponenten, Stores, Validierung, Lokalisierung und Verträge. Playwright testet wichtige Browserabläufe der NUI und später des Control Panels.
+
+### FXServer-Smoke-Tests
+
+Auf Staging werden mindestens Verbindung, Accountbindung, Charakterauswahl, Resource-Readiness sowie ein legaler und ein illegaler vertikaler Ablauf geprüft.
+
+## 15.34 Kritische Pflichttests
+
+Vor einer MVP-Freigabe müssen automatisiert oder reproduzierbar geprüft sein:
+
+- doppelte `operation_uuid` erzeugt keine zweite Auszahlung;
+- zwei gleichzeitige Käufe können denselben Bestand nicht überziehen;
+- Hauptbuchbuchungen bleiben ausgeglichen;
+- Item- und Flüssigkeitstransfer erhält die Gesamtmenge;
+- Mietkaution wird nur einmal belastet oder erstattet;
+- Jobreservierungen werden bei Abbruch kontrolliert freigegeben;
+- Crime-Beute wird beim Disconnect nicht dupliziert;
+- Resource-Neustart stellt persistente Vorgänge wieder her;
+- eine manipulierte Clientmenge wird ignoriert oder abgelehnt;
+- unberechtigter Eventaufruf verändert keinen Zustand;
+- ein veralteter Konfigurationsentwurf überschreibt keine neuere Revision;
+- Datenbankausfall führt zu sicherem Fehler statt Teilbuchung.
+
+## 15.35 Contract-Tests
+
+Öffentliche Exports, Netzwerkevents und NUI-Nachrichten besitzen:
+
+- Vertragsname;
+- Versionsnummer;
+- Eingabeschema;
+- Ergebnisschema;
+- Fehlercodes;
+- Autorisierungsanforderungen;
+- Idempotenzregel;
+- Beispielpayload;
+- Eigentümermodul.
+
+Contract-Tests stellen sicher, dass Provider und Consumer dieselbe Version verstehen. Entfernte oder geänderte Felder benötigen eine neue Vertragsversion oder eine dokumentierte kompatible Übergangsphase.
+
+## 15.36 CI-Pipeline
+
+Jeder Pull Request prüft mindestens:
+
+1. Dateiformat und unerlaubte Secrets;
+2. StyLua-Formatierung;
+3. Lua-Language-Server-Diagnostik;
+4. Lua-Unit-Tests;
+5. TypeScript-Formatierung und Linting;
+6. `tsc --noEmit`;
+7. Vitest;
+8. Migrationen auf leerer MariaDB;
+9. Datenbank-Integrationstests;
+10. Contract-Tests;
+11. reproduzierbaren NUI-Produktionsbuild;
+12. Abhängigkeits-, Lizenz- und Sicherheitsprüfung.
+
+`main` wird geschützt. Produktive Deployments erfolgen nicht aus ungeprüften lokalen Dateien, sondern aus einem eindeutig identifizierbaren Commit und Buildartefakt.
+
+## 15.37 Abhängigkeits- und Lieferkettenschutz
+
+Für jede Fremdabhängigkeit werden festgehalten:
+
+- Quelle und Eigentümer;
+- exakte Version oder Commit;
+- Prüfsumme, soweit praktikabel;
+- Lizenz;
+- Zweck;
+- letzte Prüfung;
+- bekannte Ersatzmöglichkeit.
+
+Regeln:
+
+- keine automatisch nachgeladenen `latest`-Artefakte in Produktion;
+- keine verschleierten oder unbekannten FiveM-Ressourcen;
+- keine Abhängigkeit erhält mehr Berechtigungen als notwendig;
+- Sicherheitsupdates werden zeitnah bewertet, aber zuerst auf Staging geprüft;
+- automatische Updatewerkzeuge dürfen Pull Requests erstellen, aber nicht selbstständig produktiv ausrollen;
+- Vendor-Code wird nicht unkontrolliert direkt verändert; notwendige Patches werden dokumentiert.
+
+## 15.38 Datenbankkonten und technische Rechte
+
+Getrennte Konten:
+
+| Konto | Rechte |
+|---|---|
+| Runtime | nur notwendige Lese- und Schreibrechte auf Gameplayschemas, kein allgemeines DDL |
+| Migration | notwendige Schemaänderungen, nur während Deployments |
+| Backup | notwendige Leserechte und Backupfunktionen |
+| Read-only | begrenzte Analyse und Supportdiagnose |
+
+ACE-Rechte dienen technischem Bootstrap und Serverbetrieb. Gameplayrollen, Firmenrechte, Polizeirechte und Admin-Fachrechte liegen versioniert in der Projektdatenbank.
+
+## 15.39 Build und Release
+
+Ein Release enthält:
+
+- alle eigenen FiveM-Ressourcen;
+- geprüfte Vendor-Ressourcen in festgelegter Version;
+- gebaute NUI-Dateien;
+- Manifest- und Versionsinformationen;
+- Migrationsstand;
+- Konfigurationsschema;
+- Release Notes;
+- Prüfsummen.
+
+Der Build ist aus einem frischen Checkout reproduzierbar. Generierte NUI-Dateien werden entweder als Teil des Releaseartefakts erstellt oder nach einer einheitlichen Repository-Regel versioniert; es gibt keinen manuellen Produktionsbuild auf dem Server.
+
+## 15.40 Deployment-Ablauf
+
+Der Standardablauf:
+
+1. freigegebenen Commit und erfolgreiches CI-Ergebnis bestimmen;
+2. Backup und Wiederherstellbarkeit prüfen;
+3. Wartungs- oder Read-only-Status aktivieren;
+4. offene kritische Vorgänge kontrolliert abschließen oder pausieren;
+5. Migrationen mit dem Migrationskonto ausführen;
+6. neues Releaseartefakt bereitstellen;
+7. Ressourcen in definierter Reihenfolge starten;
+8. Schema-, Dependency- und Health-Prüfungen ausführen;
+9. automatische Smoke-Tests ausführen;
+10. Gameplay wieder freigeben;
+11. Fehler, Latenzen und Economy-Kennzahlen beobachten;
+12. Deployment auditieren.
+
+Ein fehlgeschlagenes Deployment öffnet den Server nicht automatisch. Zuerst wird entschieden, ob ein kompatibler Code-Rollback oder eine vorwärtsgerichtete Korrektur sicher ist.
+
+## 15.41 Backup und Wiederherstellung
+
+Geplant sind:
+
+- tägliche verschlüsselte Vollbackups;
+- häufigere inkrementelle oder Binlog-basierte Wiederherstellungspunkte, soweit die Hostingumgebung dies unterstützt;
+- mindestens eine getrennte externe Aufbewahrung;
+- mehrere Generationen;
+- automatisierte Erfolgs- und Alterskontrolle;
+- Backup vor produktiven Migrationen;
+- regelmäßige Restore-Tests auf isolierter Umgebung;
+- dokumentierte Zielwerte für maximalen Datenverlust und Wiederherstellungsdauer.
+
+Ein vorhandenes Backup gilt erst nach einem erfolgreichen Wiederherstellungstest als belastbar. Backup-Zugänge und Verschlüsselungsschlüssel liegen nicht im Repository und nicht gemeinsam mit dem einzigen Backup.
+
+## 15.42 Coding-Standards
+
+### Lua
+
+- `snake_case` für Variablen und Funktionen;
+- lokale Module statt globale Zustände;
+- explizite Rückgabetypen als Resultat oder Fehler;
+- LuaLS-Annotationen an öffentlichen Grenzen;
+- kurze Eventhandler, Fachlogik in Services;
+- keine Datenbankabfrage direkt aus UI- oder Netzwerkeventdateien;
+- keine still verschluckten Fehler.
+
+### TypeScript
+
+- strikter TypeScript-Modus;
+- `camelCase` für Werte und Funktionen;
+- `PascalCase` für Komponenten und Typen;
+- kein ungeprüftes `any` an Systemgrenzen;
+- Laufzeitvalidierung externer Payloads;
+- UI-Zustand und Serverzustand klar getrennt.
+
+### SQL
+
+- Tabellen und Spalten in `snake_case`;
+- Pluralformen für Tabellen;
+- nachvollziehbare Namen für Fremdschlüssel, Unique Constraints und Indizes;
+- explizite Spaltenlisten;
+- parametrisierte Werte;
+- Migrationen mit Begründung für ungewöhnliche Sperren oder Datenumformungen.
+
+## 15.43 Technisches MVP-Fundament
+
+Vor den großen Fachfeatures werden umgesetzt:
+
+1. Repository- und Toolchain-Grundgerüst;
+2. lokale Development-Umgebung;
+3. `cnr_database` und erste Migration;
+4. `cnr_logs`, Correlation-IDs und Auditgrundlage;
+5. `cnr_config` mit statischer und versionierter dynamischer Konfiguration;
+6. `cnr_core` mit Resource-Readiness, Request-Kontext und Resultformat;
+7. Account-, Sitzungs- und Charaktergrundlage;
+8. `cnr_ui` als gebauter Shell mit Fokus- und Lokalisierungssystem;
+9. Test-Harness für Lua, MariaDB, TypeScript und Verträge;
+10. CI-Pipeline;
+11. Staging-Deployment, Backup und Restore-Anleitung;
+12. erster legaler vertikaler Ablauf;
+13. erster illegaler vertikaler Ablauf.
+
+Das externe Control Panel, umfassende Analytics und tiefe Automatisierung folgen erst, wenn die gleichen administrativen Anwendungsfälle ingame oder über sichere interne Services stabil funktionieren.
+
+## 15.44 Technische Abnahmekriterien
+
+Paket C ist konzeptionell abgeschlossen. Das technische Fundament gilt später als implementiert, wenn:
+
+- ein frischer Checkout nach dokumentierten Schritten gebaut werden kann;
+- Tool- und Abhängigkeitsversionen reproduzierbar feststehen;
+- eine leere MariaDB vollständig migriert werden kann;
+- die Schemaversion beim Resource-Start geprüft wird;
+- der NUI-Build ohne manuelle Produktionsänderung entsteht;
+- Pflichtressourcen ihre Abhängigkeiten und Readiness korrekt melden;
+- ein Dependency-Ausfall keine Teilbuchung erzeugt;
+- Client, NUI und State Bags keine autoritativen Fachwerte setzen können;
+- Netzwerkevents validiert, limitiert und dokumentiert sind;
+- kritische Mutationen idempotent sind;
+- Geld-, Item- und Flüssigkeitsvorgänge Parallelitätstests bestehen;
+- Neustart und Wiederverbindung definierte Vorgänge wiederherstellen;
+- Audit und Debug-Logging getrennt funktionieren;
+- keine Secrets im Repository oder Clientbuild liegen;
+- Backups erfolgreich in eine isolierte Umgebung zurückgespielt wurden;
+- der legale und illegale Smoke-Ablauf auf Staging nachvollziehbar durchlaufen.
+
+## 15.45 Technische Referenzen und Prüfdatum
+
+Die technischen Entscheidungen wurden am 16. Juli 2026 gegen Primärquellen geprüft:
+
+- [FiveM Resource Manifest](https://docs.fivem.net/docs/scripting-reference/resource-manifest/)
+- [FiveM CfxLua Runtime](https://docs.fivem.net/docs/scripting-manual/runtimes/lua/)
+- [FiveM Server Security](https://docs.fivem.net/docs/developers/server-security/)
+- [FiveM OneSync](https://docs.fivem.net/docs/scripting-reference/onesync/)
+- [FiveM State Bags](https://docs.fivem.net/docs/scripting-manual/networking/state-bags/)
+- [FiveM NUI Development](https://docs.fivem.net/docs/scripting-manual/nui-development/)
+- [FiveM NUI Callbacks](https://docs.fivem.net/docs/scripting-manual/nui-development/nui-callbacks/)
+- [React mit TypeScript](https://react.dev/learn/typescript)
+- [Vite Guide](https://vite.dev/guide/)
+- [Node.js Releaseübersicht](https://nodejs.org/en/about/previous-releases)
+- [pnpm Installation](https://pnpm.io/installation)
+- [Fastify](https://fastify.io/docs/latest/)
+- [MariaDB 11.4](https://mariadb.com/docs/release-notes/community-server/11.4/11.4.10)
+- [oxmysql Repository](https://github.com/overextended/oxmysql)
+- [dbmate Repository](https://github.com/amacneil/dbmate)
+- [StyLua Repository](https://github.com/JohnnyMorganz/StyLua)
+- [Lua Language Server](https://github.com/LuaLS/lua-language-server)
+- [Busted](https://github.com/lunarmodules/busted)
+- [Vitest](https://vitest.dev/guide/)
+- [Playwright](https://playwright.dev/docs/intro)
+
+Da FiveM, Datenbanktreiber, Node.js und Buildwerkzeuge weiterentwickelt werden, werden Versionsstatus, Sicherheitsmeldungen, Lizenzen und Kompatibilität unmittelbar vor dem ersten Coding-Commit erneut geprüft. Die Architekturentscheidungen bleiben dabei bestehen; konkrete Patchversionen dürfen nach dieser Prüfung aktualisiert werden.
+
+---
+
+# 16. Dynamische Administration
+
+## 16.1 Ingame-Editor
 
 Administratoren können erstellen und konfigurieren:
 
@@ -9342,7 +10337,7 @@ Administratoren können erstellen und konfigurieren:
 
 Änderungen besitzen Vorschau, Entwurf, Veröffentlichung, Audit-Historie und Wiederherstellung älterer Versionen.
 
-## 15.2 Externes Control Panel
+## 16.2 Externes Control Panel
 
 Das Control Panel kommuniziert über eine geprüfte API und schreibt nicht unkontrolliert direkt in Gameplaytabellen.
 
@@ -9362,7 +10357,7 @@ Konfigurierbar sind unter anderem:
 
 ---
 
-# 16. Einheitliches UI-System
+# 17. Einheitliches UI-System
 
 `cnr_ui` stellt bereit:
 
@@ -9383,7 +10378,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 17. Sicherheitsgrundsätze
+# 18. Sicherheitsgrundsätze
 
 - Der Client wird bei Geld, Items, Besitz und Belohnungen niemals als vertrauenswürdig behandelt.
 - Position, Entfernung und Spielerzustand werden serverseitig geprüft.
@@ -9398,7 +10393,7 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 18. Aktuelle verbindliche Entscheidungen
+# 19. Aktuelle verbindliche Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
@@ -9416,7 +10411,23 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 | kostenloses Startfahrzeug | nein |
 | UI | ein gemeinsames Designsystem |
 | Konfiguration | Ingame-Editor und später externes Control Panel |
-| Datenbank | MySQL-kompatibel, UTC, ganzzahlige Geldwerte |
+| FiveM-Skriptsprache | CfxLua auf Lua 5.4 für Client und Server |
+| Resource-Manifest | `fxmanifest.lua` mit `cerulean`, expliziten Abhängigkeiten und OneSync |
+| NUI-Stack | React, TypeScript und Vite |
+| NUI-Werkzeuge | Node.js 24 LTS und im Repository festgelegtes pnpm |
+| spätere Control-Panel-API | Fastify mit TypeScript und JSON-Schema-validierten Routen |
+| Datenbank | MariaDB 11.4 LTS, InnoDB, `utf8mb4` und UTC |
+| Datenbanktreiber | fest versioniertes `oxmysql` hinter `cnr_database` |
+| Migrationen | dbmate, zentrale vorwärtsgerichtete SQL-Migrationen, keine produktive Auto-Migration beim FXServer-Start |
+| öffentliche IDs | serverseitige UUIDv7, indexfreundlich gespeichert |
+| Modulbesitz | jedes Fachmodul schreibt ausschließlich seine eigenen Tabellen |
+| OneSync | verpflichtend; persistente Entities nach Möglichkeit serverseitig erzeugt |
+| State Bags | nur kleine nicht sensible Darstellungszustände, Strict Mode in Staging und Produktion |
+| Netzwerkevents | nur für echte Netzwerkgrenzen, Clientanfragen sind niemals autoritative Ergebnisse |
+| kritische Mutationen | Transaktion, Audit und dauerhafte `operation_uuid` |
+| Teststack | Busted, echte MariaDB-Integrationstests, Vitest, Playwright und FXServer-Smoke-Tests |
+| Deployment | reproduzierbares Releaseartefakt über Development, Staging und Production |
+| Secrets | ausschließlich außerhalb von Repository, NUI und Clientcode |
 | Inventar | Kombination aus Slots und Gewicht |
 | Flüssigkeiten | Warenchargen mit Menge und Qualität |
 | Finanzmodell | doppeltes Hauptbuch mit ausgeglichenen Buchungen |
@@ -9514,9 +10525,9 @@ Fachmodule liefern Daten und reagieren auf validierte Aktionen. Das UI entscheid
 
 ---
 
-# 19. Planungsreife und Coding-Start
+# 20. Planungsreife und Coding-Start
 
-## 19.1 Aktueller Stand
+## 20.1 Aktueller Stand
 
 Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortgeschritten. Detailliert geplant sind:
 
@@ -9535,11 +10546,15 @@ Das wirtschaftliche und rollenspielerische Grundgerüst ist bereits weit fortges
 - Polizeidienst, Dispatch, Fahndung und Einsatzbearbeitung;
 - Beweise, Fälle, Durchsuchungen, Beschlagnahmung, Festnahme und Haft;
 - das allgemeine Job-, Schicht-, Aktivitäts- und Vergütungsmodell;
+- den technischen Stack, Datenbankzugriff und die Migrationsstrategie;
+- Resource-Abhängigkeiten, Verträge, Events und Fehlerformate;
+- NUI-, OneSync-, State-Bag- und Entity-Regeln;
+- Test-, CI-, Logging-, Audit-, Deployment- und Backupstrategie;
 - grundlegende Admin-, UI- und Sicherheitsprinzipien.
 
-Damit stehen die RP-, Economy-, Cops-&-Robbers- und Jobgrundlagen. Vor dem produktiven Coding fehlen noch der technische Implementierungsrahmen und ein verbindlicher MVP-Schnitt.
+Damit stehen die RP-, Economy-, Cops-&-Robbers-, Job- und Technikgrundlagen. Vor dem produktiven Coding fehlt nur noch der verbindliche MVP-Schnitt aus Paket D.
 
-## 19.2 Noch notwendige Konzeptpakete vor dem Coding
+## 20.2 Noch notwendige Konzeptpakete vor dem Coding
 
 ### Abgeschlossen – Paket A: Cops-&-Robbers-Kern
 
@@ -9570,20 +10585,19 @@ Paket B ist mit Kapitel 14 abgeschlossen. Definiert sind:
 - Anti-AFK- und Anti-Farming-Regeln;
 - Wiederverwendung für weitere legale Berufe.
 
-### Paket C – Technischer Implementierungsrahmen
+### Abgeschlossen – Paket C: Technischer Implementierungsrahmen
 
-Vor dem ersten produktiven Resource-Code werden verbindlich entschieden:
+Paket C ist mit Kapitel 15 abgeschlossen. Verbindlich definiert sind:
 
-- Server- und Client-Skriptsprache;
-- NUI-Technologie;
-- Datenbanktreiber;
-- Migrationen und Seed-Daten;
+- CfxLua sowie React, TypeScript und Vite;
+- MariaDB, gekapselter Datenbanktreiber, Migrationen und Seed-Daten;
 - Resource-Startreihenfolge und Abhängigkeiten;
 - interne Exports, Callbacks und Eventkonventionen;
 - Fehlerformat und Übersetzungen;
 - Konfigurations- und Versionsformat;
 - Logging, Auditierung und Metriken;
-- automatisierte Tests;
+- automatisierte Unit-, Integrations-, Contract-, Browser- und Smoke-Tests;
+- CI, Abhängigkeitsprüfung und reproduzierbare Builds;
 - Development-, Staging- und Production-Ablauf;
 - Backup, Wiederherstellung und Deployment.
 
@@ -9601,9 +10615,9 @@ Für jedes System wird festgelegt:
 
 Das verhindert, dass beim Scripting gleichzeitig ein Core, eine vollständige Wirtschaft, alle Jobs, alle Verbrechen und ein Control Panel fertiggestellt werden sollen.
 
-## 19.3 Empfohlener Zeitpunkt für den Coding-Start
+## 20.3 Empfohlener Zeitpunkt für den Coding-Start
 
-Der Coding-Start wird nach Abschluss der verbleibenden Konzeptpakete C und D empfohlen.
+Der Coding-Start wird nach Abschluss des letzten verbleibenden Konzeptpakets D empfohlen.
 
 Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kann beginnen, sobald:
 
@@ -9616,7 +10630,7 @@ Danach muss nicht jedes spätere Feature vollständig geplant sein. Der Core kan
 
 Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Branchen und Zusatzinhalte weiter geplant werden.
 
-## 19.4 Empfohlene erste vertikale Abläufe
+## 20.4 Empfohlene erste vertikale Abläufe
 
 ### Legaler Ablauf
 
@@ -9641,7 +10655,7 @@ Ab diesem Punkt kann die technische Basis umgesetzt werden, während spätere Br
 8. Fahndung, Beschluss, Durchsuchung, Festnahme und Haft folgen nur aus dem tatsächlichen Verlauf.
 9. Waren-, Beweis- und Geldspur bleibt vollständig nachvollziehbar.
 
-## 19.5 Definition of Ready für das Repository
+## 20.5 Definition of Ready für das Repository
 
 Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
 
@@ -9658,4 +10672,4 @@ Vor dem ersten Hauptimplementierungs-Commit müssen vorliegen:
 
 ## Nächster Planungsschritt
 
-Als Nächstes wird Paket C, der technische Implementierungsrahmen, geplant. Festgelegt werden Sprache, NUI-Stack, Datenbankzugriff, Migrationen, Resource-Abhängigkeiten, APIs und Events, Konfiguration, Tests, Logging, Deployment, Backups und Entwicklungsumgebungen.
+Als Nächstes wird Paket D, der verbindliche MVP-Schnitt, geplant. Für jedes System wird festgelegt, was im ersten spielbaren Build vollständig, vereinfacht oder noch nicht enthalten ist. Daraus entstehen die MVP-Matrix, Abhängigkeiten, Umsetzungsreihenfolge, Testfälle und klare Abnahmekriterien. Nach Abschluss dieses Pakets ist das Grundkonzept bereit für den Coding-Start in den dafür vorgesehenen Projektchats.
