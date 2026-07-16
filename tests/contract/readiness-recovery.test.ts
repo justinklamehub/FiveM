@@ -40,6 +40,8 @@ describe('runtime readiness recovery', () => {
     );
     expect(safeDone).toContain('Wait(0)');
     expect(safeDone.indexOf('Wait(0)')).toBeLessThan(safeDone.indexOf('deferrals.done(reason)'));
+    expect(safeDone).toContain('deferrals.done()');
+    expect(safeDone).not.toContain('deferrals.done(reason or nil)');
   });
 
   it('retains the documented deferrals object instead of capturing method references', () => {

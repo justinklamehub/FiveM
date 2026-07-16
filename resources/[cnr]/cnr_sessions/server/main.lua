@@ -31,7 +31,12 @@ local function safe_done(deferrals, state, reason)
     state.done = true
     -- Cfx.re requires at least one tick between a prior deferral method and done.
     Wait(0)
-    deferrals.done(reason)
+    if reason then
+        deferrals.done(reason)
+    else
+        -- The Cfx callback bridge distinguishes zero arguments from an explicit nil argument.
+        deferrals.done()
+    end
 end
 
 local function reject(deferrals, state, correlation_id, code, message_key)
