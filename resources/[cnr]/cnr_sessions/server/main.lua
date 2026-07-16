@@ -29,7 +29,6 @@ local function safe_done(deferrals, state, reason)
         return
     end
     state.done = true
-    Wait(0)
     deferrals.done(reason)
 end
 
@@ -154,17 +153,9 @@ AddEventHandler('playerConnecting', function(player_name, _, deferrals)
         end
     end
 
-    local ok, runtime_error =
-        pcall(handle_connection, player_source, player_name, deferrals, already_deferred)
-    if not ok then
-        local correlation_id = exports.cnr_core:create_correlation_id()
-        exports.cnr_logs:log('error', 'cnr_sessions', 'connection.exception', {
-            correlation_id = correlation_id,
-            error_type = type(runtime_error),
-        })
-        Wait(0)
-        deferrals.done(translate('sessions.error.internal', { correlation_id = correlation_id }))
-    end
+    -- Do not wrap this yielding flow in pcall. FXServer deferral proxies must remain on the
+    -- event coroutine that owns them; yielding across a protected C API call can invalidate done.
+    handle_connection(player_source, player_name, deferrals, already_deferred)
 end)
 
 AddEventHandler('playerDropped', function(reason, _, client_drop_reason)
