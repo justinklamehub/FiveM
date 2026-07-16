@@ -1,0 +1,9 @@
+# The existing long-form planning README is preserved verbatim in Wave 0.
+README.md
+
+# Deterministic byte chunks are verified by SHA-256, not formatted individually.
+tools/lockfile-parts/
+
+# Generated and installed content is never formatted from the repository root.
+node_modules/
+resources/[cnr]/cnr_ui/web/dist/
