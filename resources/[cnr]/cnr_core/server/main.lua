@@ -98,8 +98,19 @@ local function report_resource_status(snapshot)
 end
 
 CreateThread(function()
-    Wait(0)
-    refresh_dependencies()
+    for _ = 1, 300 do
+        refresh_dependencies()
+        if readiness.status == 'ready' then
+            return
+        end
+        Wait(100)
+    end
+end)
+AddEventHandler('cnr:database:status_changed', function()
+    CreateThread(function()
+        Wait(0)
+        refresh_dependencies()
+    end)
 end)
 AddEventHandler('onResourceStart', function(started)
     if started == resource_name then

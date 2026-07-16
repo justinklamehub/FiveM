@@ -17,8 +17,15 @@ local function publish(next_status, details)
 end
 
 CreateThread(function()
-    Wait(0)
-    publish(exports.cnr_core:is_ready() and 'ready' or 'degraded')
+    for _ = 1, 300 do
+        if exports.cnr_core:is_ready() then
+            publish('ready')
+            return
+        end
+        publish('degraded', { reason = 'core_not_ready' })
+        Wait(100)
+    end
+    publish('unavailable', { reason = 'core_readiness_timeout' })
 end)
 
 RegisterNetEvent('cnr:registration:request', function(action, payload)

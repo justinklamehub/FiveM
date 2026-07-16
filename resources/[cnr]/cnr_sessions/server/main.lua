@@ -41,11 +41,13 @@ local function reject(deferrals, state, correlation_id, code, message_key)
     safe_done(deferrals, state, translate(message_key, { correlation_id = correlation_id }))
 end
 
-local function handle_connection(player_source, player_name, deferrals)
+local function handle_connection(player_source, player_name, deferrals, already_deferred)
     local state = { done = false }
     local correlation_id = exports.cnr_core:create_correlation_id()
-    deferrals.defer()
-    Wait(0)
+    if not already_deferred then
+        deferrals.defer()
+        Wait(0)
+    end
     deferrals.update(translate('sessions.progress.checking_connection'))
 
     local mutation = exports.cnr_core:is_mutation_allowed()
@@ -112,9 +114,15 @@ local function handle_connection(player_source, player_name, deferrals)
 end
 
 CreateThread(function()
-    Wait(0)
-    if not exports.cnr_core:is_ready() then
+    for _ = 1, 300 do
+        if exports.cnr_core:is_ready() then
+            break
+        end
         publish('degraded', { reason = 'core_not_ready' })
+        Wait(100)
+    end
+    if not exports.cnr_core:is_ready() then
+        publish('unavailable', { reason = 'core_readiness_timeout' })
         return
     end
     local cleanup =
@@ -128,14 +136,26 @@ end)
 
 AddEventHandler('playerConnecting', function(player_name, _, deferrals)
     local player_source = source
+    local already_deferred = false
     if status.status ~= 'ready' then
         deferrals.defer()
         Wait(0)
-        deferrals.done(translate('sessions.error.unavailable'))
-        return
+        already_deferred = true
+        for _ = 1, 300 do
+            if status.status == 'ready' then
+                break
+            end
+            deferrals.update('Session services are starting. Please wait…')
+            Wait(100)
+        end
+        if status.status ~= 'ready' then
+            deferrals.done(translate('sessions.error.unavailable'))
+            return
+        end
     end
 
-    local ok, runtime_error = pcall(handle_connection, player_source, player_name, deferrals)
+    local ok, runtime_error =
+        pcall(handle_connection, player_source, player_name, deferrals, already_deferred)
     if not ok then
         local correlation_id = exports.cnr_core:create_correlation_id()
         exports.cnr_logs:log('error', 'cnr_sessions', 'connection.exception', {

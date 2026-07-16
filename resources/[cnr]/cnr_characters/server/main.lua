@@ -28,8 +28,21 @@ local function valid_read_payload(payload)
 end
 
 CreateThread(function()
-    Wait(0)
-    status.status = exports.cnr_core:is_ready() and 'ready' or 'degraded'
+    for _ = 1, 300 do
+        if exports.cnr_core:is_ready() then
+            status.status = 'ready'
+            status.changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ')
+            exports.cnr_core:report_resource_status(status)
+            return
+        end
+        status.status = 'degraded'
+        status.details = { reason = 'core_not_ready' }
+        status.changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ')
+        exports.cnr_core:report_resource_status(status)
+        Wait(100)
+    end
+    status.status = 'unavailable'
+    status.details = { reason = 'core_readiness_timeout' }
     status.changed_at = os.date('!%Y-%m-%dT%H:%M:%SZ')
     exports.cnr_core:report_resource_status(status)
 end)

@@ -55,9 +55,15 @@ local function print_result(action, result)
 end
 
 CreateThread(function()
-    Wait(0)
-    if not exports.cnr_core:is_ready() then
+    for _ = 1, 300 do
+        if exports.cnr_core:is_ready() then
+            break
+        end
         publish('degraded', { reason = 'core_not_ready' })
+        Wait(100)
+    end
+    if not exports.cnr_core:is_ready() then
+        publish('unavailable', { reason = 'core_readiness_timeout' })
         return
     end
 

@@ -18,17 +18,20 @@ local function publish(next_status, details)
 end
 
 CreateThread(function()
-    Wait(0)
     local pepper = GetConvar('cnr_identifier_pepper', '')
     if #pepper < 32 or pepper:find('replace', 1, true) then
         publish('unavailable', { reason = 'identifier_pepper_missing' })
         return
     end
-    if not exports.cnr_core:is_ready() then
+    for _ = 1, 300 do
+        if exports.cnr_core:is_ready() then
+            publish('ready')
+            return
+        end
         publish('degraded', { reason = 'core_not_ready' })
-        return
+        Wait(100)
     end
-    publish('ready')
+    publish('unavailable', { reason = 'core_readiness_timeout' })
 end)
 
 AddEventHandler('onResourceStop', function(stopped)

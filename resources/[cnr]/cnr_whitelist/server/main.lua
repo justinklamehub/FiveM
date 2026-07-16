@@ -19,17 +19,20 @@ local function publish(next_status, details)
 end
 
 CreateThread(function()
-    Wait(0)
     local mode = GetConvar('cnr_whitelist_mode', 'open'):lower()
     if not Policy.is_valid_mode(mode) then
         publish('unavailable', { reason = 'invalid_whitelist_mode', mode = mode })
         return
     end
-    if not exports.cnr_core:is_ready() then
+    for _ = 1, 300 do
+        if exports.cnr_core:is_ready() then
+            publish('ready', { mode = mode })
+            return
+        end
         publish('degraded', { reason = 'core_not_ready' })
-        return
+        Wait(100)
     end
-    publish('ready', { mode = mode })
+    publish('unavailable', { reason = 'core_readiness_timeout' })
 end)
 
 AddEventHandler('onResourceStop', function(stopped)
