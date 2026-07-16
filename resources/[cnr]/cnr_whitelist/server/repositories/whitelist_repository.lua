@@ -7,13 +7,30 @@ function WhitelistRepository.find_active(account_uuid)
     local result = exports.cnr_database:single(
         [[
             SELECT
-                BIN_TO_UUID(w.public_uuid) AS public_uuid,
+                LOWER(
+                    INSERT(
+                        INSERT(
+                            INSERT(
+                                INSERT(HEX(w.public_uuid), 9, 0, '-'),
+                                14,
+                                0,
+                                '-'
+                            ),
+                            19,
+                            0,
+                            '-'
+                        ),
+                        24,
+                        0,
+                        '-'
+                    )
+                ) AS public_uuid,
                 w.entry_type,
                 w.starts_at,
                 w.ends_at
             FROM cnr_whitelist_entries AS w
             INNER JOIN cnr_accounts AS a ON a.id = w.account_id
-            WHERE a.public_uuid = UUID_TO_BIN(?)
+            WHERE a.public_uuid = UNHEX(REPLACE(?, '-', ''))
               AND w.status = 'ACTIVE'
               AND w.starts_at <= UTC_TIMESTAMP(6)
               AND (w.ends_at IS NULL OR w.ends_at > UTC_TIMESTAMP(6))
