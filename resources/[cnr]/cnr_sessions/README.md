@@ -28,6 +28,7 @@ This source-zero command prints the server-resolved account UUID, session UUID, 
 ## Events
 
 - local `cnr:sessions:started` after a session is committed and activated
+- local `cnr:sessions:source_promoted` after the temporary connection source becomes the final NetID
 
 ## Owned tables
 
@@ -48,6 +49,8 @@ The temporary FiveM source is stored only as active-session metadata and never b
 ## Lifecycle and recovery
 
 Sessions from a replaced FXServer instance become `STALE`. The server instance UUID is retained in server-owned global state across resource-only restarts, so active sessions can still be closed by source on disconnect.
+The temporary `playerConnecting` source is promoted to the final `playerJoining` NetID in memory and
+MariaDB before post-join services resolve the active session.
 
 ## Tests
 

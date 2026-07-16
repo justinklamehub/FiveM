@@ -24,6 +24,10 @@ local function translate(key, parameters)
     return exports.cnr_locales:translate(key, 'en', parameters)
 end
 
+local function normalize_source(value)
+    return tonumber(value) or value
+end
+
 local function safe_done(deferrals, state, reason)
     if state.done then
         return
@@ -137,7 +141,7 @@ CreateThread(function()
 end)
 
 AddEventHandler('playerConnecting', function(player_name, _, deferrals)
-    local player_source = source
+    local player_source = normalize_source(source)
     deferrals.defer()
     Wait(0)
 
@@ -160,8 +164,36 @@ AddEventHandler('playerConnecting', function(player_name, _, deferrals)
     handle_connection(player_source, player_name, deferrals)
 end)
 
+AddEventHandler('playerJoining', function(old_id)
+    local final_source = normalize_source(source)
+    local temporary_source = normalize_source(old_id)
+    local session = source_sessions[temporary_source]
+    if not session then
+        return
+    end
+
+    local promotion = SessionRepository.promote_source(
+        session.session_uuid,
+        exports.cnr_core:get_server_instance_id(),
+        temporary_source,
+        final_source
+    )
+    if not promotion.ok then
+        exports.cnr_logs:log('error', 'cnr_sessions', 'session.source_promotion_failed', {
+            session_uuid = session.session_uuid,
+            correlation_id = promotion.error and promotion.error.correlation_id or nil,
+        })
+        return
+    end
+
+    source_sessions[temporary_source] = nil
+    source_sessions[final_source] = session
+    session.source = final_source
+    TriggerEvent('cnr:sessions:source_promoted', session)
+end)
+
 AddEventHandler('playerDropped', function(reason, _, client_drop_reason)
-    local player_source = source
+    local player_source = normalize_source(source)
     local session = source_sessions[player_source]
     source_sessions[player_source] = nil
     if session then
@@ -186,7 +218,7 @@ exports('get_status', function()
     return status
 end)
 exports('get_session_for_source', function(player_source)
-    local session = source_sessions[player_source]
+    local session = source_sessions[normalize_source(player_source)]
     if not session then
         return nil
     end
@@ -197,7 +229,7 @@ exports('get_session_for_source', function(player_source)
     }
 end)
 exports('refresh_access_for_source', function(player_source, account_uuid, access_state)
-    local session = source_sessions[player_source]
+    local session = source_sessions[normalize_source(player_source)]
     if not session or session.account_uuid ~= account_uuid then
         return false
     end
@@ -215,7 +247,7 @@ RegisterCommand('cnr_session_show', function(command_source, arguments)
         return
     end
 
-    local player_source = tonumber(arguments[1])
+    local player_source = normalize_source(arguments[1])
     if not player_source then
         print('[cnr_sessions] Usage: cnr_session_show <source>')
         return

@@ -60,20 +60,37 @@ local function open_for_session(player_source)
     return false
 end
 
+local function open_when_session_is_ready(player_source)
+    if ready_sources[player_source] then
+        return
+    end
+    ready_sources[player_source] = 'pending'
+    CreateThread(function()
+        for _ = 1, 50 do
+            if open_for_session(player_source) then
+                ready_sources[player_source] = true
+                return
+            end
+            Wait(100)
+        end
+        ready_sources[player_source] = nil
+    end)
+end
+
 AddEventHandler('playerJoining', function()
     local player_source = source
-    CreateThread(function()
-        Wait(0)
-        open_for_session(player_source)
-    end)
+    open_when_session_is_ready(player_source)
 end)
 
 RegisterNetEvent('cnr:ui:ready', function()
     local player_source = source
-    if ready_sources[player_source] then
-        return
+    open_when_session_is_ready(player_source)
+end)
+
+AddEventHandler('cnr:sessions:source_promoted', function(session)
+    if session and session.source then
+        open_when_session_is_ready(session.source)
     end
-    ready_sources[player_source] = open_for_session(player_source)
 end)
 
 AddEventHandler('playerDropped', function()

@@ -126,6 +126,30 @@ function SessionRepository.activate(session_uuid)
 end
 
 ---@param session_uuid string
+---@param server_instance_id string
+---@param temporary_source integer
+---@param final_source integer
+---@return table
+function SessionRepository.promote_source(
+    session_uuid,
+    server_instance_id,
+    temporary_source,
+    final_source
+)
+    return exports.cnr_database:query(
+        [[
+            UPDATE cnr_account_sessions
+            SET source_at_start = ?, last_seen_at = UTC_TIMESTAMP(6)
+            WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
+              AND server_instance_id = ?
+              AND source_at_start = ?
+              AND status = 'ACTIVE'
+        ]],
+        { final_source, session_uuid, server_instance_id, temporary_source }
+    )
+end
+
+---@param session_uuid string
 ---@param status string
 ---@param reason string
 ---@param client_drop_reason? integer

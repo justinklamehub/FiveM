@@ -38,6 +38,8 @@ pnpm db:migrate
 ## Wave 1 connection foundation
 
 - Connect with a Rockstar `license` or Cfx.re `fivem` identifier and verify that an account is created once.
+- Confirm the session row changes from the temporary `playerConnecting` source to the final
+  `playerJoining` NetID and remains resolvable by client-initiated server events.
 - Confirm that `ip:` is never persisted in `cnr_account_identifiers`.
 - Attempt two concurrent connections with the same account and verify that only one session becomes active.
 - Restart only `cnr_sessions` and confirm the active session can still be closed by `playerDropped`.
