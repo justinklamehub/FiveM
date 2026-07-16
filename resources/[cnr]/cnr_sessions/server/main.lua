@@ -39,6 +39,8 @@ local function safe_done(callbacks, state, reason)
         return
     end
     state.done = true
+    -- Cfx.re requires at least one tick between a prior deferral method and done.
+    Wait(0)
     callbacks.done(reason)
 end
 

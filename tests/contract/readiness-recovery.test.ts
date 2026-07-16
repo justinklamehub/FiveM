@@ -30,7 +30,7 @@ describe('runtime readiness recovery', () => {
     expect(sessions).toContain('already_deferred');
   });
 
-  it('does not yield across pcall while owning an FXServer connection deferral', () => {
+  it('keeps the required final deferral tick outside a protected call', () => {
     const sessions = fs.readFileSync('resources/[cnr]/cnr_sessions/server/main.lua', 'utf8');
     expect(sessions).not.toContain('pcall(handle_connection');
     expect(sessions).toContain(
@@ -40,7 +40,8 @@ describe('runtime readiness recovery', () => {
       sessions.indexOf('local function safe_done'),
       sessions.indexOf('local function reject'),
     );
-    expect(safeDone).not.toContain('Wait(');
+    expect(safeDone).toContain('Wait(0)');
+    expect(safeDone.indexOf('Wait(0)')).toBeLessThan(safeDone.indexOf('callbacks.done(reason)'));
   });
 
   it('captures FXServer deferral call references before asynchronous database exports yield', () => {
