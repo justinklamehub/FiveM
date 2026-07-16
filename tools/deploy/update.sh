@@ -263,7 +263,7 @@ print_success "MariaDB container is running."
 print_header "Applying database migrations"
 CURRENT_STEP="applying database migrations"
 MIGRATION_STARTED=1
-run_project_shell 'pnpm db:migrate && pnpm db:status'
+run_project_shell 'pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --wait --no-dump-schema up && pnpm db:status'
 print_success "Database migrations are current."
 
 print_header "Starting FXServer"
