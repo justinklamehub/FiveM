@@ -31,7 +31,7 @@ cnr_role_revoke <account_uuid> <role_code> [reason_code]
 cnr_role_show <account_uuid>
 ```
 
-These commands only accept source `0`, which means the server console. They are intended to create the first owner assignment and to recover access before a control panel exists.
+Use `cnr_session_show <source>` from `cnr_sessions` to retrieve the trusted account UUID of a connected player. All bootstrap commands only accept source `0`, which means the server console.
 
 ## Owned tables
 
@@ -57,6 +57,10 @@ Clients never submit an authoritative role or permission decision. Consumers mus
 
 Expired assignments are transitioned from `ACTIVE` to `EXPIRED` before evaluation. The database also prevents duplicate active assignments for the same account and role.
 
+## MariaDB compatibility
+
+UUID values remain stored as `BINARY(16)`. Runtime queries convert canonical UUID strings with `UNHEX(REPLACE(uuid, '-', ''))`, and selected binary values are formatted from `HEX(...)`. MySQL-only UUID conversion functions are rejected by contract tests.
+
 ## Tests
 
-Identifier validation is covered by Busted. Manifest, migration ownership, seeded roles, and the active-assignment uniqueness contract are checked in CI.
+Identifier validation is covered by Busted. Manifest, migration ownership, seeded roles, active-assignment uniqueness, dynamic role contracts, and MariaDB UUID compatibility are checked in CI.
