@@ -4,7 +4,16 @@
 
 ## Projektstatus
 
-Das Projekt befindet sich aktuell in der Planungsphase. Die eigentliche Programmierung erfolgt nach Abstimmung der Konzepte und Abhängigkeiten in separaten Projektchats.
+Die grundlegende Konzeptionsphase ist abgeschlossen und die technische Umsetzung hat begonnen.
+
+Aktueller Entwicklungsstand:
+
+- `main` enthält die verbindliche Planungs- und MVP-Dokumentation.
+- [Draft-PR #1](https://github.com/justinklamehub/FiveM/pull/1) implementiert Welle 0 – Repository, Toolchain, MariaDB, Migrationen, Core-Ressourcen, NUI-Shell, Tests und CI. Die automatisierte Pipeline ist grün; Review, Merge und ein echter FXServer-Smoke-Test stehen noch aus.
+- [Draft-PR #2](https://github.com/justinklamehub/FiveM/pull/2) ist auf Welle 0 gestapelt und implementiert die ersten beiden Wave-1-Slices: Account-/Whitelist-/Session-Grundlage sowie technische Rollen und Berechtigungen. Die automatisierte Pipeline ist grün.
+- Als Nächstes folgen Registrierung und Accountaktivierung mit Regelbestätigung, danach Charakterlebenszyklus, Auswahl, Spawn und Loadscreen-/NUI-Ablauf.
+
+Die Roadmap-Checkboxen zeigen nur Funktionen, die bereits in `main` zusammengeführt wurden. Inhalte offener Draft-PRs bleiben bis zum Merge als nicht abgeschlossen markiert.
 
 Letzte Aktualisierung: 16.07.2026
 
