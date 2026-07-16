@@ -20,6 +20,7 @@ server_only('yes')
 shared_script('shared/policy.lua')
 
 server_scripts({
+    '@cnr_core/shared/module_path.lua',
     'server/repositories/whitelist_repository.lua',
     'server/services/whitelist_service.lua',
     'server/main.lua',
