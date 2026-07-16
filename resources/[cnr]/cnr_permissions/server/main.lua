@@ -37,7 +37,12 @@ end
 
 local function print_result(action, result)
     if result.ok then
-        print(('[cnr_permissions] %s succeeded. Correlation: %s'):format(action, result.correlation_id))
+        print(
+            ('[cnr_permissions] %s succeeded. Correlation: %s'):format(
+                action,
+                result.correlation_id
+            )
+        )
         return
     end
     print(
@@ -107,34 +112,24 @@ exports('require_permission', function(account_uuid, permission_code, correlatio
     return PermissionService.require_permission(account_uuid, permission_code, correlation_id)
 end)
 
-exports('grant_role', function(
-    actor_uuid,
-    account_uuid,
-    role_code,
-    reason_code,
-    ends_at,
-    correlation_id
-)
-    if status.status ~= 'ready' then
-        return unavailable(correlation_id)
+exports(
+    'grant_role',
+    function(actor_uuid, account_uuid, role_code, reason_code, ends_at, correlation_id)
+        if status.status ~= 'ready' then
+            return unavailable(correlation_id)
+        end
+        return PermissionService.grant_role(
+            actor_uuid,
+            account_uuid,
+            role_code,
+            reason_code,
+            ends_at,
+            correlation_id
+        )
     end
-    return PermissionService.grant_role(
-        actor_uuid,
-        account_uuid,
-        role_code,
-        reason_code,
-        ends_at,
-        correlation_id
-    )
-end)
-
-exports('revoke_role', function(
-    actor_uuid,
-    account_uuid,
-    role_code,
-    reason_code,
-    correlation_id
 )
+
+exports('revoke_role', function(actor_uuid, account_uuid, role_code, reason_code, correlation_id)
     if status.status ~= 'ready' then
         return unavailable(correlation_id)
     end

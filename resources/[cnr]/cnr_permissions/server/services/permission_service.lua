@@ -27,7 +27,9 @@ end
 local function valid_uuid(value)
     return type(value) == 'string'
         and #value == 36
-        and value:match('^[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+$')
+        and value:match(
+                '^[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+$'
+            )
             ~= nil
 end
 
@@ -61,12 +63,7 @@ local function require_account(account_uuid, request_correlation_id)
     end
     if not exists then
         return nil,
-            failure(
-                'NOT_FOUND',
-                'permissions.error.account_not_found',
-                {},
-                request_correlation_id
-            )
+            failure('NOT_FOUND', 'permissions.error.account_not_found', {}, request_correlation_id)
     end
     return true
 end
@@ -178,11 +175,8 @@ end
 ---@param request_correlation_id? string
 ---@return table
 function PermissionService.require_permission(account_uuid, permission_code, request_correlation_id)
-    local result = PermissionService.has_permission(
-        account_uuid,
-        permission_code,
-        request_correlation_id
-    )
+    local result =
+        PermissionService.has_permission(account_uuid, permission_code, request_correlation_id)
     if not result.ok or result.data.allowed then
         return result
     end
@@ -386,7 +380,10 @@ function PermissionService.revoke_role(
         correlation_id = correlation_id(request_correlation_id),
     })
 
-    return success({ account_uuid = account_uuid, role = revocation.role_code }, request_correlation_id)
+    return success(
+        { account_uuid = account_uuid, role = revocation.role_code },
+        request_correlation_id
+    )
 end
 
 ---@param account_uuid string
@@ -501,7 +498,10 @@ function PermissionService.bootstrap_revoke(
         correlation_id = correlation_id(request_correlation_id),
     })
 
-    return success({ account_uuid = account_uuid, role = revocation.role_code }, request_correlation_id)
+    return success(
+        { account_uuid = account_uuid, role = revocation.role_code },
+        request_correlation_id
+    )
 end
 
 return PermissionService

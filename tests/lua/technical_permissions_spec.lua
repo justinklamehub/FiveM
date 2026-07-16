@@ -8,7 +8,10 @@ describe('technical permission identifiers', function()
             'permissions.manage',
             PermissionIdentifier.permission('  PERMISSIONS.MANAGE  ')
         )
-        assert.are.equal('sessions.terminate', PermissionIdentifier.permission('sessions.terminate'))
+        assert.are.equal(
+            'sessions.terminate',
+            PermissionIdentifier.permission('sessions.terminate')
+        )
     end)
 
     it('rejects malformed permission codes', function()
