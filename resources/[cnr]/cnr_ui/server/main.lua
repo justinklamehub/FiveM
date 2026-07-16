@@ -46,15 +46,34 @@ AddEventHandler('cnr:sessions:started', function(session)
         TriggerClientEvent('cnr:ui:open', session.source or -1, 'registration', 'en')
     end
 end)
+
+local ready_sources = {}
+local function open_for_session(player_source)
+    local session = exports.cnr_sessions:get_session_for_source(player_source)
+    if session and session.access_state == 'ONBOARDING' then
+        TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')
+    elseif session and session.access_state == 'FULL' then
+        TriggerClientEvent('cnr:ui:open', player_source, 'characterCreation', 'en')
+    end
+end
+
 AddEventHandler('playerJoining', function()
     local player_source = source
     CreateThread(function()
         Wait(0)
-        local session = exports.cnr_sessions:get_session_for_source(player_source)
-        if session and session.access_state == 'ONBOARDING' then
-            TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')
-        elseif session and session.access_state == 'FULL' then
-            TriggerClientEvent('cnr:ui:open', player_source, 'characterCreation', 'en')
-        end
+        open_for_session(player_source)
     end)
+end)
+
+RegisterNetEvent('cnr:ui:ready', function()
+    local player_source = source
+    if ready_sources[player_source] then
+        return
+    end
+    ready_sources[player_source] = true
+    open_for_session(player_source)
+end)
+
+AddEventHandler('playerDropped', function()
+    ready_sources[source] = nil
 end)

@@ -51,4 +51,17 @@ describe('runtime readiness recovery', () => {
     expect(sessions).toContain('deferrals.done(reason)');
     expect(sessions).toContain('safe_done(deferrals, state)');
   });
+
+  it('opens onboarding only after the client UI resource reports readiness', () => {
+    const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
+    const server = fs.readFileSync('resources/[cnr]/cnr_ui/server/main.lua', 'utf8');
+    expect(client).toContain("AddEventHandler('onClientResourceStart'");
+    expect(client).toContain("TriggerServerEvent('cnr:ui:ready')");
+    expect(server).toContain("RegisterNetEvent('cnr:ui:ready'");
+    expect(server).toContain('exports.cnr_sessions:get_session_for_source(player_source)');
+    expect(server).toContain(
+      "TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')",
+    );
+    expect(server).toContain('ready_sources[player_source]');
+  });
 });
