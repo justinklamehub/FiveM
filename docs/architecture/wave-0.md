@@ -9,6 +9,9 @@ oxmysql -> cnr_database ----\
           cnr_config --------/
 ```
 
-`cnr_config` additionally consumes logs and locales. `cnr_core` aggregates readiness and owns the standard result/error/correlation/request-context contract, but no gameplay state. `cnr_database` checks connectivity and the minimum dbmate schema version without changing the schema. `cnr_ui` is presentation only.
+`cnr_config` additionally consumes logs and locales. `cnr_core` aggregates readiness and owns the
+standard result/error/correlation contract, but no gameplay state. `cnr_database` checks connectivity
+and the minimum dbmate schema version without changing the schema. `cnr_ui` is presentation only.
 
-Statuses are `starting`, `ready`, `degraded`, `unavailable`, and `stopping`. Future mutating use cases must reject work unless mandatory lower-level dependencies are ready and maintenance mode is off.
+Statuses are `starting`, `ready`, `degraded`, `unavailable`, and `stopping`. A future mutating use case
+must reject work unless every mandatory lower-level dependency is ready.
