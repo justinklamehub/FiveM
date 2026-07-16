@@ -163,7 +163,7 @@ function Repository.activate(context)
         },
         {
             query = [[INSERT INTO cnr_character_operations (operation_uuid, account_id, session_id, character_id, action, request_id, correlation_id, contract_version, payload_sha256, result_status, created_at, completed_at)
-            VALUES (UNHEX(REPLACE(?,'-','')),?,?,?,?, 'ACTIVATE', ?,?,?,UNHEX(?),'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]],
+            VALUES (UNHEX(REPLACE(?,'-','')),?,?,?,'ACTIVATE',?,?,?,UNHEX(?),'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]],
             values = {
                 context.operation_uuid,
                 context.account_id,

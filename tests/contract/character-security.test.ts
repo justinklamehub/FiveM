@@ -36,4 +36,12 @@ describe('character security boundary', () => {
     expect(main).toContain('exports.cnr_core:consume_rate_limit');
     expect(main).not.toContain("require('shared.rate_limiter')");
   });
+  it('binds every activation operation value to the matching SQL column', () => {
+    expect(repository).toContain(
+      "VALUES (UNHEX(REPLACE(?,'-','')),?,?,?,'ACTIVATE',?,?,?,UNHEX(?),'ACTIVE'",
+    );
+    expect(repository).not.toContain(
+      "VALUES (UNHEX(REPLACE(?,'-','')),?,?,?,?,'ACTIVATE',?,?,?,UNHEX(?),'ACTIVE'",
+    );
+  });
 });

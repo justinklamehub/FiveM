@@ -77,20 +77,9 @@ local function open_when_session_is_ready(player_source)
     end)
 end
 
-AddEventHandler('playerJoining', function()
-    local player_source = source
-    open_when_session_is_ready(player_source)
-end)
-
 RegisterNetEvent('cnr:ui:ready', function()
     local player_source = source
     open_when_session_is_ready(player_source)
-end)
-
-AddEventHandler('cnr:sessions:source_promoted', function(session)
-    if session and session.source then
-        open_when_session_is_ready(session.source)
-    end
 end)
 
 AddEventHandler('playerDropped', function()

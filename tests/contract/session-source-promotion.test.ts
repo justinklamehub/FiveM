@@ -21,11 +21,12 @@ describe('FiveM session source promotion', () => {
     expect(repository).toContain("AND status = 'ACTIVE'");
   });
 
-  it('retries automatic UI opening while source promotion completes', () => {
+  it('opens only after browser readiness while source promotion completes', () => {
     const server = fs.readFileSync('resources/[cnr]/cnr_ui/server/main.lua', 'utf8');
     expect(server).toContain('local function open_when_session_is_ready(player_source)');
     expect(server).toContain('for _ = 1, 50 do');
-    expect(server).toContain("AddEventHandler('cnr:sessions:source_promoted'");
-    expect(server).toContain('open_when_session_is_ready(session.source)');
+    expect(server).toContain("RegisterNetEvent('cnr:ui:ready'");
+    expect(server).not.toContain("AddEventHandler('playerJoining'");
+    expect(server).not.toContain("AddEventHandler('cnr:sessions:source_promoted'");
   });
 });

@@ -12,6 +12,10 @@ import { postNui } from './nui';
 
 const newId = () => crypto.randomUUID();
 
+export const findRecoverableDraft = (
+  characters: readonly CharacterSummary[],
+): CharacterSummary | null => characters.find((character) => character.status === 'DRAFT') ?? null;
+
 export function CharacterCreation() {
   const createOperation = useRef(newId());
   const activateOperation = useRef(newId());
@@ -42,6 +46,7 @@ export function CharacterCreation() {
       if (!configurationResult.ok || !listResult.ok) throw new Error('load_failed');
       setConfiguration(configurationResult.data);
       setCharacters(listResult.data.characters);
+      setDraft(findRecoverableDraft(listResult.data.characters));
       setBackground(configurationResult.data.backgrounds[0]?.code ?? '');
     } catch {
       setMessage('Character creation is currently unavailable. Please try again.');
@@ -69,7 +74,9 @@ export function CharacterCreation() {
         contract_version: characterContractVersion,
       });
       if (!result.ok || !result.data.character) throw new Error('draft_failed');
-      setDraft(result.data.character);
+      const created = result.data.character;
+      setDraft(created);
+      setCharacters((current) => [...current, created]);
     } catch {
       setMessage(
         'The character draft could not be created. Check the entered identity and try again.',
@@ -94,7 +101,15 @@ export function CharacterCreation() {
       setMessage(
         'Character activated. Selection and spawning will be added in the next development slice.',
       );
-      if (result.data.character) setDraft(result.data.character);
+      if (result.data.character) {
+        const activated = result.data.character;
+        setDraft(activated);
+        setCharacters((current) =>
+          current.map((character) =>
+            character.character_uuid === activated.character_uuid ? activated : character,
+          ),
+        );
+      }
     } catch {
       setMessage('The character could not be activated. Please try again.');
     } finally {

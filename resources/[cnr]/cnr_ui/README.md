@@ -23,6 +23,9 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 the view from the source-owned session; the client cannot select its access state or onboarding
 destination.
 
+The server sends the initial open event only after the React browser has acknowledged `uiReady`;
+join and source-promotion events never claim NUI delivery before the browser listener exists.
+
 Network-backed NUI callbacks return an immediate queue acknowledgement. The eventual server result
 is delivered as a versioned `ui.request.response` message and matched by both event name and request
 ID. Browser requests time out after ten seconds and expose an English retry action instead of
