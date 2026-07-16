@@ -21,7 +21,24 @@ function AccountRepository.find_by_identifier(identifier, pepper)
         [[
             SELECT
                 a.id,
-                BIN_TO_UUID(a.public_uuid) AS public_uuid,
+                LOWER(
+                    INSERT(
+                        INSERT(
+                            INSERT(
+                                INSERT(HEX(a.public_uuid), 9, 0, '-'),
+                                14,
+                                0,
+                                '-'
+                            ),
+                            19,
+                            0,
+                            '-'
+                        ),
+                        24,
+                        0,
+                        '-'
+                    )
+                ) AS public_uuid,
                 a.status,
                 a.version,
                 a.created_at,
@@ -43,13 +60,30 @@ function AccountRepository.find_by_public_uuid(public_uuid)
         [[
             SELECT
                 id,
-                BIN_TO_UUID(public_uuid) AS public_uuid,
+                LOWER(
+                    INSERT(
+                        INSERT(
+                            INSERT(
+                                INSERT(HEX(public_uuid), 9, 0, '-'),
+                                14,
+                                0,
+                                '-'
+                            ),
+                            19,
+                            0,
+                            '-'
+                        ),
+                        24,
+                        0,
+                        '-'
+                    )
+                ) AS public_uuid,
                 status,
                 version,
                 created_at,
                 updated_at
             FROM cnr_accounts
-            WHERE public_uuid = UUID_TO_BIN(?)
+            WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
             LIMIT 1
         ]],
         { public_uuid }
@@ -65,7 +99,12 @@ function AccountRepository.create(public_uuid, identifiers, pepper)
         {
             query = [[
                 INSERT INTO cnr_accounts (public_uuid, status, created_at, updated_at)
-                VALUES (UUID_TO_BIN(?), 'PENDING_REGISTRATION', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
+                VALUES (
+                    UNHEX(REPLACE(?, '-', '')),
+                    'PENDING_REGISTRATION',
+                    UTC_TIMESTAMP(6),
+                    UTC_TIMESTAMP(6)
+                )
             ]],
             values = { public_uuid },
         },
@@ -92,7 +131,7 @@ function AccountRepository.create(public_uuid, identifiers, pepper)
                     UTC_TIMESTAMP(6),
                     UTC_TIMESTAMP(6)
                 FROM cnr_accounts
-                WHERE public_uuid = UUID_TO_BIN(?)
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
             ]],
             values = {
                 identifier.type,
@@ -135,7 +174,7 @@ function AccountRepository.touch_identifiers(public_uuid, identifiers, pepper)
                     UTC_TIMESTAMP(6),
                     UTC_TIMESTAMP(6)
                 FROM cnr_accounts
-                WHERE public_uuid = UUID_TO_BIN(?)
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
                 ON DUPLICATE KEY UPDATE
                     identifier_hint = VALUES(identifier_hint),
                     is_primary = VALUES(is_primary),
@@ -155,7 +194,7 @@ function AccountRepository.touch_identifiers(public_uuid, identifiers, pepper)
         query = [[
             UPDATE cnr_accounts
             SET updated_at = UTC_TIMESTAMP(6), version = version + 1
-            WHERE public_uuid = UUID_TO_BIN(?)
+            WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
         ]],
         values = { public_uuid },
     }
@@ -174,7 +213,10 @@ function AccountRepository.find_active_restriction(public_uuid)
                 ends_at
             FROM cnr_account_restrictions
             WHERE account_id = (
-                SELECT id FROM cnr_accounts WHERE public_uuid = UUID_TO_BIN(?) LIMIT 1
+                SELECT id
+                FROM cnr_accounts
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
+                LIMIT 1
             )
               AND starts_at <= UTC_TIMESTAMP(6)
               AND (ends_at IS NULL OR ends_at > UTC_TIMESTAMP(6))
