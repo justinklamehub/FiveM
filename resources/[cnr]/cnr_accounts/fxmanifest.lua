@@ -20,6 +20,7 @@ server_only('yes')
 shared_script('shared/account_status.lua')
 
 server_scripts({
+    '@cnr_core/shared/module_path.lua',
     'server/repositories/account_repository.lua',
     'server/services/identifier_service.lua',
     'server/services/account_service.lua',
