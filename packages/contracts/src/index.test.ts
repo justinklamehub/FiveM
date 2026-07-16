@@ -7,6 +7,7 @@ import {
   sessionAccessStates,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
+  type TechnicalRoleAssignment,
 } from './index';
 
 describe('core contracts', () => {
@@ -27,25 +28,25 @@ describe('core contracts', () => {
   });
 
   it('keeps technical permission contracts role-agnostic', () => {
+    const customRole: TechnicalRoleAssignment = {
+      code: 'custom_operator',
+      priority: 450,
+      starts_at: '2026-07-16T00:00:00Z',
+      ends_at: null,
+    };
+    const permission = 'system.status.read';
     const snapshot: TechnicalPermissionSnapshot = {
       account_uuid: '018f0000-0000-7000-8000-000000000001',
-      roles: [
-        {
-          code: 'custom_operator',
-          priority: 450,
-          starts_at: '2026-07-16T00:00:00Z',
-          ends_at: null,
-        },
-      ],
-      permissions: ['system.status.read'],
+      roles: [customRole],
+      permissions: [permission],
     };
     const decision: TechnicalPermissionDecision = {
       account_uuid: snapshot.account_uuid,
-      permission: snapshot.permissions[0],
+      permission,
       allowed: true,
     };
 
-    expect(snapshot.roles[0].code).toBe('custom_operator');
+    expect(snapshot.roles).toContainEqual(customRole);
     expect(decision.allowed).toBe(true);
   });
 });
