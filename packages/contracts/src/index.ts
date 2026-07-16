@@ -204,12 +204,23 @@ export interface ResourceReadiness {
   details: Readonly<Record<string, unknown>>;
 }
 
+export interface NuiRequestResponse {
+  version: 1;
+  type: 'ui.request.response';
+  payload: {
+    event: string;
+    request_id: string;
+    result: unknown;
+  };
+}
+
 export type NuiMessage =
   | { version: 1; type: 'ui.shell.open'; payload: { view: string; locale: string } }
   | { version: 1; type: 'ui.shell.close'; payload: Record<string, never> }
   | { version: 1; type: 'ui.resource.status'; payload: ResourceReadiness }
   | { version: 1; type: 'ui.registration.open'; payload: { locale: 'en' } }
-  | { version: 1; type: 'ui.character_creation.open'; payload: Record<string, never> };
+  | { version: 1; type: 'ui.character_creation.open'; payload: Record<string, never> }
+  | NuiRequestResponse;
 
 export function isResourceStatus(value: unknown): value is ResourceStatus {
   return typeof value === 'string' && resourceStatuses.includes(value as ResourceStatus);
@@ -227,6 +238,18 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
     return payload.locale === 'en';
   }
   if (candidate.type === 'ui.character_creation.open') return true;
+  if (candidate.type === 'ui.request.response') {
+    const payload = candidate.payload as {
+      event?: unknown;
+      request_id?: unknown;
+      result?: unknown;
+    };
+    return (
+      typeof payload.event === 'string' &&
+      typeof payload.request_id === 'string' &&
+      Object.hasOwn(payload, 'result')
+    );
+  }
   if (candidate.type !== 'ui.shell.open') return false;
   const payload = candidate.payload as { view?: unknown; locale?: unknown };
   return typeof payload.view === 'string' && typeof payload.locale === 'string';

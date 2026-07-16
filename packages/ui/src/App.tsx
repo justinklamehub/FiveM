@@ -40,7 +40,7 @@ export function App() {
       if (!result.ok) throw new Error(result.error.code);
       setRuleset(result.data);
     } catch {
-      setMessage(translate(selectedLocale, 'registration.error'));
+      setMessage(translate(selectedLocale, 'registration.loadError'));
     } finally {
       setLoading(false);
     }
@@ -162,13 +162,19 @@ export function App() {
           <span className="runtime-badge">
             {translate(locale, mock ? 'shell.browserMock' : 'shell.fivem')}
           </span>
-          <button
-            type="button"
-            disabled={!accepted || !ruleset || submitting}
-            onClick={() => void submit()}
-          >
-            {translate(locale, submitting ? 'registration.submitting' : 'registration.submit')}
-          </button>
+          {!loading && !ruleset ? (
+            <button type="button" onClick={() => void loadRuleset(locale)}>
+              {translate(locale, 'registration.retry')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!accepted || !ruleset || submitting}
+              onClick={() => void submit()}
+            >
+              {translate(locale, submitting ? 'registration.submitting' : 'registration.submit')}
+            </button>
+          )}
         </div>
         <button className="close-link" type="button" onClick={() => void close()}>
           {translate(locale, 'shell.close')}

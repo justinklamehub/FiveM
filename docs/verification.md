@@ -76,6 +76,9 @@ pnpm db:migrate
 ## Wave 1 registration and activation
 
 1. Connect with a new account and confirm the localized registration view opens only for the active ONBOARDING session.
+   If automatic opening must be isolated during diagnosis, run `cnr_registration_open` in the client
+   F8 console. Confirm the ruleset replaces the loading state; a missing server response must show an
+   English retry action within ten seconds rather than leaving the NUI pending indefinitely.
 2. Fetch the current ruleset in German and English; verify its UUID and version come from MariaDB.
 3. Submit without acceptance and with an outdated version; confirm both fail without database changes.
 4. Submit a valid operation in every whitelist mode and verify the server-chosen account/access transition.

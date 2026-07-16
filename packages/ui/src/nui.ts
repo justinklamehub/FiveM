@@ -1,8 +1,26 @@
-/** FiveM NUI transport with a deterministic browser-development fallback. */
+/** FiveM NUI transport with correlated asynchronous server responses and browser mocks. */
+import { isNuiMessage } from '@cnr/contracts';
+
 export const isBrowserMock = (): boolean => typeof window.GetParentResourceName !== 'function';
 
-export async function postNui<TResponse>(event: string, body: unknown): Promise<TResponse> {
-  if (isBrowserMock()) return browserMock(event, body) as TResponse;
+const bridgedEvents = new Set([
+  'registrationStatus',
+  'registrationRuleset',
+  'registrationSubmit',
+  'characters.configuration',
+  'characters.list',
+  'characters.createDraft',
+  'characters.activate',
+]);
+const responseTimeoutMs = 10_000;
+
+interface NuiAcknowledgement {
+  ok: boolean;
+  queued?: boolean;
+  request_id?: string;
+}
+
+async function invokeNuiCallback(event: string, body: unknown): Promise<unknown> {
   const resource = window.GetParentResourceName?.() ?? 'cnr_ui';
   const response = await fetch(`https://${resource}/${event}`, {
     method: 'POST',
@@ -10,7 +28,51 @@ export async function postNui<TResponse>(event: string, body: unknown): Promise<
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`NUI callback failed with HTTP ${String(response.status)}`);
-  return (await response.json()) as TResponse;
+  return response.json();
+}
+
+export async function postNui<TResponse>(event: string, body: unknown): Promise<TResponse> {
+  if (isBrowserMock()) return browserMock(event, body) as TResponse;
+  if (!bridgedEvents.has(event)) return (await invokeNuiCallback(event, body)) as TResponse;
+
+  const requestId = (body as { request_id?: unknown } | null)?.request_id;
+  if (typeof requestId !== 'string' || requestId === '') {
+    throw new Error('A request ID is required for a bridged NUI request.');
+  }
+
+  let resolveResponse: (result: TResponse) => void = () => undefined;
+  const responsePromise = new Promise<TResponse>((resolve) => {
+    resolveResponse = resolve;
+  });
+  const listener = (message: MessageEvent<unknown>) => {
+    if (!isNuiMessage(message.data) || message.data.type !== 'ui.request.response') return;
+    if (message.data.payload.event === event && message.data.payload.request_id === requestId) {
+      resolveResponse(message.data.payload.result as TResponse);
+    }
+  };
+  window.addEventListener('message', listener);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    const acknowledgement = (await invokeNuiCallback(event, body)) as NuiAcknowledgement;
+    if (
+      !acknowledgement.ok ||
+      acknowledgement.queued !== true ||
+      acknowledgement.request_id !== requestId
+    ) {
+      throw new Error('The NUI request was not queued.');
+    }
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(
+        () => reject(new Error('The NUI server response timed out.')),
+        responseTimeoutMs,
+      );
+    });
+    return await Promise.race([responsePromise, timeoutPromise]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    window.removeEventListener('message', listener);
+  }
 }
 
 const mockRuleset = {

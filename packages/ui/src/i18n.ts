@@ -21,6 +21,9 @@ const dictionaries = {
     'registration.success': 'Registrierung erfolgreich gespeichert.',
     'registration.error':
       'Die Registrierung konnte nicht abgeschlossen werden. Versuche es erneut.',
+    'registration.loadError':
+      'The ruleset could not be loaded. Check the server connection and try again.',
+    'registration.retry': 'Retry',
   },
   en: {
     'shell.eyebrow': 'Technical foundation',
@@ -40,6 +43,9 @@ const dictionaries = {
     'registration.submitting': 'Securely processing registration …',
     'registration.success': 'Registration saved successfully.',
     'registration.error': 'Registration could not be completed. Please try again.',
+    'registration.loadError':
+      'The ruleset could not be loaded. Check the server connection and try again.',
+    'registration.retry': 'Retry',
   },
 } as const;
 

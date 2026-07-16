@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   accountStatuses,
   errorCodes,
+  isNuiMessage,
   isResourceStatus,
   resourceStatuses,
   sessionAccessStates,
@@ -93,5 +94,26 @@ describe('core contracts', () => {
       'ruleset_uuid',
       'ruleset_version',
     ]);
+  });
+
+  it('validates request-correlated NUI response messages', () => {
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.request.response',
+        payload: {
+          event: 'registrationRuleset',
+          request_id: 'request-1',
+          result: { ok: true },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.request.response',
+        payload: { event: 'registrationRuleset', request_id: 'request-1' },
+      }),
+    ).toBe(false);
   });
 });

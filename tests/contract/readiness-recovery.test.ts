@@ -74,4 +74,14 @@ describe('runtime readiness recovery', () => {
     expect(client).toContain("TriggerEvent('cnr:ui:open', 'registration', 'en')");
     expect(client).not.toContain("RegisterCommand('cnr_character");
   });
+
+  it('acknowledges NUI callbacks before forwarding correlated server results', () => {
+    const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
+    const transport = fs.readFileSync('packages/ui/src/nui.ts', 'utf8');
+    expect(client).toContain('callback({ ok = true, queued = true, request_id = request_id })');
+    expect(client).toContain("type = 'ui.request.response'");
+    expect(client).not.toContain('pending_registration[request_id] = callback');
+    expect(transport).toContain("message.data.type !== 'ui.request.response'");
+    expect(transport).toContain('responseTimeoutMs = 10_000');
+  });
 });

@@ -23,6 +23,11 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 the view from the source-owned session; the client cannot select its access state or onboarding
 destination.
 
+Network-backed NUI callbacks return an immediate queue acknowledgement. The eventual server result
+is delivered as a versioned `ui.request.response` message and matched by both event name and request
+ID. Browser requests time out after ten seconds and expose an English retry action instead of
+remaining in a permanent loading state.
+
 ## Owned tables
 None.
 
@@ -37,7 +42,8 @@ validation.
 Uses the stable Wave 0 result/error contract where applicable.
 
 ## Security boundary
-One focus owner, one callback response, validated versioned messages, and a defined Escape/close path.
+One focus owner, one correlated response, validated versioned messages, bounded pending requests, and
+a defined Escape/close path.
 
 ## Lifecycle and recovery
 Reports `ready` or `degraded` to `cnr_core` and releases focus on client resource stop.
