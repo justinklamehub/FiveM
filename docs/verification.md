@@ -1,4 +1,6 @@
-# Wave 0 verification
+# Project verification
+
+The automated pipeline is green for the current Wave 0 foundation and the implemented Wave 1 connection and technical-permissions slices. A real FXServer smoke test is still pending. Registration, character lifecycle, character selection, spawn, and the complete loadscreen/NUI flow are not implemented yet and therefore are not claimed by this document.
 
 Run from a fresh checkout:
 
@@ -23,8 +25,8 @@ Expected results:
 - MariaDB health is `healthy`.
 - dbmate reports every ordered migration through `20260716000300_technical_roles_permissions.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
-- Busted passes all pure Lua core and Wave 1 tests.
-- no vehicles, character jobs, oil, or crime features exist.
+- Busted passes all pure Lua core and implemented Wave 1 tests.
+- no vehicles, characters, character jobs, oil, or crime features exist.
 
 For a destructive local migration rehearsal only:
 
@@ -70,3 +72,7 @@ pnpm db:migrate
 8. Confirm normal mutation exports refuse to assign or revoke `owner`.
 9. Add an expired assignment in a local test database and confirm the next permission evaluation changes it to `EXPIRED`.
 10. Confirm technical role tables contain no character job, police rank, or business employment state.
+
+## Next verification section
+
+The next coding slice must add a dedicated registration verification section covering current ruleset delivery, stale-rules rejection, idempotent acceptance, account-status transition, session access refresh, localization, NUI failure handling, and audit records.
