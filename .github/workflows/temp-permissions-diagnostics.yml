@@ -12,8 +12,12 @@ jobs:
     env:
       DATABASE_URL: mysql://cnr_migration:ci-migration-password@127.0.0.1:3306/cnr_permissions_diagnostics
     steps:
-      - name: Check out pull request
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Check out pull request quietly
+        run: |
+          git init --quiet
+          git remote add origin https://github.com/justinklamehub/FiveM.git
+          git fetch --quiet --depth=1 origin "$GITHUB_REF"
+          git checkout --quiet FETCH_HEAD
 
       - name: Set up pinned Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -29,7 +33,7 @@ jobs:
 
       - name: Start MariaDB quietly
         run: |
-          docker pull --quiet mariadb:11.4.10
+          docker pull --quiet mariadb:11.4.10 >/dev/null
           docker run --detach --name cnr-permissions-db \
             --publish 3306:3306 \
             --env MARIADB_ROOT_PASSWORD=ci-root-password \
