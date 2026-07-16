@@ -10,6 +10,7 @@ describe('FiveM manifest contract', () => {
     'cnr_core',
     'cnr_ui',
     'cnr_accounts',
+    'cnr_permissions',
     'cnr_whitelist',
     'cnr_sessions',
   ];
