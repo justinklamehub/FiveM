@@ -9,6 +9,10 @@ RegisterNUICallback('close', function(_, callback)
     set_focus(nil)
     callback({ ok = true })
 end)
+RegisterNUICallback('uiReady', function(_, callback)
+    TriggerServerEvent('cnr:ui:ready')
+    callback({ ok = true })
+end)
 local pending_registration = {}
 local function registration_request(action, payload, callback)
     local request_id = payload and payload.request_id
@@ -77,13 +81,8 @@ RegisterNetEvent('cnr:ui:open', function(view, locale)
     SendNUIMessage({
         version = 1,
         type = 'ui.shell.open',
-        payload = { view = view, locale = locale or 'de' },
+        payload = { view = view, locale = locale or 'en' },
     })
-end)
-AddEventHandler('onClientResourceStart', function(resource)
-    if resource == GetCurrentResourceName() then
-        TriggerServerEvent('cnr:ui:ready')
-    end
 end)
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then

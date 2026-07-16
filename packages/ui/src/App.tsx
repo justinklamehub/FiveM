@@ -17,6 +17,7 @@ const newId = () => crypto.randomUUID();
 export function App() {
   const mock = useMemo(isBrowserMock, []);
   const operationUuid = useRef(newId());
+  const browserReadySent = useRef(false);
   const [locale, setLocale] = useState<Locale>('en');
   const [view, setView] = useState<'registration' | 'characterCreation'>('registration');
   const [visible, setVisible] = useState(mock);
@@ -105,6 +106,12 @@ export function App() {
     };
     window.addEventListener('message', listener);
     window.addEventListener('keydown', onEscape);
+    if (!mock && !browserReadySent.current) {
+      browserReadySent.current = true;
+      void postNui<{ ok: boolean }>('uiReady', {}).catch(() => {
+        browserReadySent.current = false;
+      });
+    }
     return () => {
       window.removeEventListener('message', listener);
       window.removeEventListener('keydown', onEscape);

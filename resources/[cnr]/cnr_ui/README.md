@@ -18,9 +18,10 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 
 ## Events
 
-`cnr:ui:ready` (client-to-server readiness handshake), `cnr:ui:open` (server-to-client network event),
-and registration NUI callbacks. The server derives the view from the source-owned session; the client
-cannot select its access state or onboarding destination.
+`uiReady` (browser-to-Lua NUI callback), `cnr:ui:ready` (client-to-server readiness handshake),
+`cnr:ui:open` (server-to-client network event), and registration NUI callbacks. The server derives
+the view from the source-owned session; the client cannot select its access state or onboarding
+destination.
 
 ## Owned tables
 None.

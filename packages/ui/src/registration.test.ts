@@ -5,6 +5,11 @@ import type { CurrentRuleset, RegistrationOutcome, Result } from '@cnr/contracts
 Object.defineProperty(globalThis, 'window', { value: {}, configurable: true });
 
 describe('registration browser mock', () => {
+  it('acknowledges the browser readiness handshake', async () => {
+    const result = await postNui<{ ok: boolean }>('uiReady', {});
+    expect(result.ok).toBe(true);
+  });
+
   it('delivers a localized current ruleset without FiveM', async () => {
     const result = await postNui<Result<CurrentRuleset>>('registrationRuleset', { locale: 'en' });
     expect(result.ok).toBe(true);

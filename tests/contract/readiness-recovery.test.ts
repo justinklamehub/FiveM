@@ -52,11 +52,14 @@ describe('runtime readiness recovery', () => {
     expect(sessions).toContain('safe_done(deferrals, state)');
   });
 
-  it('opens onboarding only after the client UI resource reports readiness', () => {
+  it('opens onboarding only after the browser NUI reports readiness through Lua', () => {
+    const app = fs.readFileSync('packages/ui/src/App.tsx', 'utf8');
     const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
     const server = fs.readFileSync('resources/[cnr]/cnr_ui/server/main.lua', 'utf8');
-    expect(client).toContain("AddEventHandler('onClientResourceStart'");
+    expect(app).toContain("postNui<{ ok: boolean }>('uiReady', {})");
+    expect(client).toContain("RegisterNUICallback('uiReady'");
     expect(client).toContain("TriggerServerEvent('cnr:ui:ready')");
+    expect(client).not.toContain("AddEventHandler('onClientResourceStart'");
     expect(server).toContain("RegisterNetEvent('cnr:ui:ready'");
     expect(server).toContain('exports.cnr_sessions:get_session_for_source(player_source)');
     expect(server).toContain(

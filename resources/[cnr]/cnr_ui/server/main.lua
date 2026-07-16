@@ -52,9 +52,12 @@ local function open_for_session(player_source)
     local session = exports.cnr_sessions:get_session_for_source(player_source)
     if session and session.access_state == 'ONBOARDING' then
         TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')
+        return true
     elseif session and session.access_state == 'FULL' then
         TriggerClientEvent('cnr:ui:open', player_source, 'characterCreation', 'en')
+        return true
     end
+    return false
 end
 
 AddEventHandler('playerJoining', function()
@@ -70,8 +73,7 @@ RegisterNetEvent('cnr:ui:ready', function()
     if ready_sources[player_source] then
         return
     end
-    ready_sources[player_source] = true
-    open_for_session(player_source)
+    ready_sources[player_source] = open_for_session(player_source)
 end)
 
 AddEventHandler('playerDropped', function()
