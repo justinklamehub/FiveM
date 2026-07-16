@@ -34,7 +34,24 @@ function SessionRepository.find_active(account_uuid)
     return single(
         [[
             SELECT
-                BIN_TO_UUID(s.public_uuid) AS public_uuid,
+                LOWER(
+                    INSERT(
+                        INSERT(
+                            INSERT(
+                                INSERT(HEX(s.public_uuid), 9, 0, '-'),
+                                14,
+                                0,
+                                '-'
+                            ),
+                            19,
+                            0,
+                            '-'
+                        ),
+                        24,
+                        0,
+                        '-'
+                    )
+                ) AS public_uuid,
                 s.server_instance_id,
                 s.source_at_start,
                 s.status,
@@ -42,7 +59,7 @@ function SessionRepository.find_active(account_uuid)
                 s.started_at
             FROM cnr_account_sessions AS s
             INNER JOIN cnr_accounts AS a ON a.id = s.account_id
-            WHERE a.public_uuid = UUID_TO_BIN(?)
+            WHERE a.public_uuid = UNHEX(REPLACE(?, '-', ''))
               AND s.status IN ('CONNECTING', 'ACTIVE')
             LIMIT 1
         ]],
@@ -68,7 +85,7 @@ function SessionRepository.create(session)
                     last_seen_at
                 )
                 SELECT
-                    UUID_TO_BIN(?),
+                    UNHEX(REPLACE(?, '-', '')),
                     id,
                     ?,
                     ?,
@@ -78,7 +95,7 @@ function SessionRepository.create(session)
                     UTC_TIMESTAMP(6),
                     UTC_TIMESTAMP(6)
                 FROM cnr_accounts
-                WHERE public_uuid = UUID_TO_BIN(?)
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
             ]],
             values = {
                 session.public_uuid,
@@ -100,7 +117,8 @@ function SessionRepository.activate(session_uuid)
             query = [[
                 UPDATE cnr_account_sessions
                 SET status = 'ACTIVE', activated_at = UTC_TIMESTAMP(6), last_seen_at = UTC_TIMESTAMP(6)
-                WHERE public_uuid = UUID_TO_BIN(?) AND status = 'CONNECTING'
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
+                  AND status = 'CONNECTING'
             ]],
             values = { session_uuid },
         },
@@ -123,7 +141,7 @@ function SessionRepository.close(session_uuid, status, reason, client_drop_reaso
                     last_seen_at = UTC_TIMESTAMP(6),
                     end_reason = ?,
                     client_drop_reason = ?
-                WHERE public_uuid = UUID_TO_BIN(?)
+                WHERE public_uuid = UNHEX(REPLACE(?, '-', ''))
                   AND status IN ('CONNECTING', 'ACTIVE')
             ]],
             values = { status, reason, client_drop_reason, session_uuid },
