@@ -4,6 +4,24 @@
 
 set -Eeuo pipefail
 
+# Run from a temporary copy so git pull cannot modify the script while it is executing.
+if [[ "${CNR_UPDATE_TEMP_COPY:-0}" != 1 ]]; then
+    temporary_script="$(mktemp /tmp/cnr-update.XXXXXX)"
+    cp -- "${BASH_SOURCE[0]}" "${temporary_script}"
+    chmod 700 "${temporary_script}"
+    exec env \
+        CNR_UPDATE_TEMP_COPY=1 \
+        CNR_UPDATE_TEMP_FILE="${temporary_script}" \
+        bash "${temporary_script}" "$@"
+fi
+
+cleanup_temporary_script() {
+    if [[ -n "${CNR_UPDATE_TEMP_FILE:-}" ]]; then
+        rm -f -- "${CNR_UPDATE_TEMP_FILE}" || true
+    fi
+}
+trap cleanup_temporary_script EXIT
+
 PROJECT_DIR="${CNR_PROJECT_DIR:-/opt/fivem/project}"
 APP_USER="${CNR_APP_USER:-fivem}"
 SERVICE_NAME="${CNR_SERVICE_NAME:-fivem}"
@@ -92,10 +110,11 @@ run_as_app() {
 }
 
 run_project_shell() {
-    local command="$1"
-    runuser -u "${APP_USER}" -- env PROJECT_DIR="${PROJECT_DIR}" bash -lc \
-        'cd "$PROJECT_DIR" && eval "$CNR_PROJECT_COMMAND"' \
-        CNR_PROJECT_COMMAND="${command}"
+    local project_command="$1"
+    runuser -u "${APP_USER}" -- env \
+        PROJECT_DIR="${PROJECT_DIR}" \
+        CNR_PROJECT_COMMAND="${project_command}" \
+        bash -lc 'cd "$PROJECT_DIR" && bash -lc "$CNR_PROJECT_COMMAND"'
 }
 
 restore_service_after_failure() {
@@ -206,7 +225,7 @@ if ss -lntup | grep -Eq ":${FIVEM_PORT}([[:space:]]|$)"; then
     print_error "Port ${FIVEM_PORT} is still in use. A manually started FXServer may still be running."
     print_warning "Stop the process using port ${FIVEM_PORT} and run the update again."
     ss -lntup | grep -E ":${FIVEM_PORT}([[:space:]]|$)" || true
-    exit 1
+    false
 fi
 print_success "FXServer is stopped and port ${FIVEM_PORT} is free."
 
@@ -251,7 +270,7 @@ print_header "Starting FXServer"
 CURRENT_STEP="starting FXServer"
 systemctl start "${SERVICE_NAME}"
 
-for _ in $(seq 1 30); do
+for ((attempt = 1; attempt <= 30; attempt++)); do
     if systemctl is-active --quiet "${SERVICE_NAME}"; then
         print_success "The ${SERVICE_NAME} service is active."
         break
@@ -262,7 +281,7 @@ done
 if ! systemctl is-active --quiet "${SERVICE_NAME}"; then
     print_error "The ${SERVICE_NAME} service did not become active."
     journalctl -u "${SERVICE_NAME}" -n 80 --no-pager || true
-    exit 1
+    false
 fi
 
 CURRENT_STEP="completed"
