@@ -22,6 +22,7 @@ server_only('yes')
 shared_script('shared/access_policy.lua')
 
 server_scripts({
+    '@cnr_core/shared/module_path.lua',
     'server/repositories/session_repository.lua',
     'server/services/session_service.lua',
     'server/main.lua',
