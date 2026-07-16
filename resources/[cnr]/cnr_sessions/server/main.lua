@@ -52,13 +52,9 @@ local function reject(callbacks, state, correlation_id, code, message_key)
     safe_done(callbacks, state, translate(message_key, { correlation_id = correlation_id }))
 end
 
-local function handle_connection(player_source, player_name, callbacks, already_deferred)
+local function handle_connection(player_source, player_name, callbacks)
     local state = { done = false }
     local correlation_id = exports.cnr_core:create_correlation_id()
-    if not already_deferred then
-        callbacks.defer()
-        Wait(0)
-    end
     callbacks.update(translate('sessions.progress.checking_connection'))
 
     local mutation = exports.cnr_core:is_mutation_allowed()
@@ -148,27 +144,28 @@ end)
 AddEventHandler('playerConnecting', function(player_name, _, deferrals)
     local player_source = source
     local callbacks = capture_deferrals(deferrals)
-    local already_deferred = false
-    if status.status ~= 'ready' then
-        callbacks.defer()
-        Wait(0)
-        already_deferred = true
-        for _ = 1, 300 do
-            if status.status == 'ready' then
-                break
-            end
-            callbacks.update('Session services are starting. Please wait…')
-            Wait(100)
-        end
-        if status.status ~= 'ready' then
-            callbacks.done(translate('sessions.error.unavailable'))
-            return
-        end
-    end
+    callbacks.defer()
 
-    -- Do not wrap this yielding flow in pcall. FXServer deferral proxies must remain on the
-    -- event coroutine that owns them; yielding across a protected C API call can invalidate done.
-    handle_connection(player_source, player_name, callbacks, already_deferred)
+    -- Return from the event callback before any database export yields. Deferrals are designed to
+    -- outlive playerConnecting, while yielding through its Lua API boundary can invalidate calls.
+    CreateThread(function()
+        Wait(0)
+        if status.status ~= 'ready' then
+            for _ = 1, 300 do
+                if status.status == 'ready' then
+                    break
+                end
+                callbacks.update('Session services are starting. Please wait…')
+                Wait(100)
+            end
+            if status.status ~= 'ready' then
+                callbacks.done(translate('sessions.error.unavailable'))
+                return
+            end
+        end
+
+        handle_connection(player_source, player_name, callbacks)
+    end)
 end)
 
 AddEventHandler('playerDropped', function(reason, _, client_drop_reason)
