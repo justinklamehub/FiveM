@@ -1,8 +1,24 @@
 -- Owns FiveM NUI focus and forwards versioned shell messages to the browser.
 local focus_owner = nil
-local lifecycle_locked = false
+local lifecycle_locked = true
+local lifecycle_phase = 'AWAITING_AUTHORITY'
 local preview_camera = nil
+local preview_ped = nil
+local preview_appearance = nil
+local preview_focus_active = false
 local active_spawn_uuid = nil
+local preview_scene = {
+    ped_x = 402.92,
+    ped_y = -996.72,
+    ped_z = -99.0,
+    ped_heading = 180.0,
+    camera_x = 402.92,
+    camera_y = -999.55,
+    camera_z = -98.2,
+    target_x = 403.55,
+    target_y = -996.72,
+    target_z = -98.35,
+}
 local function set_focus(owner)
     focus_owner = owner
     SetNuiFocus(owner ~= nil, owner ~= nil)
@@ -135,10 +151,12 @@ local function hold_player(hidden)
     if ped == 0 then
         return
     end
+    SetPlayerInvincible(PlayerId(), true)
     FreezeEntityPosition(ped, true)
     SetEntityInvincible(ped, true)
     SetEntityCollision(ped, false, false)
     SetEntityVisible(ped, not hidden, false)
+    SetEntityAlpha(ped, hidden and 0 or 255, false)
 end
 
 local function release_player()
@@ -146,17 +164,28 @@ local function release_player()
     if ped == 0 then
         return
     end
+    SetPlayerInvincible(PlayerId(), false)
     FreezeEntityPosition(ped, false)
     SetEntityInvincible(ped, false)
     SetEntityCollision(ped, true, true)
     SetEntityVisible(ped, true, false)
+    ResetEntityAlpha(ped)
 end
 
-local function destroy_preview_camera()
+local function destroy_preview_scene()
     if preview_camera then
         RenderScriptCams(false, true, 500, true, true)
         DestroyCam(preview_camera, false)
         preview_camera = nil
+    end
+    if preview_ped and DoesEntityExist(preview_ped) then
+        DeleteEntity(preview_ped)
+    end
+    preview_ped = nil
+    preview_appearance = nil
+    if preview_focus_active then
+        ClearFocus()
+        preview_focus_active = false
     end
 end
 
@@ -179,19 +208,10 @@ local function load_model(model)
     return hash
 end
 
-local function apply_appearance(appearance)
-    if type(appearance) ~= 'table' then
+local function apply_ped_appearance(ped, appearance)
+    if not ped or not DoesEntityExist(ped) or type(appearance) ~= 'table' then
         return false
     end
-    local hash = load_model(appearance.model)
-    if not hash then
-        return false
-    end
-    if GetEntityModel(PlayerPedId()) ~= hash then
-        SetPlayerModel(PlayerId(), hash)
-    end
-    SetModelAsNoLongerNeeded(hash)
-    local ped = PlayerPedId()
     SetPedDefaultComponentVariation(ped)
     if appearance.outfit_code == 'starter_casual' then
         local feminine = appearance.model == 'mp_f_freemode_01'
@@ -203,65 +223,167 @@ local function apply_appearance(appearance)
     end
     SetPedHeadBlendData(
         ped,
-        appearance.shape_first,
-        appearance.shape_second,
+        tonumber(appearance.shape_first) or 0,
+        tonumber(appearance.shape_second) or 0,
         0,
-        appearance.shape_first,
-        appearance.shape_second,
+        tonumber(appearance.shape_first) or 0,
+        tonumber(appearance.shape_second) or 0,
         0,
-        appearance.shape_mix / 100.0,
-        appearance.skin_mix / 100.0,
+        (tonumber(appearance.shape_mix) or 0) / 100.0,
+        (tonumber(appearance.skin_mix) or 0) / 100.0,
         0.0,
         false
     )
+    local face_features = type(appearance.face_features) == 'table' and appearance.face_features
+        or {}
     for index = 1, 20 do
-        SetPedFaceFeature(ped, index - 1, (appearance.face_features[index] or 0) / 100.0)
+        SetPedFaceFeature(ped, index - 1, (tonumber(face_features[index]) or 0) / 100.0)
     end
-    SetPedComponentVariation(ped, 2, appearance.hair_style, appearance.hair_texture, 2)
-    SetPedHairTint(ped, appearance.hair_color, appearance.hair_highlight)
-    SetPedEyeColor(ped, appearance.eye_color)
+    SetPedComponentVariation(
+        ped,
+        2,
+        tonumber(appearance.hair_style) or 0,
+        tonumber(appearance.hair_texture) or 0,
+        2
+    )
+    SetPedHairTint(
+        ped,
+        tonumber(appearance.hair_color) or 0,
+        tonumber(appearance.hair_highlight) or 0
+    )
+    SetPedEyeColor(ped, tonumber(appearance.eye_color) or 0)
     return true
 end
 
-RegisterNUICallback('characters.appearanceBegin', function(_, callback)
+local function apply_player_appearance(appearance)
+    if type(appearance) ~= 'table' then
+        return false
+    end
+    local hash = load_model(appearance.model)
+    if not hash then
+        return false
+    end
+    if GetEntityModel(PlayerPedId()) ~= hash then
+        SetPlayerModel(PlayerId(), hash)
+    end
+    SetModelAsNoLongerNeeded(hash)
+    return apply_ped_appearance(PlayerPedId(), appearance)
+end
+
+local function ensure_preview_ped(appearance)
+    if type(appearance) ~= 'table' then
+        return false
+    end
+    local hash = load_model(appearance.model)
+    if not hash then
+        return false
+    end
+    if
+        not preview_ped
+        or not DoesEntityExist(preview_ped)
+        or GetEntityModel(preview_ped) ~= hash
+    then
+        if preview_ped and DoesEntityExist(preview_ped) then
+            DeleteEntity(preview_ped)
+        end
+        preview_ped = CreatePed(
+            4,
+            hash,
+            preview_scene.ped_x,
+            preview_scene.ped_y,
+            preview_scene.ped_z,
+            preview_scene.ped_heading,
+            false,
+            true
+        )
+    end
+    SetModelAsNoLongerNeeded(hash)
+    if not preview_ped or not DoesEntityExist(preview_ped) then
+        return false
+    end
+    SetEntityCoordsNoOffset(
+        preview_ped,
+        preview_scene.ped_x,
+        preview_scene.ped_y,
+        preview_scene.ped_z,
+        false,
+        false,
+        false
+    )
+    SetEntityHeading(preview_ped, preview_scene.ped_heading)
+    FreezeEntityPosition(preview_ped, true)
+    SetEntityInvincible(preview_ped, true)
+    SetEntityCollision(preview_ped, false, false)
+    SetEntityVisible(preview_ped, true, false)
+    ResetEntityAlpha(preview_ped)
+    SetBlockingOfNonTemporaryEvents(preview_ped, true)
+    SetPedCanRagdoll(preview_ped, false)
+    preview_appearance = appearance
+    return apply_ped_appearance(preview_ped, appearance)
+end
+
+local function activate_preview_camera()
+    if preview_camera then
+        DestroyCam(preview_camera, false)
+    end
+    preview_camera = CreateCamWithParams(
+        'DEFAULT_SCRIPTED_CAMERA',
+        preview_scene.camera_x,
+        preview_scene.camera_y,
+        preview_scene.camera_z,
+        0.0,
+        0.0,
+        0.0,
+        38.0,
+        true,
+        2
+    )
+    PointCamAtCoord(
+        preview_camera,
+        preview_scene.target_x,
+        preview_scene.target_y,
+        preview_scene.target_z
+    )
+    SetCamActive(preview_camera, true)
+    RenderScriptCams(true, true, 500, true, true)
+end
+
+RegisterNUICallback('characters.appearanceBegin', function(payload, callback)
     callback({ ok = true })
     CreateThread(function()
-        local ped = PlayerPedId()
-        SetEntityCoordsNoOffset(ped, 402.92, -996.72, -99.0, false, false, false)
-        SetEntityHeading(ped, 180.0)
-        hold_player(false)
-        destroy_preview_camera()
-        preview_camera = CreateCamWithParams(
-            'DEFAULT_SCRIPTED_CAMERA',
-            402.92,
-            -999.15,
-            -98.35,
+        lifecycle_locked = true
+        lifecycle_phase = 'APPEARANCE_PREVIEW'
+        hold_player(true)
+        destroy_preview_scene()
+        SetFocusPosAndVel(
+            preview_scene.ped_x,
+            preview_scene.ped_y,
+            preview_scene.ped_z,
             0.0,
             0.0,
-            0.0,
-            42.0,
-            true,
-            2
+            0.0
         )
-        PointCamAtEntity(preview_camera, ped, 0.0, 0.0, 0.65, true)
-        RenderScriptCams(true, true, 500, true, true)
+        preview_focus_active = true
+        RequestCollisionAtCoord(preview_scene.ped_x, preview_scene.ped_y, preview_scene.ped_z)
+        ensure_preview_ped(payload)
+        activate_preview_camera()
     end)
 end)
 
 RegisterNUICallback('characters.appearancePreview', function(payload, callback)
     callback({ ok = true })
     CreateThread(function()
-        apply_appearance(payload)
-        hold_player(false)
-        if preview_camera then
-            PointCamAtEntity(preview_camera, PlayerPedId(), 0.0, 0.0, 0.65, true)
-        end
+        lifecycle_locked = true
+        lifecycle_phase = 'APPEARANCE_PREVIEW'
+        hold_player(true)
+        ensure_preview_ped(payload)
     end)
 end)
 
 RegisterNetEvent('cnr:characters:lifecycleReady', function()
     lifecycle_locked = false
-    destroy_preview_camera()
+    lifecycle_phase = 'RELEASED'
+    destroy_preview_scene()
     release_player()
     set_focus(nil)
     SendNUIMessage({ version = 1, type = 'ui.shell.close', payload = {} })
@@ -277,8 +399,9 @@ RegisterNetEvent('cnr:characters:spawn', function(instruction)
     end
     active_spawn_uuid = instruction.spawn_uuid
     lifecycle_locked = true
+    lifecycle_phase = 'CONTROLLED_SPAWN'
     hold_player(true)
-    destroy_preview_camera()
+    destroy_preview_scene()
     local model = load_model(instruction.appearance and instruction.appearance.model)
     if not model then
         TriggerServerEvent('cnr:characters:spawnAck', { spawn_uuid = 'invalid-model' })
@@ -292,7 +415,7 @@ RegisterNetEvent('cnr:characters:spawn', function(instruction)
         model = model,
         skipFade = false,
     }, function()
-        apply_appearance(instruction.appearance)
+        apply_player_appearance(instruction.appearance)
         hold_player(true)
         TriggerServerEvent('cnr:characters:spawnAck', { spawn_uuid = instruction.spawn_uuid })
     end)
@@ -304,7 +427,8 @@ RegisterNetEvent('cnr:characters:spawnConfirmed', function(spawn_uuid)
     end
     active_spawn_uuid = nil
     lifecycle_locked = false
-    destroy_preview_camera()
+    lifecycle_phase = 'RELEASED'
+    destroy_preview_scene()
     release_player()
     set_focus(nil)
     SendNUIMessage({ version = 1, type = 'ui.shell.close', payload = {} })
@@ -314,6 +438,7 @@ end)
 
 RegisterNetEvent('cnr:characters:spawnRejected', function(correlation_id)
     active_spawn_uuid = nil
+    lifecycle_phase = 'SPAWN_REJECTED'
     hold_player(true)
     SendNUIMessage({
         version = 1,
@@ -328,6 +453,7 @@ RegisterNetEvent('cnr:ui:open', function(view, locale)
     set_focus(view)
     if view == 'registration' or view == 'characterLifecycle' then
         lifecycle_locked = true
+        lifecycle_phase = view == 'registration' and 'REGISTRATION' or 'CHARACTER_SELECTION'
         hold_player(true)
     end
     SendNUIMessage({
@@ -342,13 +468,62 @@ end, false)
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         set_focus(nil)
-        destroy_preview_camera()
+        destroy_preview_scene()
         release_player()
     end
 end)
 
 CreateThread(function()
-    pcall(function()
-        exports.spawnmanager:setAutoSpawn(false)
+    while true do
+        if lifecycle_locked then
+            pcall(function()
+                exports.spawnmanager:setAutoSpawn(false)
+            end)
+            Wait(250)
+        else
+            Wait(1000)
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        if lifecycle_locked then
+            DisableAllControlActions(0)
+            DisablePlayerFiring(PlayerId(), true)
+            HideHudAndRadarThisFrame()
+            hold_player(true)
+            if lifecycle_phase == 'APPEARANCE_PREVIEW' then
+                if preview_ped and DoesEntityExist(preview_ped) then
+                    FreezeEntityPosition(preview_ped, true)
+                    SetEntityVisible(preview_ped, true, false)
+                elseif preview_appearance then
+                    ensure_preview_ped(preview_appearance)
+                end
+                if preview_camera then
+                    SetCamActive(preview_camera, true)
+                    RenderScriptCams(true, false, 0, true, true)
+                end
+            end
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
+
+AddEventHandler('playerSpawned', function()
+    if not lifecycle_locked then
+        return
+    end
+    CreateThread(function()
+        Wait(0)
+        hold_player(true)
+        if lifecycle_phase == 'APPEARANCE_PREVIEW' and preview_appearance then
+            ensure_preview_ped(preview_appearance)
+            if not preview_camera then
+                activate_preview_camera()
+            end
+        end
     end)
 end)

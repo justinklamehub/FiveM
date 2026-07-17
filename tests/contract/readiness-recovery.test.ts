@@ -75,6 +75,29 @@ describe('runtime readiness recovery', () => {
     expect(client).not.toContain("RegisterCommand('cnr_character");
   });
 
+  it('fails closed before authority and keeps appearance preview separate from the player ped', () => {
+    const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
+    expect(client).toContain('local lifecycle_locked = true');
+    expect(client).toContain("lifecycle_phase = 'AWAITING_AUTHORITY'");
+    expect(client).toContain('preview_ped = CreatePed(');
+    expect(client).toContain('ensure_preview_ped(payload)');
+    expect(client).toContain('DisableAllControlActions(0)');
+    expect(client).toContain('exports.spawnmanager:setAutoSpawn(false)');
+    expect(client).toContain("AddEventHandler('playerSpawned'");
+    expect(client).not.toContain(
+      'SetEntityCoordsNoOffset(ped, 402.92, -996.72, -99.0, false, false, false)',
+    );
+  });
+
+  it('warns when the stock gamemode conflicts with CNR spawn authority', () => {
+    const server = fs.readFileSync('resources/[cnr]/cnr_ui/server/main.lua', 'utf8');
+    const configuration = fs.readFileSync('server/server.cfg.example', 'utf8');
+    expect(server).toContain("GetResourceState('basic-gamemode') == 'started'");
+    expect(server).toContain('Remove it from the CNR txAdmin recipe');
+    expect(configuration).not.toMatch(/^ensure basic-gamemode$/m);
+    expect(configuration).toContain('CNR owns every pre-game and controlled spawn transition');
+  });
+
   it('acknowledges NUI callbacks before forwarding correlated server results', () => {
     const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
     const transport = fs.readFileSync('packages/ui/src/nui.ts', 'utf8');

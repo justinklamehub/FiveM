@@ -131,7 +131,7 @@ export function App() {
   if (!visible) return null;
   if (view === 'characterLifecycle')
     return (
-      <main className="nui-stage" aria-label="Create Character">
+      <main className="nui-stage nui-stage--lifecycle" aria-label="Character Lifecycle">
         <section className="shell-card lifecycle-card">
           <CharacterLifecycle />
           {message && <p role="alert">{message}</p>}

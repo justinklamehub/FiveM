@@ -1,7 +1,7 @@
 # cnr_ui
 
 ## Responsibility
-Bridges the common React NUI shell, central focus ownership, English registration and character lifecycle views, local appearance preview, and execution of server-issued spawn instructions.
+Bridges the common React NUI shell, central focus ownership, English registration and character lifecycle views, a separate non-networked appearance preview ped, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
@@ -45,7 +45,7 @@ validation.
 Uses the stable Wave 0 result/error contract where applicable.
 
 ## Security boundary
-One focus owner, one correlated response, validated versioned messages, bounded pending requests, and a lifecycle lock that releases only after the server confirms the issued spawn UUID. Appearance preview cannot send an account, session, character, routing bucket, or spawn location.
+One focus owner, one correlated response, validated versioned messages, bounded pending requests, and a fail-closed lifecycle lock that starts with the resource and releases only after the server confirms the issued spawn UUID. The real player ped remains hidden, frozen, invincible, collisionless, and input-blocked during registration, selection, and customization. Appearance preview uses a local ped and cannot send an account, session, character, routing bucket, or spawn location.
 
 ## Lifecycle and recovery
 Reports `ready` or `degraded` to `cnr_core` and releases focus on client resource stop.

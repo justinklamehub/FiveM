@@ -14,6 +14,7 @@ set mysql_connection_string "mysql://cnr_runtime:replace-locally@127.0.0.1:3307/
 
 ensure oxmysql
 ensure spawnmanager
+# Do not ensure basic-gamemode; CNR owns every pre-game and controlled spawn transition.
 ensure cnr_database
 ensure cnr_logs
 ensure cnr_locales

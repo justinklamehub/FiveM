@@ -61,7 +61,7 @@ export function AppearanceEditor({ onSpawning }: { onSpawning: () => void }) {
       if (!result.ok) throw new Error(result.error.code);
       setConfiguration(result.data);
       setAppearance(result.data.defaults);
-      await postNui<{ ok: boolean }>('characters.appearanceBegin', {});
+      await postNui<{ ok: boolean }>('characters.appearanceBegin', result.data.defaults);
     } catch {
       setMessage('The appearance editor is currently unavailable. Please try again.');
     } finally {

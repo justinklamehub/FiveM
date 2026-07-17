@@ -48,6 +48,16 @@ AddEventHandler('cnr:sessions:started', function(session)
 end)
 
 local ready_sources = {}
+
+CreateThread(function()
+    Wait(0)
+    if GetResourceState('basic-gamemode') == 'started' then
+        print(
+            '^3[cnr_ui] WARNING: basic-gamemode is running and can request an unauthorized stock spawn. Remove it from the CNR txAdmin recipe.^7'
+        )
+    end
+end)
+
 local function open_for_session(player_source)
     local session = exports.cnr_sessions:get_session_for_source(player_source)
     if session and session.access_state == 'ONBOARDING' then

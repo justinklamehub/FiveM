@@ -177,9 +177,14 @@ button {
   margin: 0;
 }
 .lifecycle-card {
-  width: min(78rem, 100%);
+  width: min(44rem, 48vw);
   max-height: calc(100vh - 4rem);
   overflow: hidden;
+}
+.nui-stage--lifecycle {
+  place-items: center end;
+  padding-right: clamp(2rem, 4vw, 5rem);
+  background: linear-gradient(90deg, transparent 0 48%, rgba(217, 164, 65, 0.1) 100%);
 }
 .character-list {
   display: grid;
@@ -284,6 +289,14 @@ button {
   }
 }
 @media (max-width: 640px) {
+  .nui-stage--lifecycle {
+    place-items: center;
+    padding: 1rem;
+  }
+  .lifecycle-card {
+    width: 100%;
+    max-height: calc(100vh - 2rem);
+  }
   .identity-grid {
     grid-template-columns: 1fr;
   }

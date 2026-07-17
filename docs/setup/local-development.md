@@ -87,6 +87,8 @@ Apply `20260716000500_character_lifecycle.sql` before ensuring `cnr_characters`.
 
 Apply `20260716000600_character_selection_appearance.sql` before starting the current Wave 1 resources and set the minimum schema to `20260716000600`. The stock `spawnmanager` resource must start before `cnr_ui`; do not start the default `basic-gamemode` in the CNR production recipe because CNR owns spawn authorization.
 
+For txAdmin, edit the active recipe `server.cfg` rather than the generated example and remove or comment out `ensure basic-gamemode`. A running stock gamemode can re-enable map spawnpoints before character selection is complete. `cnr_ui` also disables stock auto-spawn continuously while lifecycle authority is locked, keeps the real player ped hidden, and uses a separate non-networked ped for appearance preview. The real player is released only after the server accepts the matching controlled-spawn acknowledgement.
+
 The server chooses the controlled central fallback spawn. Clients cannot submit coordinates, routing buckets, session IDs, or spawn state.
 
 ```cfg

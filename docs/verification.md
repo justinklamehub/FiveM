@@ -101,11 +101,11 @@ pnpm db:migrate
 
 ## Wave 1 character selection, appearance, and controlled spawn
 
-1. Remove the default `basic-gamemode` from the CNR recipe, start `spawnmanager` before `cnr_ui`, connect with an ACTIVE account and FULL session, and verify the English character selection view opens automatically.
+1. Remove the default `basic-gamemode` from the active CNR txAdmin recipe, start `spawnmanager` before `cnr_ui`, connect with an ACTIVE account and FULL session, and verify the English character selection view opens automatically. Confirm the server prints no conflicting-gamemode warning.
 2. Confirm only ACTIVE characters owned by the source-resolved account are listed. Submit a foreign, DRAFT, or malformed character UUID and confirm no binding or routing change occurs.
 3. Select an ACTIVE character and confirm exactly one ACTIVE row in `cnr_character_session_bindings`, an isolated routing bucket for first-time appearance, and a `character.selected` audit with request/correlation IDs.
 4. Repeat the same selection operation and payload; confirm the existing binding is returned. Reuse the operation UUID with another character or session and confirm `CONFLICT`.
-5. In the customization editor, change both freemode models, heritage blends, facial sliders, hair, and eyes. Confirm live preview works in isolation and invalid ranges or unexpected account/session/spawn fields are rejected server-side.
+5. In the customization editor, confirm the separate local preview ped remains visible to the left of the NUI while the real player ped stays hidden and frozen. Change both freemode models, heritage blends, facial sliders, hair, and eyes. Confirm live preview works in isolation and invalid ranges or unexpected account/session/spawn fields are rejected server-side.
 6. Save appearance twice with the same operation UUID and content; confirm one appearance operation, one current appearance row, and the same pending spawn. Reuse that UUID with changed appearance and confirm `CONFLICT`.
 7. Confirm the server chooses `LAST_SAFE` when a safe location exists and otherwise uses the configured `CENTRAL_DEFAULT`; the client request must contain no coordinates, heading, routing bucket, or spawn state.
 8. Confirm the player remains frozen, invincible, collision-disabled, and unable to close the lifecycle view until the matching server-issued spawn UUID is acknowledged. A wrong or stale token must not release controls.

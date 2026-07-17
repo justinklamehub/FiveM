@@ -65,7 +65,7 @@ Character creation requires a server-resolved active FULL session and ACTIVE acc
 
 Activation issues one unique state identification card. An ACTIVE character can then be selected only through its source-owned FULL session. The binding is unique per session, its selection operation is idempotent, and stale bindings are ended during resource recovery.
 
-The first selection requires a curated freemode appearance. The server validates and persists every appearance field, places the player in an isolated routing bucket during preview, and chooses either the last safe location or the configured central default. The client executes the server-issued spawn instruction and remains frozen until the matching spawn UUID is acknowledged. Clothing expansion, inventory, banking, deletion, switching, property spawn choices, jail, hospital, and tutorial priority remain later slices. All player-visible text is English.
+The first selection requires a curated freemode appearance. The server validates and persists every appearance field, places the player in an isolated routing bucket during preview, and chooses either the last safe location or the configured central default. The client keeps the real player ped locked and hidden, renders customization through a separate non-networked preview ped, executes only the server-issued spawn instruction, and remains locked until the matching spawn UUID is acknowledged. Clothing expansion, inventory, banking, deletion, switching, property spawn choices, jail, hospital, and tutorial priority remain later slices. All player-visible text is English.
 
 ## Technical permissions boundary
 
