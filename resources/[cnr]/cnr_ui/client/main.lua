@@ -19,6 +19,24 @@ local preview_scene = {
     target_y = -996.72,
     target_z = -98.35,
 }
+local starter_outfits = {
+    ['mp_m_freemode_01'] = {
+        -- Compatible base-game T-shirt, jeans, and sneakers.
+        { component_id = 3, drawable_id = 15, texture_id = 0 },
+        { component_id = 4, drawable_id = 0, texture_id = 0 },
+        { component_id = 6, drawable_id = 1, texture_id = 0 },
+        { component_id = 8, drawable_id = 15, texture_id = 0 },
+        { component_id = 11, drawable_id = 15, texture_id = 0 },
+    },
+    ['mp_f_freemode_01'] = {
+        -- Compatible base-game T-shirt, jeans, and sneakers.
+        { component_id = 3, drawable_id = 15, texture_id = 0 },
+        { component_id = 4, drawable_id = 0, texture_id = 0 },
+        { component_id = 6, drawable_id = 1, texture_id = 0 },
+        { component_id = 8, drawable_id = 14, texture_id = 0 },
+        { component_id = 11, drawable_id = 15, texture_id = 0 },
+    },
+}
 local function set_focus(owner)
     focus_owner = owner
     SetNuiFocus(owner ~= nil, owner ~= nil)
@@ -208,18 +226,39 @@ local function load_model(model)
     return hash
 end
 
+local function apply_component(ped, component)
+    local drawable_count = GetNumberOfPedDrawableVariations(ped, component.component_id)
+    if component.drawable_id < 0 or component.drawable_id >= drawable_count then
+        return false
+    end
+    local texture_count =
+        GetNumberOfPedTextureVariations(ped, component.component_id, component.drawable_id)
+    local texture_id = math.min(component.texture_id, math.max(texture_count - 1, 0))
+    SetPedComponentVariation(ped, component.component_id, component.drawable_id, texture_id, 2)
+    return true
+end
+
+local function apply_starter_outfit(ped, model)
+    local outfit = starter_outfits[model]
+    if not outfit then
+        return false
+    end
+    ClearAllPedProps(ped)
+    for _, component in ipairs(outfit) do
+        if not apply_component(ped, component) then
+            return false
+        end
+    end
+    return true
+end
+
 local function apply_ped_appearance(ped, appearance)
     if not ped or not DoesEntityExist(ped) or type(appearance) ~= 'table' then
         return false
     end
     SetPedDefaultComponentVariation(ped)
     if appearance.outfit_code == 'starter_casual' then
-        local feminine = appearance.model == 'mp_f_freemode_01'
-        SetPedComponentVariation(ped, 3, feminine and 14 or 0, 0, 2)
-        SetPedComponentVariation(ped, 4, 0, 0, 2)
-        SetPedComponentVariation(ped, 6, 1, 0, 2)
-        SetPedComponentVariation(ped, 8, feminine and 14 or 15, 0, 2)
-        SetPedComponentVariation(ped, 11, 15, 0, 2)
+        apply_starter_outfit(ped, appearance.model)
     end
     SetPedHeadBlendData(
         ped,

@@ -207,6 +207,7 @@ button {
 .character-list span,
 .selection-actions,
 .appearance-editor label,
+.appearance-field__label,
 .appearance-editor .shell-card__footer span {
   color: var(--cnr-text-muted);
 }
@@ -243,14 +244,22 @@ button {
   color: var(--cnr-accent);
   font-weight: 700;
 }
-.appearance-editor label {
+.appearance-editor label,
+.appearance-field {
   display: grid;
   gap: 0.35rem;
 }
-.appearance-editor label span {
+.appearance-field__label {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+.appearance-field__label output {
+  min-width: 2.5rem;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .appearance-editor select {
   width: 100%;
@@ -263,6 +272,26 @@ button {
 .appearance-editor input[type='range'] {
   width: 100%;
   accent-color: var(--cnr-accent);
+}
+.appearance-stepper {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+.shell-card .appearance-stepper button {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--cnr-border);
+  color: #fff;
+  background: var(--cnr-surface-soft);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.shell-card .appearance-stepper button:hover:not(:disabled) {
+  border-color: var(--cnr-accent);
+  color: var(--cnr-accent);
 }
 .appearance-editor .face-grid {
   grid-column: 1 / -1;

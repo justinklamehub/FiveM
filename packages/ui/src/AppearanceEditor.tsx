@@ -43,6 +43,73 @@ export function updateFaceFeature(
   return { ...appearance, face_features: faceFeatures };
 }
 
+export function stepAppearanceValue(
+  value: number,
+  minimum: number,
+  maximum: number,
+  direction: -1 | 1,
+  step = 1,
+): number {
+  return Math.min(maximum, Math.max(minimum, value + direction * step));
+}
+
+function AppearanceRange({
+  id,
+  label,
+  value,
+  minimum,
+  maximum,
+  step = 1,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  minimum: number;
+  maximum: number;
+  step?: number;
+  onChange: (value: number) => void;
+}) {
+  const changeBy = (direction: -1 | 1) =>
+    onChange(stepAppearanceValue(value, minimum, maximum, direction, step));
+
+  return (
+    <div className="appearance-field">
+      <div className="appearance-field__label">
+        <label htmlFor={id}>{label}</label>
+        <output htmlFor={id}>{value}</output>
+      </div>
+      <div className="appearance-stepper">
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          disabled={value <= minimum}
+          onClick={() => changeBy(-1)}
+        >
+          −
+        </button>
+        <input
+          id={id}
+          type="range"
+          min={minimum}
+          max={maximum}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+        />
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          disabled={value >= maximum}
+          onClick={() => changeBy(1)}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AppearanceEditor({ onSpawning }: { onSpawning: () => void }) {
   const operationUuid = useRef(newId());
   const [configuration, setConfiguration] = useState<CharacterAppearanceConfiguration | null>(null);
@@ -132,24 +199,23 @@ export function AppearanceEditor({ onSpawning }: { onSpawning: () => void }) {
     >,
     minimum: number,
     maximum: number,
-  ) => (
-    <label>
-      <span>
-        {label} <output>{appearance[key]}</output>
-      </span>
-      <input
-        type="range"
-        min={minimum}
-        max={maximum}
+    step = 1,
+  ) => {
+    const id = `appearance-${key}`;
+    return (
+      <AppearanceRange
+        id={id}
+        label={label}
         value={appearance[key]}
-        onChange={(event) =>
-          setAppearance((current) =>
-            current ? { ...current, [key]: Number(event.target.value) } : current,
-          )
+        minimum={minimum}
+        maximum={maximum}
+        step={step}
+        onChange={(value) =>
+          setAppearance((current) => (current ? { ...current, [key]: value } : current))
         }
       />
-    </label>
-  );
+    );
+  };
 
   return (
     <section className="appearance-editor">
@@ -189,8 +255,8 @@ export function AppearanceEditor({ onSpawning }: { onSpawning: () => void }) {
             configuration.parent_minimum,
             configuration.parent_maximum,
           )}
-          {numberField('Face blend', 'shape_mix', 0, 100)}
-          {numberField('Skin blend', 'skin_mix', 0, 100)}
+          {numberField('Face blend', 'shape_mix', 0, 100, 5)}
+          {numberField('Skin blend', 'skin_mix', 0, 100, 5)}
         </fieldset>
         <fieldset>
           <legend>Hair and eyes</legend>
@@ -203,24 +269,20 @@ export function AppearanceEditor({ onSpawning }: { onSpawning: () => void }) {
         <fieldset className="face-grid">
           <legend>Face shape</legend>
           {featureLabels.map((label, index) => (
-            <label key={label}>
-              <span>
-                {label} <output>{appearance.face_features[index]}</output>
-              </span>
-              <input
-                type="range"
-                min={configuration.face_feature_minimum}
-                max={configuration.face_feature_maximum}
-                value={appearance.face_features[index]}
-                onChange={(event) =>
-                  setAppearance((current) =>
-                    current
-                      ? updateFaceFeature(current, index, Number(event.target.value))
-                      : current,
-                  )
-                }
-              />
-            </label>
+            <AppearanceRange
+              key={label}
+              id={`appearance-face-${String(index)}`}
+              label={label}
+              value={appearance.face_features[index] ?? 0}
+              minimum={configuration.face_feature_minimum}
+              maximum={configuration.face_feature_maximum}
+              step={5}
+              onChange={(value) =>
+                setAppearance((current) =>
+                  current ? updateFaceFeature(current, index, value) : current,
+                )
+              }
+            />
           ))}
         </fieldset>
       </div>

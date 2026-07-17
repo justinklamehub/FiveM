@@ -5,7 +5,7 @@ import type {
   CharacterSummary,
   Result,
 } from '@cnr/contracts';
-import { updateFaceFeature } from './AppearanceEditor';
+import { stepAppearanceValue, updateFaceFeature } from './AppearanceEditor';
 import { activeCharacters } from './CharacterLifecycle';
 import { postNui } from './nui';
 
@@ -49,5 +49,12 @@ describe('character lifecycle browser mock', () => {
     expect(updated.face_features).toHaveLength(20);
     expect(updated.face_features[3]).toBe(42);
     expect(result.data.defaults.face_features[3]).toBe(0);
+  });
+
+  it('steps appearance controls and clamps both range boundaries', () => {
+    expect(stepAppearanceValue(0, -100, 100, -1, 5)).toBe(-5);
+    expect(stepAppearanceValue(0, -100, 100, 1, 5)).toBe(5);
+    expect(stepAppearanceValue(-98, -100, 100, -1, 5)).toBe(-100);
+    expect(stepAppearanceValue(98, -100, 100, 1, 5)).toBe(100);
   });
 });

@@ -1,7 +1,7 @@
 # cnr_ui
 
 ## Responsibility
-Bridges the common React NUI shell, central focus ownership, English registration and character lifecycle views, a separate non-networked appearance preview ped, and execution of server-issued spawn instructions.
+Bridges the common React NUI shell, central focus ownership, English registration and character lifecycle views, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.

@@ -89,6 +89,18 @@ describe('runtime readiness recovery', () => {
     );
   });
 
+  it('applies model-specific starter clothing through validated ped components', () => {
+    const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
+    expect(client).toContain("['mp_m_freemode_01']");
+    expect(client).toContain("['mp_f_freemode_01']");
+    expect(client).toContain('component_id = 4');
+    expect(client).toContain('component_id = 6');
+    expect(client).toContain('component_id = 11');
+    expect(client).toContain('GetNumberOfPedDrawableVariations');
+    expect(client).toContain('GetNumberOfPedTextureVariations');
+    expect(client).toContain('apply_starter_outfit(ped, appearance.model)');
+  });
+
   it('warns when the stock gamemode conflicts with CNR spawn authority', () => {
     const server = fs.readFileSync('resources/[cnr]/cnr_ui/server/main.lua', 'utf8');
     const configuration = fs.readFileSync('server/server.cfg.example', 'utf8');
