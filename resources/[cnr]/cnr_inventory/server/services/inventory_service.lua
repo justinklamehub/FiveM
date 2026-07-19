@@ -75,6 +75,7 @@ local function entry_values(row)
             category = row.category,
             label = row.label,
             description = row.description,
+            icon_key = row.icon_key,
             is_stackable = tonumber(row.is_stackable) == 1,
             is_unique = tonumber(row.is_unique) == 1,
             max_stack = tonumber(row.max_stack),
@@ -265,6 +266,130 @@ local function repeated_transfer(operation, context, hash, correlation_id)
         operation_uuid = operation.operation_uuid,
         source_version = tonumber(operation.result_source_version),
         target_version = tonumber(operation.result_target_version),
+    }, correlation_id)
+end
+
+local function repeated_reposition(operation, context, hash, correlation_id)
+    if not operation then
+        return nil
+    end
+    if
+        operation.action ~= 'REPOSITION'
+        or operation.account_uuid ~= context.account_uuid
+        or operation.character_uuid ~= context.character_uuid
+        or operation.payload_sha256 ~= hash
+    then
+        return failure('CONFLICT', 'inventory.error.operation_conflict', {}, correlation_id)
+    end
+    return success({
+        repeated = true,
+        operation_uuid = operation.operation_uuid,
+        inventory_version = tonumber(operation.result_target_version),
+        source_slot = tonumber(operation.source_slot),
+        target_slot = tonumber(operation.target_slot),
+        mode = operation.reposition_mode,
+    }, correlation_id)
+end
+
+function Service.reposition(player_source, payload, correlation_id)
+    local validated, validation_code = Policy.validate_reposition(payload)
+    if not validated then
+        return failure(validation_code, 'inventory.error.invalid_request', {}, correlation_id)
+    end
+    local context, context_error = source_context(player_source, correlation_id)
+    if not context then
+        return context_error
+    end
+    local hash, hash_error = Repository.payload_hash({
+        'REPOSITION',
+        validated.inventory_uuid,
+        validated.source_slot,
+        validated.target_slot,
+        validated.contract_version,
+    })
+    if hash_error then
+        return hash_error
+    end
+    local operation, operation_error = Repository.transaction(validated.operation_uuid)
+    if operation_error then
+        return operation_error
+    end
+    local repeated = repeated_reposition(operation, context, hash.payload_sha256, correlation_id)
+    if repeated then
+        return repeated
+    end
+    local inventory_row, inventory_error =
+        Repository.find_owned(context.character_uuid, validated.inventory_uuid)
+    if inventory_error then
+        return inventory_error
+    end
+    if not inventory_row then
+        return failure('NOT_FOUND', 'inventory.error.inventory_not_found', {}, correlation_id)
+    end
+    local inventory = inventory_values(inventory_row)
+    local entries, entries_error = entries_for(inventory)
+    if not entries then
+        return entries_error
+    end
+    local source_entry
+    local target_entry
+    for _, entry in ipairs(entries) do
+        if entry.slot_number == validated.source_slot then
+            source_entry = entry
+        elseif entry.slot_number == validated.target_slot then
+            target_entry = entry
+        end
+    end
+    if not source_entry then
+        return failure('NOT_FOUND', 'inventory.error.item_not_found', {}, correlation_id)
+    end
+    local plan, plan_error = Policy.reposition_plan({
+        inventory = inventory,
+        source_entry = source_entry,
+        target_entry = target_entry,
+        source_slot = validated.source_slot,
+        target_slot = validated.target_slot,
+    })
+    if not plan then
+        return failure(plan_error, 'inventory.error.reposition_rejected', {}, correlation_id)
+    end
+    local committed = Repository.reposition({
+        operation_uuid = validated.operation_uuid,
+        account_uuid = context.account_uuid,
+        session_uuid = context.session_uuid,
+        character_uuid = context.character_uuid,
+        inventory = inventory,
+        source_entry = source_entry,
+        target_entry = target_entry,
+        request_id = validated.request_id,
+        correlation_id = correlation_id,
+        contract_version = validated.contract_version,
+        payload_sha256 = hash.payload_sha256,
+        plan = plan,
+    })
+    if not committed.ok then
+        local concurrent = Repository.transaction(validated.operation_uuid)
+        local recovered =
+            repeated_reposition(concurrent, context, hash.payload_sha256, correlation_id)
+        return recovered or committed
+    end
+    exports.cnr_logs:audit('cnr_inventory', 'inventory.item_repositioned', {
+        character_uuid = context.character_uuid,
+        inventory_uuid = inventory.inventory_uuid,
+        item_code = source_entry.definition.code,
+        source_slot = validated.source_slot,
+        target_slot = validated.target_slot,
+        operation_uuid = validated.operation_uuid,
+        request_id = validated.request_id,
+        correlation_id = correlation_id,
+    })
+    return success({
+        repeated = false,
+        operation_uuid = validated.operation_uuid,
+        inventory_version = inventory.version + 1,
+        source_slot = validated.source_slot,
+        target_slot = validated.target_slot,
+        mode = plan.mode,
     }, correlation_id)
 end
 
