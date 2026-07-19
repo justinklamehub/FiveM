@@ -87,15 +87,16 @@ local function inventory_row(inventory_uuid, inventory_type)
     }
 end
 
-local read = { request_id = 'inventory-read-1', contract_version = 3 }
+local read = { request_id = 'inventory-read-1', contract_version = 4 }
 local transfer = {
     source_inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
     target_inventory_uuid = '0190b7a0-6000-7000-8000-000000000011',
     source_slot = 1,
+    target_slot = 4,
     quantity = 1,
     request_id = 'inventory-transfer-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-    contract_version = 3,
+    contract_version = 4,
 }
 local reposition = {
     inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
@@ -103,7 +104,7 @@ local reposition = {
     target_slot = 4,
     request_id = 'inventory-reposition-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
-    contract_version = 3,
+    contract_version = 4,
 }
 
 describe('inventory service authority', function()
@@ -273,7 +274,109 @@ describe('inventory service authority', function()
         assert.are.equal('PRECONDITION_FAILED', result.error.code)
     end)
 
-    it('replays the stored server-selected transfer placement', function()
+    it('validates and commits the destination slot selected by direct drag/drop', function()
+        local captured
+        local repository = {
+            payload_hash = function(parts)
+                assert.are.equal(4, parts[5])
+                return { payload_sha256 = string.rep('a', 64) }
+            end,
+            transaction = function()
+                return nil
+            end,
+            find_owned = function(_, inventory_uuid)
+                if inventory_uuid == transfer.source_inventory_uuid then
+                    return inventory_row(inventory_uuid, 'CHARACTER')
+                end
+                return inventory_row(inventory_uuid, 'PERSONAL_STORAGE')
+            end,
+            entries = function(inventory_id)
+                if inventory_id == 2 then
+                    return {}
+                end
+                return {
+                    {
+                        id = 10,
+                        entry_uuid = '0190b7a0-6000-7000-8000-000000000020',
+                        slot_number = 1,
+                        quantity = 2,
+                        version = 1,
+                        definition_id = 3,
+                        has_instance = 0,
+                        definition_uuid = '0190b7a0-6000-7000-8000-000000000021',
+                        code = 'sandwich',
+                        category = 'CONSUMABLE',
+                        label = 'Sandwich',
+                        description = 'A wrapped sandwich.',
+                        icon_key = 'sandwich',
+                        is_stackable = 1,
+                        is_unique = 0,
+                        max_stack = 10,
+                        unit_weight_grams = 250,
+                        definition_version = 1,
+                    },
+                }
+            end,
+            transfer = function(context)
+                captured = context
+                return { ok = true }
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).transfer(12, transfer, 'correlation-direct-drop')
+        assert.is_true(result.ok)
+        assert.are.equal(4, result.data.target_slot)
+        assert.are.equal(4, captured.plan.target_slot)
+        assert.are.equal('CREATE_STACK', captured.plan.mode)
+    end)
+
+    it('rejects operation UUID reuse when the destination slot changes', function()
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = string.rep('b', 64) }
+            end,
+            transaction = function()
+                return {
+                    action = 'TRANSFER',
+                    account_uuid = 'account-1',
+                    character_uuid = 'character-1',
+                    payload_sha256 = string.rep('a', 64),
+                }
+            end,
+            find_owned = function(_, inventory_uuid)
+                if inventory_uuid == transfer.source_inventory_uuid then
+                    return inventory_row(inventory_uuid, 'CHARACTER')
+                end
+                return inventory_row(inventory_uuid, 'PERSONAL_STORAGE')
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).transfer(12, transfer, 'correlation-transfer-conflict')
+        assert.is_false(result.ok)
+        assert.are.equal('CONFLICT', result.error.code)
+    end)
+
+    it('replays the stored server-validated transfer placement', function()
         local hash = string.rep('a', 64)
         local repository = {
             payload_hash = function()

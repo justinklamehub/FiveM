@@ -526,6 +526,7 @@ function Service.transfer(player_source, payload, correlation_id)
         validated.source_inventory_uuid,
         validated.target_inventory_uuid,
         validated.source_slot,
+        validated.target_slot,
         validated.quantity,
         validated.contract_version,
     })
@@ -588,20 +589,18 @@ function Service.transfer(player_source, payload, correlation_id)
     if not source_entry then
         return failure('NOT_FOUND', 'inventory.error.item_not_found', {}, correlation_id)
     end
-    local target_stack
-    if source_entry.definition.is_stackable then
-        for _, entry in ipairs(target_entries) do
-            if entry.definition_id == source_entry.definition_id and not entry.has_instance then
-                target_stack = entry
-                break
-            end
+    local target_entry
+    for _, entry in ipairs(target_entries) do
+        if entry.slot_number == validated.target_slot then
+            target_entry = entry
+            break
         end
     end
     local plan, plan_error = Policy.transfer_plan({
         source_entry = source_entry,
         target_inventory = target_inventory,
-        target_entries = target_entries,
-        target_stack = target_stack,
+        target_entry = target_entry,
+        target_slot = validated.target_slot,
         target_weight_grams = target_inventory.current_weight_grams,
         quantity = validated.quantity,
     })
@@ -609,7 +608,7 @@ function Service.transfer(player_source, payload, correlation_id)
         local code = plan_error == 'INSUFFICIENT_QUANTITY' and 'PRECONDITION_FAILED' or plan_error
         return failure(code, 'inventory.error.transfer_rejected', {}, correlation_id)
     end
-    local target_entry_uuid = target_stack and target_stack.entry_uuid
+    local target_entry_uuid = target_entry and target_entry.entry_uuid
         or plan.mode == 'MOVE_INSTANCE' and source_entry.entry_uuid
         or exports.cnr_core:create_uuid_v7()
     local committed = Repository.transfer({
@@ -620,7 +619,7 @@ function Service.transfer(player_source, payload, correlation_id)
         source_inventory = source_inventory,
         target_inventory = target_inventory,
         source_entry = source_entry,
-        target_entry = target_stack,
+        target_entry = target_entry,
         target_entry_uuid = target_entry_uuid,
         quantity = validated.quantity,
         request_id = validated.request_id,
@@ -641,6 +640,9 @@ function Service.transfer(player_source, payload, correlation_id)
         target_inventory_uuid = target_inventory.inventory_uuid,
         item_code = source_entry.definition.code,
         quantity = validated.quantity,
+        source_slot = validated.source_slot,
+        target_slot = plan.target_slot,
+        transfer_mode = plan.mode,
         operation_uuid = validated.operation_uuid,
         request_id = validated.request_id,
         correlation_id = correlation_id,

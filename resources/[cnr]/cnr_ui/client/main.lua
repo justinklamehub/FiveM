@@ -622,7 +622,7 @@ RegisterCommand('cnr_inventory_open', function()
     SendNUIMessage({
         version = 1,
         type = 'ui.inventory.open',
-        payload = { contract_version = 3, view = 'personal' },
+        payload = { contract_version = 4, view = 'personal' },
     })
 end, false)
 RegisterKeyMapping('cnr_inventory_open', 'Open personal inventory', 'keyboard', 'F2')
@@ -634,7 +634,7 @@ RegisterCommand('cnr_storage_open', function()
     SendNUIMessage({
         version = 1,
         type = 'ui.inventory.open',
-        payload = { contract_version = 3, view = 'storage' },
+        payload = { contract_version = 4, view = 'storage' },
     })
 end, false)
 RegisterKeyMapping('cnr_storage_open', 'Open nearby personal locker', 'keyboard', 'F3')

@@ -13,7 +13,7 @@ const repository = fs.readFileSync(
 const main = fs.readFileSync('resources/[cnr]/cnr_inventory/server/main.lua', 'utf8');
 
 describe('inventory security boundary', () => {
-  it('keeps cross-inventory placement free of account, item, metadata, and target-slot authority', () => {
+  it('accepts destination-slot intent without accepting inventory authority', () => {
     const allowedSection = policy.slice(
       policy.indexOf('source_inventory_uuid = true'),
       policy.indexOf('})', policy.indexOf('source_inventory_uuid = true')),
@@ -25,14 +25,15 @@ describe('inventory security boundary', () => {
       'definition_uuid',
       'item_instance_uuid',
       'metadata',
-      'target_slot',
       'weight_capacity',
     ]) {
       expect(allowedSection).not.toContain(`${forbidden} = true`);
     }
+    expect(allowedSection).toContain('target_slot = true');
+    expect(service).toContain('target_slot = validated.target_slot');
   });
 
-  it('accepts a target slot only for source-owned same-inventory reposition intent', () => {
+  it('keeps same-inventory reposition intent equally narrow', () => {
     const repositionStart = policy.indexOf('function Policy.validate_reposition');
     const repositionSection = policy.slice(
       policy.indexOf('inventory_uuid = true', repositionStart),

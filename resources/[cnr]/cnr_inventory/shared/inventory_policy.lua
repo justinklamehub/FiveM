@@ -28,7 +28,7 @@ function Policy.validate_read(payload)
         return nil, 'VALIDATION_ERROR'
     end
     if
-        payload.contract_version ~= 3
+        payload.contract_version ~= 4
         or type(payload.request_id) ~= 'string'
         or #payload.request_id < 1
         or #payload.request_id > 64
@@ -49,6 +49,7 @@ function Policy.validate_transfer(payload)
             source_inventory_uuid = true,
             target_inventory_uuid = true,
             source_slot = true,
+            target_slot = true,
             quantity = true,
             request_id = true,
             operation_uuid = true,
@@ -57,7 +58,7 @@ function Policy.validate_transfer(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 3 then
+    if payload.contract_version ~= 4 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -71,6 +72,9 @@ function Policy.validate_transfer(payload)
         or type(payload.source_slot) ~= 'number'
         or payload.source_slot % 1 ~= 0
         or payload.source_slot < 1
+        or type(payload.target_slot) ~= 'number'
+        or payload.target_slot % 1 ~= 0
+        or payload.target_slot < 1
         or type(payload.quantity) ~= 'number'
         or payload.quantity % 1 ~= 0
         or payload.quantity < 1
@@ -98,7 +102,7 @@ function Policy.validate_reposition(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 3 then
+    if payload.contract_version ~= 4 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -174,6 +178,7 @@ end
 function Policy.transfer_plan(context)
     local source = context.source_entry
     local definition = source and source.definition
+    local target = context.target_entry
     if not source or not definition or context.quantity > tonumber(source.quantity) then
         return nil, 'INSUFFICIENT_QUANTITY'
     end
@@ -183,35 +188,32 @@ function Policy.transfer_plan(context)
     then
         return nil, 'INSUFFICIENT_CAPACITY'
     end
+    if context.target_slot < 1 or context.target_slot > context.target_inventory.slot_capacity then
+        return nil, 'PRECONDITION_FAILED'
+    end
     if definition.is_unique then
-        if context.quantity ~= 1 or not source.has_instance then
+        if context.quantity ~= 1 or not source.has_instance or target then
             return nil, 'PRECONDITION_FAILED'
         end
-        local slot =
-            Policy.first_free_slot(context.target_entries, context.target_inventory.slot_capacity)
-        if not slot then
-            return nil, 'INSUFFICIENT_CAPACITY'
-        end
-        return { mode = 'MOVE_INSTANCE', target_slot = slot }
+        return { mode = 'MOVE_INSTANCE', target_slot = context.target_slot }
     end
     if not definition.is_stackable or source.has_instance then
         return nil, 'PRECONDITION_FAILED'
     end
-    if context.target_stack then
-        if context.target_stack.quantity + context.quantity > definition.max_stack then
-            return nil, 'INSUFFICIENT_CAPACITY'
+    if target then
+        if
+            target.definition_id ~= source.definition_id
+            or target.has_instance
+            or target.quantity + context.quantity > definition.max_stack
+        then
+            return nil, 'PRECONDITION_FAILED'
         end
-        return { mode = 'STACK', target_slot = context.target_stack.slot_number }
+        return { mode = 'STACK', target_slot = context.target_slot }
     end
     if context.quantity > definition.max_stack then
         return nil, 'INSUFFICIENT_CAPACITY'
     end
-    local slot =
-        Policy.first_free_slot(context.target_entries, context.target_inventory.slot_capacity)
-    if not slot then
-        return nil, 'INSUFFICIENT_CAPACITY'
-    end
-    return { mode = 'CREATE_STACK', target_slot = slot }
+    return { mode = 'CREATE_STACK', target_slot = context.target_slot }
 end
 
 ---@param context table

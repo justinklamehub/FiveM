@@ -50,9 +50,9 @@ only when the FiveM NUI API is absent.
 Use `?view=inventory` for the English personal-inventory mock and `?view=storage` for the two-panel
 locker workspace. In FiveM, F2 or `cnr_inventory_open` opens the character inventory after controlled
 spawn. F3 or `cnr_storage_open` requests the personal locker, which the server exposes only within the
-configured radius. Occupied slots support drag-and-drop plus selection/target activation for keyboard
-and click input. Cross-inventory drops send no target slot; the UI applies the server-selected placement
-only after confirmation. Definition image keys render deterministic fallback tiles until the reviewed
+configured radius. Occupied slots use direct pointer drag-and-drop with a destination highlight and
+drop animation; click-selection is not part of the interaction. Cross-inventory drops send the intended
+destination slot, while the UI applies the server-validated placement only after confirmation. Definition image keys render deterministic fallback tiles until the reviewed
 PNG asset pack is added.
 
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English

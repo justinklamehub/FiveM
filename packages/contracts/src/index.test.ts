@@ -137,12 +137,23 @@ describe('core contracts', () => {
       source_inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
       target_inventory_uuid: '0190b7a0-6000-7000-8000-000000000011',
       source_slot: 1,
+      target_slot: 4,
       quantity: 1,
       request_id: 'inventory-transfer-1',
       operation_uuid: '0190b7a0-6000-7000-8000-000000000012',
       contract_version: inventoryContractVersion,
     };
     expect(Object.keys(snapshot).sort()).toEqual(['contract_version', 'request_id']);
+    expect(Object.keys(transfer).sort()).toEqual([
+      'contract_version',
+      'operation_uuid',
+      'quantity',
+      'request_id',
+      'source_inventory_uuid',
+      'source_slot',
+      'target_inventory_uuid',
+      'target_slot',
+    ]);
     expect(Object.keys(transfer)).not.toEqual(
       expect.arrayContaining([
         'account_uuid',
@@ -152,7 +163,6 @@ describe('core contracts', () => {
         'item_instance_uuid',
         'metadata',
         'weight',
-        'target_slot',
         'inventory_version',
       ]),
     );

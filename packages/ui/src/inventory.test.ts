@@ -4,6 +4,7 @@ import {
   type InventoryRepositionOutcome,
   type InventoryRepositionRequest,
   type InventoryTransferOutcome,
+  type InventoryTransferRequest,
   type InventoryWorkspaceSnapshot,
   type PersonalInventorySnapshot,
   type Result,
@@ -95,7 +96,7 @@ describe('inventory browser mock', () => {
     );
   });
 
-  it('builds the personal-locker workspace and applies a server-placed transfer', async () => {
+  it('builds the personal-locker workspace and applies a server-confirmed transfer', async () => {
     const result = await postNui<Result<InventoryWorkspaceSnapshot>>('inventory.workspace', {
       request_id: 'inventory-browser-workspace-1',
       contract_version: inventoryContractVersion,
@@ -136,6 +137,23 @@ describe('inventory browser mock', () => {
       result.data.character.current_weight_grams - water.total_weight_grams,
     );
     expect(transferred.storage.current_weight_grams).toBe(water.total_weight_grams);
+  });
+
+  it('retains the exact destination slot expressed by a direct cross-panel drop', async () => {
+    const transfer: InventoryTransferRequest = {
+      source_inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      target_inventory_uuid: '0190b7a0-6000-7000-8000-000000000020',
+      source_slot: 2,
+      target_slot: 17,
+      quantity: 2,
+      request_id: 'inventory-browser-transfer-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000095',
+      contract_version: inventoryContractVersion,
+    };
+    const result = await postNui<Result<InventoryTransferOutcome>>('inventory.transfer', transfer);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.target_slot).toBe(17);
   });
 
   it('moves browser-mock entries with the same narrow idempotent intent contract', async () => {

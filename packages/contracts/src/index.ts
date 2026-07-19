@@ -206,7 +206,7 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
-export const inventoryContractVersion = 3 as const;
+export const inventoryContractVersion = 4 as const;
 export type InventoryType = 'CHARACTER' | 'PERSONAL_STORAGE';
 export type InventoryOpenView = 'personal' | 'storage';
 export interface InventoryItemDefinition {
@@ -253,6 +253,7 @@ export interface InventoryTransferRequest {
   source_inventory_uuid: string;
   target_inventory_uuid: string;
   source_slot: number;
+  target_slot: number;
   quantity: number;
   request_id: string;
   operation_uuid: string;

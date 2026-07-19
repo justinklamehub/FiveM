@@ -145,7 +145,7 @@ exports('snapshot_for_source', function(player_source, request_id, correlation_i
     end
     return Service.snapshot(player_source, {
         request_id = request_id,
-        contract_version = 3,
+        contract_version = 4,
     }, correlation_id)
 end)
 exports('workspace_for_source', function(player_source, request_id, correlation_id)
@@ -159,7 +159,7 @@ exports('workspace_for_source', function(player_source, request_id, correlation_
     end
     return Service.workspace(player_source, {
         request_id = request_id,
-        contract_version = 3,
+        contract_version = 4,
     }, correlation_id)
 end)
 exports('transfer_for_source', function(player_source, payload, correlation_id)

@@ -13,10 +13,10 @@ The first slice implements:
 - exactly-once starter provisioning after controlled spawn;
 - atomic, operation-UUID-backed transfers between inventories owned by the source-bound character;
 - an English dynamic personal-inventory slot grid opened with F2;
-- idempotent, atomic empty-slot moves and occupied-slot swaps through drag/drop or accessible selection;
+- idempotent, atomic empty-slot moves and occupied-slot swaps through direct drag/drop;
 - one server-created `PERSONAL_STORAGE` locker per character with configurable slots and weight;
 - a proximity-gated two-panel locker workspace with atomic cross-inventory drag/drop;
-- replayable server-selected transfer modes and target placement for confirmed in-place UI updates;
+- replayable, server-validated destination slots and transfer modes for confirmed in-place UI updates;
 - stable server-owned image keys with deterministic UI fallbacks for a later PNG asset pack;
 - browser mocks, contracts, MariaDB tests, Lua policy tests, and audit events.
 
@@ -32,7 +32,7 @@ Cross-resource references use canonical UUIDs. Inventory tables retain the stabl
 
 ## Client contract
 
-The personal-locker workspace uses inventory contract version 3.
+The personal-locker workspace uses inventory contract version 4.
 
 A snapshot request contains only:
 
@@ -42,11 +42,11 @@ A snapshot request contains only:
 A transfer request may additionally contain only:
 
 - source and target inventory UUIDs previously returned by the server;
-- source slot;
+- source and destination slots as drag/drop intent;
 - positive integer quantity;
 - `operation_uuid`.
 
-The client cannot submit account, session, character, definition, item instance, metadata, weight, capacity, inventory version, distance, or result state. Cross-inventory transfers do not accept a target slot. A same-inventory reposition request may express source and target slots as user intent; the server resolves both entries, validates capacity and versions, and chooses move or swap semantics. The storage workspace is returned only while the server-observed player ped is within the configured locker radius, and every storage reposition or transfer repeats that proximity check.
+The client cannot submit account, session, character, definition, item instance, metadata, weight, capacity, inventory version, distance, transfer mode, or result state. Both same-inventory and cross-inventory requests may express source and destination slots as user intent. The server resolves the entries, validates ownership, compatibility, capacity, and versions, then chooses move, swap, stack, create-stack, or unique-instance semantics. The storage workspace is returned only while the server-observed player ped is within the configured locker radius, and every storage reposition or transfer repeats that proximity check.
 
 ## Starter provisioning
 
@@ -66,7 +66,7 @@ Repeating the same operation UUID and semantic payload returns the stored result
 
 Personal repositioning uses the same rule. Empty destinations move the source entry; occupied destinations swap the locked entries through a transaction-local temporary slot. The browser never mutates its snapshot optimistically; it applies only the confirmed server outcome to the open view.
 
-The first personal locker is created idempotently from server configuration. Cross-inventory transfers are restricted to one `CHARACTER` and one `PERSONAL_STORAGE` inventory owned by the active character. The transaction stores source slot, server-selected target slot, target entry, quantity, mode, and both result versions. The NUI applies those details only after server confirmation, so successful moves do not require a second snapshot while retries remain idempotent.
+The first personal locker is created idempotently from server configuration. Cross-inventory transfers are restricted to one `CHARACTER` and one `PERSONAL_STORAGE` inventory owned by the active character. The transaction stores the requested and validated source/destination slots, target entry, quantity, server-selected mode, and both result versions. The NUI applies those details only after server confirmation, so successful moves do not require a second snapshot while retries remain idempotent.
 
 ## Audit and recovery
 

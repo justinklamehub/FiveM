@@ -43,7 +43,7 @@ local function context(mode)
         },
         request_id = 'inventory-reposition-repository-1',
         correlation_id = 'inventory-reposition-correlation-1',
-        contract_version = 3,
+        contract_version = 4,
         payload_sha256 = string.rep('a', 64),
         plan = { mode = mode, source_slot = 1, target_slot = 4 },
     }
@@ -116,7 +116,7 @@ local function transfer_context(mode)
         quantity = 1,
         request_id = 'inventory-transfer-repository-1',
         correlation_id = 'inventory-transfer-correlation-1',
-        contract_version = 3,
+        contract_version = 4,
         payload_sha256 = string.rep('b', 64),
         plan = { mode = mode, target_slot = 1 },
     }
@@ -143,6 +143,9 @@ describe('inventory repository transfer transaction', function()
             local operation = captured.queries[3]
             assert.are.equal(placeholder_count(operation.query), #operation.values)
             assert.is_truthy(operation.query:find('transfer_mode', 1, true))
+            if mode == 'STACK' then
+                assert.is_truthy(operation.query:find('ti.slot_number=?', 1, true))
+            end
         end)
     end
 end)

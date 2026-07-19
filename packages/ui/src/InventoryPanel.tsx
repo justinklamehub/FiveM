@@ -1,5 +1,12 @@
 /** Displays source-owned inventory slots and proximity-gated personal storage. */
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import {
   inventoryContractVersion,
   type InventoryEntry,
@@ -36,6 +43,23 @@ interface InventoryViewState {
 interface SlotReference {
   inventory_uuid: string;
   slot: number;
+}
+
+interface DragSession {
+  source: SlotReference;
+  entry: InventoryEntry;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  started: boolean;
+}
+
+interface DragVisual {
+  source: SlotReference;
+  entry: InventoryEntry;
+  x: number;
+  y: number;
+  phase: 'dragging' | 'dropping';
 }
 
 type RetryOperation =
@@ -163,9 +187,11 @@ export function InventoryPanel({
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [selected, setSelected] = useState<SlotReference | null>(null);
-  const [dragging, setDragging] = useState<SlotReference | null>(null);
+  const [dragVisual, setDragVisual] = useState<DragVisual | null>(null);
+  const [dropTarget, setDropTarget] = useState<SlotReference | null>(null);
   const [retryOperation, setRetryOperation] = useState<RetryOperation | null>(null);
+  const dragSession = useRef<DragSession | null>(null);
+  const dropAnimationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -202,18 +228,18 @@ export function InventoryPanel({
     void load();
   }, [load]);
 
+  useEffect(
+    () => () => {
+      if (dropAnimationTimer.current) clearTimeout(dropAnimationTimer.current);
+    },
+    [],
+  );
+
   const inventories = useMemo(
     () =>
       workspace ? [workspace.character, ...(workspace.storage ? [workspace.storage] : [])] : [],
     [workspace],
   );
-  const selectedInventory = selected
-    ? inventories.find((inventory) => inventory.inventory_uuid === selected.inventory_uuid)
-    : undefined;
-  const selectedEntry = selectedInventory?.entries.find(
-    (entry) => entry.slot_number === selected?.slot,
-  );
-
   const updateInventory = (
     state: InventoryViewState,
     inventoryUuid: string,
@@ -241,7 +267,12 @@ export function InventoryPanel({
         'inventory.reposition',
         payload,
       );
-      if (!result.ok) throw new Error(result.error.code);
+      if (!result.ok) {
+        setOperationError(
+          `The move was rejected (${result.error.code}). Reference: ${result.error.correlation_id}`,
+        );
+        return;
+      }
       if (
         result.data.source_slot !== payload.source_slot ||
         result.data.target_slot !== payload.target_slot
@@ -255,7 +286,6 @@ export function InventoryPanel({
           : current,
       );
       setRetryOperation(null);
-      setSelected(null);
     } catch {
       setOperationError('The item could not be moved. Retry the operation or reopen the view.');
     } finally {
@@ -269,11 +299,17 @@ export function InventoryPanel({
     setRetryOperation({ event: 'inventory.transfer', payload });
     try {
       const result = await postNui<Result<InventoryTransferOutcome>>('inventory.transfer', payload);
-      if (!result.ok) throw new Error(result.error.code);
+      if (!result.ok) {
+        setOperationError(
+          `The transfer was rejected (${result.error.code}). Reference: ${result.error.correlation_id}`,
+        );
+        return;
+      }
       if (
         result.data.source_inventory_uuid !== payload.source_inventory_uuid ||
         result.data.target_inventory_uuid !== payload.target_inventory_uuid ||
         result.data.source_slot !== payload.source_slot ||
+        result.data.target_slot !== payload.target_slot ||
         result.data.quantity !== payload.quantity
       )
         throw new Error('The confirmed transfer result does not match the request.');
@@ -289,7 +325,6 @@ export function InventoryPanel({
         );
       });
       setRetryOperation(null);
-      setSelected(null);
     } catch {
       setOperationError('The item could not be transferred. Retry or reopen the locker.');
     } finally {
@@ -324,6 +359,7 @@ export function InventoryPanel({
         source_inventory_uuid: source.inventory_uuid,
         target_inventory_uuid: target.inventory_uuid,
         source_slot: source.slot,
+        target_slot: target.slot,
         quantity: sourceEntry.quantity,
         request_id: newId(),
         operation_uuid: newId(),
@@ -333,41 +369,99 @@ export function InventoryPanel({
     [busy, inventories, performReposition, performTransfer, workspace],
   );
 
-  const activateSlot = (reference: SlotReference, entry?: InventoryEntry) => {
-    if (busy) return;
-    if (!selected) {
-      if (entry) setSelected(reference);
-      return;
-    }
-    if (selected.inventory_uuid === reference.inventory_uuid && selected.slot === reference.slot) {
-      setSelected(null);
-      return;
-    }
-    requestMove(selected, reference);
+  const slotAt = (x: number, y: number) => {
+    const element = document
+      .elementFromPoint(x, y)
+      ?.closest<HTMLElement>('[data-inventory-uuid][data-slot]');
+    const inventoryUuid = element?.dataset.inventoryUuid;
+    const slot = Number(element?.dataset.slot);
+    if (!inventoryUuid || !Number.isInteger(slot) || slot < 1) return null;
+    return { reference: { inventory_uuid: inventoryUuid, slot }, element };
   };
 
-  const startDrag = (
-    event: DragEvent<HTMLButtonElement>,
+  const startPointerDrag = (
+    event: ReactPointerEvent<HTMLButtonElement>,
     reference: SlotReference,
-    occupied: boolean,
+    entry: InventoryEntry,
   ) => {
-    if (busy || !occupied) return;
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', JSON.stringify(reference));
-    setDragging(reference);
-    setSelected(reference);
+    if (busy || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragSession.current = {
+      source: reference,
+      entry,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      started: false,
+    };
   };
 
-  const drop = (event: DragEvent<HTMLButtonElement>, target: SlotReference) => {
+  const movePointerDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const session = dragSession.current;
+    if (session?.pointerId !== event.pointerId) return;
     event.preventDefault();
-    setDragging(null);
-    try {
-      const source = JSON.parse(event.dataTransfer.getData('text/plain')) as SlotReference;
-      if (typeof source.inventory_uuid === 'string' && Number.isInteger(source.slot))
-        requestMove(source, target);
-    } catch {
-      setOperationError('The drag operation was invalid. Select the source slot and try again.');
+    if (!session.started) {
+      const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
+      if (distance < 6) return;
+      session.started = true;
     }
+    const target = slotAt(event.clientX, event.clientY)?.reference ?? null;
+    setDropTarget(
+      target &&
+        (target.inventory_uuid !== session.source.inventory_uuid ||
+          target.slot !== session.source.slot)
+        ? target
+        : null,
+    );
+    setDragVisual({
+      source: session.source,
+      entry: session.entry,
+      x: event.clientX,
+      y: event.clientY,
+      phase: 'dragging',
+    });
+  };
+
+  const finishPointerDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const session = dragSession.current;
+    if (session?.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    dragSession.current = null;
+    setDropTarget(null);
+    if (!session.started) {
+      setDragVisual(null);
+      return;
+    }
+    const targetAtPointer = slotAt(event.clientX, event.clientY);
+    const target = targetAtPointer?.reference;
+    if (
+      !target ||
+      (target.inventory_uuid === session.source.inventory_uuid &&
+        target.slot === session.source.slot)
+    ) {
+      setDragVisual(null);
+      return;
+    }
+    const bounds = targetAtPointer.element.getBoundingClientRect();
+    setDragVisual({
+      source: session.source,
+      entry: session.entry,
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+      phase: 'dropping',
+    });
+    if (dropAnimationTimer.current) clearTimeout(dropAnimationTimer.current);
+    dropAnimationTimer.current = setTimeout(() => setDragVisual(null), 180);
+    requestMove(session.source, target);
+  };
+
+  const cancelPointerDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (dragSession.current?.pointerId !== event.pointerId) return;
+    dragSession.current = null;
+    setDropTarget(null);
+    setDragVisual(null);
   };
 
   const close = () => {
@@ -378,7 +472,7 @@ export function InventoryPanel({
   const renderInventory = (inventory: InventorySnapshot) => {
     const entriesBySlot = new Map<number, InventoryEntry>();
     for (const entry of inventory.entries) entriesBySlot.set(entry.slot_number, entry);
-    const title = inventory.inventory_type === 'CHARACTER' ? 'Pockets' : 'Personal Locker';
+    const title = inventory.inventory_type === 'CHARACTER' ? 'Inventory' : 'Container';
     return (
       <section className="inventory-pane" key={inventory.inventory_uuid}>
         <div className="inventory-pane__heading">
@@ -397,31 +491,30 @@ export function InventoryPanel({
           {inventorySlotNumbers(inventory.slot_capacity).map((slot) => {
             const entry = entriesBySlot.get(slot);
             const reference = { inventory_uuid: inventory.inventory_uuid, slot };
-            const isSelected =
-              selected?.inventory_uuid === reference.inventory_uuid && selected.slot === slot;
             const isDragging =
-              dragging?.inventory_uuid === reference.inventory_uuid && dragging.slot === slot;
+              dragVisual?.source.inventory_uuid === reference.inventory_uuid &&
+              dragVisual.source.slot === slot;
+            const isDropTarget =
+              dropTarget?.inventory_uuid === reference.inventory_uuid && dropTarget.slot === slot;
             return (
               <button
                 type="button"
-                className={`inventory-slot-tile${entry ? ' inventory-slot-tile--occupied' : ''}${isSelected ? ' inventory-slot-tile--selected' : ''}${isDragging ? ' inventory-slot-tile--dragging' : ''}`}
+                className={`inventory-slot-tile${entry ? ' inventory-slot-tile--occupied' : ''}${isDragging ? ' inventory-slot-tile--dragging' : ''}${isDropTarget ? ' inventory-slot-tile--drop-target' : ''}`}
                 key={slot}
-                draggable={Boolean(entry) && !busy}
                 disabled={busy}
+                data-inventory-uuid={inventory.inventory_uuid}
+                data-slot={slot}
                 aria-label={
                   entry
-                    ? `${title} slot ${String(slot)}: ${entry.definition.label}`
+                    ? `Drag ${entry.definition.label} from ${title.toLowerCase()} slot ${String(slot)}`
                     : `Empty ${title.toLowerCase()} slot ${String(slot)}`
                 }
-                aria-pressed={isSelected}
                 title={entry?.definition.description ?? `Empty slot ${String(slot)}`}
-                onClick={() => activateSlot(reference, entry)}
-                onDragStart={(event) => startDrag(event, reference, Boolean(entry))}
-                onDragEnd={() => setDragging(null)}
-                onDragOver={(event) => {
-                  if (dragging) event.preventDefault();
-                }}
-                onDrop={(event) => drop(event, reference)}
+                onClick={(event) => event.preventDefault()}
+                onPointerDown={(event) => entry && startPointerDrag(event, reference, entry)}
+                onPointerMove={movePointerDrag}
+                onPointerUp={finishPointerDrag}
+                onPointerCancel={cancelPointerDrag}
               >
                 <span className="inventory-slot-number">{slot}</span>
                 {entry ? (
@@ -454,15 +547,15 @@ export function InventoryPanel({
       >
         <div className="shell-card__topline">
           <span>{workspace?.access_label ?? 'Personal Equipment'}</span>
-          <span className="status-pill">{view === 'storage' ? 'Secure Storage' : 'Inventory'}</span>
+          <span className="status-pill">{view === 'storage' ? 'Item Transfer' : 'Inventory'}</span>
         </div>
         <div className="inventory-heading">
           <div>
-            <h1>{view === 'storage' ? 'Inventory & Locker' : 'Personal Inventory'}</h1>
+            <h1>{view === 'storage' ? 'Item Transfer' : 'Personal Inventory'}</h1>
             <p>
               {view === 'storage'
-                ? 'Drag complete stacks between your pockets and nearby personal locker.'
-                : 'Drag an item or select it and then choose a destination slot.'}
+                ? 'Drag complete stacks directly between Inventory and Container slots.'
+                : 'Drag an item directly onto its destination slot.'}
             </p>
           </div>
         </div>
@@ -479,17 +572,7 @@ export function InventoryPanel({
               <div className="inventory-workspace">{inventories.map(renderInventory)}</div>
               <div className="inventory-selection" aria-live="polite">
                 {busy && <span>Confirming inventory operation…</span>}
-                {!busy && selectedEntry && (
-                  <span>
-                    <strong>{selectedEntry.definition.label}</strong> selected. Choose a slot in
-                    either available inventory.
-                  </span>
-                )}
-                {!busy && !selectedEntry && (
-                  <span>
-                    Select or drag an occupied slot. Cross-inventory placement is server selected.
-                  </span>
-                )}
+                {!busy && <span>Hold an item and drag it directly onto a destination slot.</span>}
               </div>
             </>
           )}
@@ -527,6 +610,19 @@ export function InventoryPanel({
           </div>
         </div>
       </section>
+      {dragVisual && (
+        <div
+          className={`inventory-drag-ghost inventory-drag-ghost--${dragVisual.phase}`}
+          style={{ left: dragVisual.x, top: dragVisual.y }}
+          aria-hidden="true"
+        >
+          <span className="inventory-drag-ghost__icon">
+            {inventoryIconFallback(dragVisual.entry.definition.icon_key)}
+          </span>
+          <span>{dragVisual.entry.definition.label}</span>
+          <strong>×{dragVisual.entry.quantity}</strong>
+        </div>
+      )}
     </main>
   );
 }

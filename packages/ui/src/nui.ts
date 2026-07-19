@@ -251,6 +251,7 @@ function browserMock(event: string, body: unknown): unknown {
       typeof request.source_inventory_uuid !== 'string' ||
       typeof request.target_inventory_uuid !== 'string' ||
       typeof request.source_slot !== 'number' ||
+      typeof request.target_slot !== 'number' ||
       typeof request.quantity !== 'number'
     )
       return {
@@ -271,7 +272,7 @@ function browserMock(event: string, body: unknown): unknown {
         source_inventory_uuid: request.source_inventory_uuid,
         target_inventory_uuid: request.target_inventory_uuid,
         source_slot: request.source_slot,
-        target_slot: 1,
+        target_slot: request.target_slot,
         target_entry_uuid: request.operation_uuid,
         quantity: request.quantity,
         mode: 'CREATE_STACK',

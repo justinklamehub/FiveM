@@ -6,7 +6,7 @@ Owns personal character inventories and lockers, inventory entries, unique item 
 
 ## Security boundary
 
-Every client request resolves the active FULL session and spawned character from the FiveM source. The client cannot provide account, session, character, item definition, item instance, metadata, weight, capacity, inventory version, position, or result state. A cross-inventory transfer never accepts a target slot. The server exposes a character-owned locker only within its configured radius, repeats that check for every locker mutation, and restricts transfers to the owned `CHARACTER`/`PERSONAL_STORAGE` pair. Same-inventory repositioning accepts source and target slots as user intent, then locks and derives both entries before choosing an atomic move or swap.
+Every client request resolves the active FULL session and spawned character from the FiveM source. The client cannot provide account, session, character, item definition, item instance, metadata, weight, capacity, inventory version, position, transfer mode, or result state. Cross-inventory and same-inventory operations accept source and destination slots only as user intent. The server exposes a character-owned locker only within its configured radius, repeats that check for every locker mutation, restricts transfers to the owned `CHARACTER`/`PERSONAL_STORAGE` pair, and validates the destination entry before choosing the atomic operation mode.
 
 ## Non-responsibility
 
@@ -14,7 +14,7 @@ Does not implement item use effects, equipment, backpacks, vehicles, ground drop
 
 ## Public network interface
 
-The snapshot, locker workspace, reposition, and transfer payloads use inventory contract version `3`.
+The snapshot, locker workspace, reposition, and transfer payloads use inventory contract version `4`.
 
 - `cnr:inventory:request` with `snapshot`, `workspace`, `reposition`, or `transfer`
 - `cnr:inventory:response`

@@ -91,7 +91,31 @@ VALUES
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000023','-','')),
 @water_definition_id, NULL, 1, 1, 'CREATE_STACK', 1, 'inventory-transfer-rollback',
-'inventory-correlation-rollback', 3, UNHEX(SHA2('inventory-transfer',256)), 2, 2,
+'inventory-correlation-rollback', 4, UNHEX(SHA2('inventory-transfer',256)),
+COALESCE((SELECT source_inventory.version+1
+FROM cnr_inventories source_inventory
+INNER JOIN cnr_inventories target_inventory ON target_inventory.id=@target_inventory_id
+INNER JOIN cnr_inventory_items source_item
+    ON source_item.inventory_id=source_inventory.id
+WHERE source_inventory.id=@source_inventory_id
+AND source_inventory.version=1
+AND target_inventory.version=1
+AND source_inventory.status='ACTIVE'
+AND target_inventory.status='ACTIVE'
+AND source_inventory.owner_character_uuid=@inventory_character_uuid
+AND target_inventory.owner_character_uuid=@inventory_character_uuid
+AND source_item.id=@source_entry_id
+AND source_item.version=1
+AND source_item.quantity=2
+AND source_item.definition_id=@water_definition_id
+AND source_item.item_instance_id IS NULL
+AND (SELECT COALESCE(SUM(item.quantity*definition.unit_weight_grams),0)
+    FROM cnr_inventory_items item
+    INNER JOIN cnr_item_definitions definition ON definition.id=item.definition_id
+    WHERE item.inventory_id=target_inventory.id)+500<=target_inventory.weight_capacity_grams
+AND NOT EXISTS (SELECT 1 FROM cnr_inventory_items target_item
+    WHERE target_item.inventory_id=target_inventory.id AND target_item.slot_number=1)
+LIMIT 1),0), 2,
 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 UPDATE cnr_inventory_items SET quantity=quantity-1, version=version+1
 WHERE id=@source_entry_id;
@@ -132,7 +156,7 @@ VALUES
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000023','-','')),
 @water_definition_id, NULL, 1, 1, 'CREATE_STACK', 1, 'inventory-transfer-commit',
-'inventory-correlation-commit', 3, UNHEX(SHA2('inventory-transfer',256)), 2, 2,
+'inventory-correlation-commit', 4, UNHEX(SHA2('inventory-transfer',256)), 2, 2,
 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 UPDATE cnr_inventory_items SET quantity=quantity-1, version=version+1
 WHERE id=@source_entry_id;
@@ -244,7 +268,7 @@ VALUES
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000043','-','')),
 1, 3, @water_definition_id, NULL, 1, 'inventory-reposition-1',
-'inventory-reposition-correlation-1', 3, UNHEX(SHA2('reposition',256)),
+'inventory-reposition-correlation-1', 4, UNHEX(SHA2('reposition',256)),
 3, 3, 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 UPDATE cnr_inventory_items SET slot_number=25 WHERE id=@source_entry_id;
 UPDATE cnr_inventory_items SET slot_number=1, version=version+1

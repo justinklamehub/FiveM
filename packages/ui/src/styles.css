@@ -484,16 +484,16 @@ button {
   padding: clamp(1rem, 2vw, 2rem);
 }
 .inventory-card {
-  width: min(74rem, 96vw);
-  height: min(56rem, 94vh);
-  max-height: 94vh;
+  width: min(88rem, 97vw);
+  height: min(64rem, 96vh);
+  max-height: 96vh;
   display: flex;
   flex-direction: column;
   padding: clamp(1.5rem, 2vw, 2.25rem);
   overflow: hidden;
 }
 .inventory-card--workspace {
-  width: min(92rem, 97vw);
+  width: min(110rem, 98vw);
 }
 .inventory-card > .shell-card__topline,
 .inventory-heading,
@@ -546,8 +546,11 @@ button {
   min-height: 0;
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
+}
+.inventory-card--workspace .inventory-workspace {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .inventory-pane {
   min-width: 0;
@@ -590,7 +593,7 @@ button {
   flex: 1 1 auto;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-auto-rows: minmax(8.25rem, 1fr);
+  grid-auto-rows: minmax(7rem, 1fr);
   align-content: start;
   gap: 0.8rem;
   max-height: none;
@@ -598,18 +601,23 @@ button {
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
+.inventory-card:not(.inventory-card--workspace) .inventory-slot-grid {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
 .inventory-card--workspace .inventory-slot-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-rows: minmax(7.5rem, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: minmax(6.25rem, 1fr);
 }
 .inventory-card--workspace .inventory-slot-tile {
-  min-height: 7.5rem;
+  min-height: 6.25rem;
 }
 .shell-card .inventory-slot-tile {
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 8.25rem;
+  min-height: 7rem;
   place-items: center;
   align-content: center;
   gap: 0.45rem;
@@ -623,9 +631,10 @@ button {
     background 140ms ease,
     transform 140ms ease,
     opacity 140ms ease;
+  user-select: none;
+  touch-action: none;
 }
-.shell-card .inventory-slot-tile:hover:not(:disabled),
-.shell-card .inventory-slot-tile--selected {
+.shell-card .inventory-slot-tile:hover:not(:disabled) {
   border-color: var(--cnr-accent);
   background: rgba(217, 164, 65, 0.1);
 }
@@ -639,6 +648,14 @@ button {
 .shell-card .inventory-slot-tile--dragging {
   opacity: 0.45;
   transform: scale(0.97);
+}
+.shell-card .inventory-slot-tile--drop-target {
+  border-color: #f1c66e;
+  background: rgba(217, 164, 65, 0.2);
+  box-shadow:
+    inset 0 0 0 1px rgba(241, 198, 110, 0.55),
+    0 0 1.5rem rgba(217, 164, 65, 0.2);
+  transform: translateY(-0.15rem) scale(1.02);
 }
 .inventory-slot-number {
   position: absolute;
@@ -714,15 +731,56 @@ button {
   min-width: 7.5rem;
   min-height: 3rem;
 }
+.inventory-drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  grid-template-columns: 2.8rem minmax(0, 1fr) auto;
+  align-items: center;
+  width: min(19rem, 42vw);
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(241, 198, 110, 0.7);
+  border-radius: 0.85rem;
+  color: #fff;
+  background: rgba(17, 22, 31, 0.96);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.48);
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-1.5deg) scale(1.04);
+  transition:
+    left 160ms ease,
+    top 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+.inventory-drag-ghost--dropping {
+  opacity: 0.2;
+  transform: translate(-50%, -50%) rotate(0) scale(0.72);
+}
+.inventory-drag-ghost__icon {
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  place-items: center;
+  border: 1px solid rgba(217, 164, 65, 0.35);
+  border-radius: 0.65rem;
+  color: var(--cnr-accent);
+  background: rgba(217, 164, 65, 0.12);
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+.inventory-drag-ghost strong {
+  color: var(--cnr-accent);
+}
 @media (max-width: 900px) {
   .inventory-card--workspace {
     height: min(60rem, 96vh);
   }
-  .inventory-workspace {
+  .inventory-card--workspace .inventory-workspace {
     grid-template-columns: 1fr;
   }
   .inventory-slot-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
   .inventory-card--workspace .inventory-slot-grid {
     max-height: 18rem;

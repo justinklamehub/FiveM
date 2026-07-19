@@ -269,11 +269,13 @@ local function transfer_guard(context)
     local target_values
     if context.target_entry then
         target_guard = [[AND EXISTS (SELECT 1 FROM cnr_inventory_items ti
-        WHERE ti.id=? AND ti.inventory_id=t.id AND ti.version=? AND ti.quantity=?
+        WHERE ti.id=? AND ti.inventory_id=t.id AND ti.slot_number=?
+        AND ti.version=? AND ti.quantity=?
         AND ti.definition_id=? AND ti.item_instance_id IS NULL
         AND ti.quantity+?<=?) ]]
         target_values = {
             context.target_entry.id,
+            context.plan.target_slot,
             context.target_entry.version,
             context.target_entry.quantity,
             context.source_entry.definition_id,
