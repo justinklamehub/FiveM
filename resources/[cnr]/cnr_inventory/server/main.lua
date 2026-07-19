@@ -80,6 +80,8 @@ RegisterNetEvent('cnr:inventory:request', function(action, payload)
         )
     elseif action == 'snapshot' then
         result = Service.snapshot(player_source, payload, correlation_id)
+    elseif action == 'workspace' then
+        result = Service.workspace(player_source, payload, correlation_id)
     elseif action == 'reposition' then
         result = Service.reposition(player_source, payload, correlation_id)
     elseif action == 'transfer' then
@@ -143,7 +145,21 @@ exports('snapshot_for_source', function(player_source, request_id, correlation_i
     end
     return Service.snapshot(player_source, {
         request_id = request_id,
-        contract_version = 2,
+        contract_version = 3,
+    }, correlation_id)
+end)
+exports('workspace_for_source', function(player_source, request_id, correlation_id)
+    if status.status ~= 'ready' then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'inventory.error.unavailable',
+            {},
+            correlation_id
+        )
+    end
+    return Service.workspace(player_source, {
+        request_id = request_id,
+        contract_version = 3,
     }, correlation_id)
 end)
 exports('transfer_for_source', function(player_source, payload, correlation_id)

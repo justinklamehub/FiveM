@@ -9,7 +9,7 @@ local function transfer_payload()
         quantity = 1,
         request_id = 'inventory-transfer-1',
         operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-        contract_version = 2,
+        contract_version = 3,
     }
 end
 
@@ -20,7 +20,7 @@ local function reposition_payload()
         target_slot = 4,
         request_id = 'inventory-reposition-1',
         operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
-        contract_version = 2,
+        contract_version = 3,
     }
 end
 
@@ -79,6 +79,24 @@ describe('inventory policy', function()
         value.quantity = 1
         local plan = Policy.transfer_plan(value)
         assert.are.equal('MOVE_INSTANCE', plan.mode)
+    end)
+
+    it('allows only the character/personal-storage pair and validates locker distance', function()
+        assert.is_true(Policy.is_personal_storage_pair('CHARACTER', 'PERSONAL_STORAGE'))
+        assert.is_true(Policy.is_personal_storage_pair('PERSONAL_STORAGE', 'CHARACTER'))
+        assert.is_false(Policy.is_personal_storage_pair('CHARACTER', 'CHARACTER'))
+        assert.is_false(Policy.is_personal_storage_pair('PERSONAL_STORAGE', 'PERSONAL_STORAGE'))
+        assert.is_true(Policy.within_access_radius({ x = 1, y = 2, z = 3 }, {
+            x = 1,
+            y = 2,
+            z = 3,
+        }, 4))
+        assert.is_false(Policy.within_access_radius({ x = 10, y = 2, z = 3 }, {
+            x = 1,
+            y = 2,
+            z = 3,
+        }, 4))
+        assert.is_false(Policy.within_access_radius(nil, {}, 4))
     end)
 
     it('validates narrow reposition intent and plans moves or swaps within capacity', function()

@@ -13,7 +13,7 @@ local function error_result(code, key, details, correlation_id)
     }
 end
 
-local function load_service(repository, session, character_result)
+local function load_service(repository, session, character_result, player_coordinates)
     local environment = {}
     setmetatable(environment, { __index = _G })
     environment.require = function(name)
@@ -27,6 +27,15 @@ local function load_service(repository, session, character_result)
     end
     environment.GetConvarInt = function(_, default)
         return default
+    end
+    environment.GetConvar = function(_, default)
+        return default
+    end
+    environment.GetPlayerPed = function()
+        return 1
+    end
+    environment.GetEntityCoords = function()
+        return player_coordinates or { x = 215.76, y = -810.12, z = 30.73 }
     end
     environment.exports = {
         cnr_sessions = {
@@ -64,7 +73,21 @@ local function load_service(repository, session, character_result)
     return chunk()
 end
 
-local read = { request_id = 'inventory-read-1', contract_version = 2 }
+local function inventory_row(inventory_uuid, inventory_type)
+    return {
+        id = inventory_type == 'CHARACTER' and 1 or 2,
+        inventory_uuid = inventory_uuid,
+        owner_character_uuid = 'character-1',
+        inventory_type = inventory_type,
+        slot_capacity = inventory_type == 'CHARACTER' and 24 or 48,
+        weight_capacity_grams = inventory_type == 'CHARACTER' and 30000 or 100000,
+        current_weight_grams = 0,
+        version = 1,
+        status = 'ACTIVE',
+    }
+end
+
+local read = { request_id = 'inventory-read-1', contract_version = 3 }
 local transfer = {
     source_inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
     target_inventory_uuid = '0190b7a0-6000-7000-8000-000000000011',
@@ -72,7 +95,7 @@ local transfer = {
     quantity = 1,
     request_id = 'inventory-transfer-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-    contract_version = 2,
+    contract_version = 3,
 }
 local reposition = {
     inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
@@ -80,7 +103,7 @@ local reposition = {
     target_slot = 4,
     request_id = 'inventory-reposition-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
-    contract_version = 2,
+    contract_version = 3,
 }
 
 describe('inventory service authority', function()
@@ -154,6 +177,9 @@ describe('inventory service authority', function()
                     payload_sha256 = string.rep('a', 64),
                 }
             end,
+            find_owned = function()
+                return inventory_row(reposition.inventory_uuid, 'CHARACTER')
+            end,
         }
         local result = load_service(repository, {
             account_uuid = 'account-1',
@@ -190,6 +216,9 @@ describe('inventory service authority', function()
                     reposition_mode = 'MOVE',
                 }
             end,
+            find_owned = function()
+                return inventory_row(reposition.inventory_uuid, 'CHARACTER')
+            end,
         }
         local result = load_service(repository, {
             account_uuid = 'account-1',
@@ -207,5 +236,88 @@ describe('inventory service authority', function()
         assert.is_true(result.data.repeated)
         assert.are.equal(4, result.data.inventory_version)
         assert.are.equal('MOVE', result.data.mode)
+    end)
+
+    it('requires server-verified locker proximity before a cross-inventory transfer', function()
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = string.rep('a', 64) }
+            end,
+            transaction = function()
+                return nil
+            end,
+            find_owned = function(_, inventory_uuid)
+                if inventory_uuid == transfer.source_inventory_uuid then
+                    return inventory_row(inventory_uuid, 'CHARACTER')
+                end
+                return inventory_row(inventory_uuid, 'PERSONAL_STORAGE')
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }, { x = 500.0, y = 500.0, z = 30.0 }).transfer(
+            12,
+            transfer,
+            'correlation-storage-distance'
+        )
+        assert.is_false(result.ok)
+        assert.are.equal('PRECONDITION_FAILED', result.error.code)
+    end)
+
+    it('replays the stored server-selected transfer placement', function()
+        local hash = string.rep('a', 64)
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = hash }
+            end,
+            transaction = function()
+                return {
+                    operation_uuid = transfer.operation_uuid,
+                    action = 'TRANSFER',
+                    account_uuid = 'account-1',
+                    character_uuid = 'character-1',
+                    payload_sha256 = hash,
+                    source_slot = 1,
+                    target_slot = 4,
+                    target_entry_uuid = '0190b7a0-6000-7000-8000-000000000014',
+                    quantity = 1,
+                    transfer_mode = 'CREATE_STACK',
+                    result_source_version = 2,
+                    result_target_version = 3,
+                }
+            end,
+            find_owned = function(_, inventory_uuid)
+                if inventory_uuid == transfer.source_inventory_uuid then
+                    return inventory_row(inventory_uuid, 'CHARACTER')
+                end
+                return inventory_row(inventory_uuid, 'PERSONAL_STORAGE')
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).transfer(12, transfer, 'correlation-transfer-repeated')
+        assert.is_true(result.ok)
+        assert.is_true(result.data.repeated)
+        assert.are.equal(4, result.data.target_slot)
+        assert.are.equal('CREATE_STACK', result.data.mode)
+        assert.are.equal(3, result.data.target_version)
     end)
 end)

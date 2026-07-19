@@ -5,6 +5,7 @@ import {
   playerLifecycleContractVersion,
   registrationContractVersion,
   type CurrentRuleset,
+  type InventoryOpenView,
   type PlayerLifecycleSnapshot,
   type RegistrationOutcome,
   type Result,
@@ -20,9 +21,16 @@ const newId = () => crypto.randomUUID();
 
 export function App() {
   const mock = useMemo(isBrowserMock, []);
-  const browserInventory = useMemo(
-    () => mock && new URLSearchParams(currentBrowserSearch()).get('view') === 'inventory',
-    [mock],
+  const browserInventory = useMemo(() => {
+    const view = new URLSearchParams(currentBrowserSearch()).get('view');
+    return mock && (view === 'inventory' || view === 'storage');
+  }, [mock]);
+  const browserInventoryView = useMemo<InventoryOpenView>(
+    () =>
+      new URLSearchParams(currentBrowserSearch()).get('view') === 'storage'
+        ? 'storage'
+        : 'personal',
+    [],
   );
   const operationUuid = useRef(newId());
   const browserReadySent = useRef(false);
@@ -38,6 +46,7 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [inventoryOpen, setInventoryOpen] = useState(browserInventory);
+  const [inventoryView, setInventoryView] = useState<InventoryOpenView>(browserInventoryView);
 
   const loadRuleset = useCallback(async () => {
     setLoading(true);
@@ -147,6 +156,7 @@ export function App() {
         setInventoryOpen(false);
         applySnapshot(event.data.payload);
       } else if (event.data.type === 'ui.inventory.open') {
+        setInventoryView(event.data.payload.view);
         setInventoryOpen(true);
         setVisible(true);
         setFocus((current) => claimFocus(current, 'inventory'));
@@ -172,6 +182,7 @@ export function App() {
   if (inventoryOpen) {
     return (
       <InventoryPanel
+        view={inventoryView}
         onClose={() => {
           setInventoryOpen(false);
           setVisible(false);

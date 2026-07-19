@@ -28,7 +28,7 @@ function Policy.validate_read(payload)
         return nil, 'VALIDATION_ERROR'
     end
     if
-        payload.contract_version ~= 2
+        payload.contract_version ~= 3
         or type(payload.request_id) ~= 'string'
         or #payload.request_id < 1
         or #payload.request_id > 64
@@ -57,7 +57,7 @@ function Policy.validate_transfer(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 2 then
+    if payload.contract_version ~= 3 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -98,7 +98,7 @@ function Policy.validate_reposition(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 2 then
+    if payload.contract_version ~= 3 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -118,6 +118,39 @@ function Policy.validate_reposition(payload)
         return nil, 'VALIDATION_ERROR'
     end
     return payload
+end
+
+---@param source_type string
+---@param target_type string
+---@return boolean
+function Policy.is_personal_storage_pair(source_type, target_type)
+    return (source_type == 'CHARACTER' and target_type == 'PERSONAL_STORAGE')
+        or (source_type == 'PERSONAL_STORAGE' and target_type == 'CHARACTER')
+end
+
+---@param player table
+---@param locker table
+---@param radius number
+---@return boolean
+function Policy.within_access_radius(player, locker, radius)
+    if
+        type(player) ~= 'table'
+        or type(locker) ~= 'table'
+        or type(player.x) ~= 'number'
+        or type(player.y) ~= 'number'
+        or type(player.z) ~= 'number'
+        or type(locker.x) ~= 'number'
+        or type(locker.y) ~= 'number'
+        or type(locker.z) ~= 'number'
+        or type(radius) ~= 'number'
+        or radius <= 0
+    then
+        return false
+    end
+    local x = player.x - locker.x
+    local y = player.y - locker.y
+    local z = player.z - locker.z
+    return x * x + y * y + z * z <= radius * radius
 end
 
 ---@param entries table[]

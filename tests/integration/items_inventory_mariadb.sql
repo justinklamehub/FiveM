@@ -81,7 +81,8 @@ WHERE id IN (@source_inventory_id, @target_inventory_id) ORDER BY id FOR UPDATE;
 INSERT INTO cnr_item_transactions
 (operation_uuid, action, account_uuid, session_uuid, character_uuid, source_inventory_id,
 target_inventory_id, source_entry_uuid, target_entry_uuid, definition_id, item_instance_id,
-quantity, request_id, correlation_id, contract_version, payload_sha256,
+source_slot, target_slot, transfer_mode, quantity, request_id, correlation_id,
+contract_version, payload_sha256,
 result_source_version, result_target_version, result_status, created_at, completed_at)
 VALUES
 (UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000030','-','')), 'TRANSFER',
@@ -89,8 +90,9 @@ VALUES
 @source_inventory_id, @target_inventory_id,
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000023','-','')),
-@water_definition_id, NULL, 1, 'inventory-transfer-rollback', 'inventory-correlation-rollback',
-1, UNHEX(SHA2('inventory-transfer',256)), 2, 2, 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+@water_definition_id, NULL, 1, 1, 'CREATE_STACK', 1, 'inventory-transfer-rollback',
+'inventory-correlation-rollback', 3, UNHEX(SHA2('inventory-transfer',256)), 2, 2,
+'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 UPDATE cnr_inventory_items SET quantity=quantity-1, version=version+1
 WHERE id=@source_entry_id;
 INSERT INTO cnr_inventory_items
@@ -120,7 +122,8 @@ WHERE id IN (@source_inventory_id, @target_inventory_id) ORDER BY id FOR UPDATE;
 INSERT INTO cnr_item_transactions
 (operation_uuid, action, account_uuid, session_uuid, character_uuid, source_inventory_id,
 target_inventory_id, source_entry_uuid, target_entry_uuid, definition_id, item_instance_id,
-quantity, request_id, correlation_id, contract_version, payload_sha256,
+source_slot, target_slot, transfer_mode, quantity, request_id, correlation_id,
+contract_version, payload_sha256,
 result_source_version, result_target_version, result_status, created_at, completed_at)
 VALUES
 (UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000030','-','')), 'TRANSFER',
@@ -128,8 +131,9 @@ VALUES
 @source_inventory_id, @target_inventory_id,
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000023','-','')),
-@water_definition_id, NULL, 1, 'inventory-transfer-commit', 'inventory-correlation-commit',
-1, UNHEX(SHA2('inventory-transfer',256)), 2, 2, 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+@water_definition_id, NULL, 1, 1, 'CREATE_STACK', 1, 'inventory-transfer-commit',
+'inventory-correlation-commit', 3, UNHEX(SHA2('inventory-transfer',256)), 2, 2,
+'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 UPDATE cnr_inventory_items SET quantity=quantity-1, version=version+1
 WHERE id=@source_entry_id;
 INSERT INTO cnr_inventory_items
@@ -147,6 +151,12 @@ CALL assert_inventory_true(
 CALL assert_inventory_true(
     (SELECT quantity=1 FROM cnr_inventory_items WHERE inventory_id=@target_inventory_id),
     'committed transfer did not credit target'
+);
+CALL assert_inventory_true(
+    (SELECT source_slot=1 AND target_slot=1 AND transfer_mode='CREATE_STACK'
+    FROM cnr_item_transactions
+    WHERE operation_uuid=UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000030','-',''))),
+    'committed transfer did not retain replayable placement'
 );
 
 DELIMITER //
@@ -234,7 +244,7 @@ VALUES
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
 UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000043','-','')),
 1, 3, @water_definition_id, NULL, 1, 'inventory-reposition-1',
-'inventory-reposition-correlation-1', 2, UNHEX(SHA2('reposition',256)),
+'inventory-reposition-correlation-1', 3, UNHEX(SHA2('reposition',256)),
 3, 3, 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
 UPDATE cnr_inventory_items SET slot_number=25 WHERE id=@source_entry_id;
 UPDATE cnr_inventory_items SET slot_number=1, version=version+1

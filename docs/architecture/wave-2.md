@@ -14,10 +14,13 @@ The first slice implements:
 - atomic, operation-UUID-backed transfers between inventories owned by the source-bound character;
 - an English dynamic personal-inventory slot grid opened with F2;
 - idempotent, atomic empty-slot moves and occupied-slot swaps through drag/drop or accessible selection;
+- one server-created `PERSONAL_STORAGE` locker per character with configurable slots and weight;
+- a proximity-gated two-panel locker workspace with atomic cross-inventory drag/drop;
+- replayable server-selected transfer modes and target placement for confirmed in-place UI updates;
 - stable server-owned image keys with deterministic UI fallbacks for a later PNG asset pack;
 - browser mocks, contracts, MariaDB tests, Lua policy tests, and audit events.
 
-Banking, reservations, use effects, backpacks, shared storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
+Banking, reservations, use effects, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
 
 ## Ownership boundaries
 
@@ -29,7 +32,7 @@ Cross-resource references use canonical UUIDs. Inventory tables retain the stabl
 
 ## Client contract
 
-The interactive slot slice uses inventory contract version 2.
+The personal-locker workspace uses inventory contract version 3.
 
 A snapshot request contains only:
 
@@ -43,7 +46,7 @@ A transfer request may additionally contain only:
 - positive integer quantity;
 - `operation_uuid`.
 
-The client cannot submit account, session, character, definition, item instance, metadata, weight, capacity, inventory version, distance, or result state. Cross-inventory transfers do not accept a target slot. A same-inventory reposition request may express source and target slots as user intent; the server resolves both entries, validates capacity and versions, and chooses move or swap semantics. The transfer contract remains reserved for later server-presented secondary inventories.
+The client cannot submit account, session, character, definition, item instance, metadata, weight, capacity, inventory version, distance, or result state. Cross-inventory transfers do not accept a target slot. A same-inventory reposition request may express source and target slots as user intent; the server resolves both entries, validates capacity and versions, and chooses move or swap semantics. The storage workspace is returned only while the server-observed player ped is within the configured locker radius, and every storage reposition or transfer repeats that proximity check.
 
 ## Starter provisioning
 
@@ -61,7 +64,9 @@ Transfers lock source and target inventories and their entries in deterministic 
 
 Repeating the same operation UUID and semantic payload returns the stored result. Reusing it with changed content, action, account, or character returns `CONFLICT`.
 
-Personal repositioning uses the same rule. Empty destinations move the source entry; occupied destinations swap the locked entries through a transaction-local temporary slot. The browser never mutates its snapshot optimistically and reloads the server result after completion.
+Personal repositioning uses the same rule. Empty destinations move the source entry; occupied destinations swap the locked entries through a transaction-local temporary slot. The browser never mutates its snapshot optimistically; it applies only the confirmed server outcome to the open view.
+
+The first personal locker is created idempotently from server configuration. Cross-inventory transfers are restricted to one `CHARACTER` and one `PERSONAL_STORAGE` inventory owned by the active character. The transaction stores source slot, server-selected target slot, target entry, quantity, mode, and both result versions. The NUI applies those details only after server confirmation, so successful moves do not require a second snapshot while retries remain idempotent.
 
 ## Audit and recovery
 

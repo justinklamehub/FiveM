@@ -59,6 +59,16 @@ describe('inventory security boundary', () => {
     expect(service).toContain("session.access_state ~= 'FULL'");
   });
 
+  it('gates the personal locker and every cross-inventory transfer by server position', () => {
+    expect(service).toContain('GetPlayerPed(player_source)');
+    expect(service).toContain('GetEntityCoords(ped)');
+    expect(service).toContain('Policy.within_access_radius');
+    expect(service).toContain('Policy.is_personal_storage_pair');
+    expect(policy).toContain("source_type == 'CHARACTER'");
+    expect(policy).toContain("target_type == 'PERSONAL_STORAGE'");
+    expect(main).toContain("action == 'workspace'");
+  });
+
   it('locks inventories and entries before guarded atomic transfer mutations', () => {
     expect(repository).toContain('ORDER BY id FOR UPDATE');
     expect(repository).toContain('cnr_item_transactions');
@@ -69,6 +79,8 @@ describe('inventory security boundary', () => {
     );
     expect(repository).toContain("'REPOSITION'");
     expect(repository).toContain('temporary_slot');
+    expect(repository).toContain('transfer_mode');
+    expect(repository).toContain('context.plan.target_slot');
   });
 
   it('fails closed and recovers when source-authority dependencies restart', () => {

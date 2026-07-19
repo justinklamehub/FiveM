@@ -206,7 +206,9 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
-export const inventoryContractVersion = 2 as const;
+export const inventoryContractVersion = 3 as const;
+export type InventoryType = 'CHARACTER' | 'PERSONAL_STORAGE';
+export type InventoryOpenView = 'personal' | 'storage';
 export interface InventoryItemDefinition {
   definition_uuid: string;
   code: string;
@@ -227,15 +229,21 @@ export interface InventoryEntry {
   definition: InventoryItemDefinition;
   total_weight_grams: number;
 }
-export interface PersonalInventorySnapshot {
+export interface InventorySnapshot {
   inventory_uuid: string;
-  inventory_type: 'CHARACTER';
+  inventory_type: InventoryType;
   slot_capacity: number;
   weight_capacity_grams: number;
   current_weight_grams: number;
   version: number;
   starter_provisioned: boolean;
   entries: readonly InventoryEntry[];
+}
+export type PersonalInventorySnapshot = InventorySnapshot & { inventory_type: 'CHARACTER' };
+export interface InventoryWorkspaceSnapshot {
+  character: InventorySnapshot & { inventory_type: 'CHARACTER' };
+  storage: InventorySnapshot & { inventory_type: 'PERSONAL_STORAGE' };
+  access_label: string;
 }
 export interface InventorySnapshotRequest {
   request_id: string;
@@ -253,6 +261,13 @@ export interface InventoryTransferRequest {
 export interface InventoryTransferOutcome {
   repeated: boolean;
   operation_uuid: string;
+  source_inventory_uuid: string;
+  target_inventory_uuid: string;
+  source_slot: number;
+  target_slot: number;
+  target_entry_uuid: string;
+  quantity: number;
+  mode: 'MOVE_INSTANCE' | 'STACK' | 'CREATE_STACK';
   source_version: number;
   target_version: number;
 }
@@ -386,7 +401,10 @@ export type NuiMessage =
   | {
       version: 1;
       type: 'ui.inventory.open';
-      payload: { contract_version: typeof inventoryContractVersion };
+      payload: {
+        contract_version: typeof inventoryContractVersion;
+        view: InventoryOpenView;
+      };
     }
   | {
       version: 1;
@@ -437,10 +455,11 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
     return typeof payload.correlation_id === 'string';
   }
   if (candidate.type === 'ui.inventory.open') {
-    const payload = candidate.payload as { contract_version?: unknown };
+    const payload = candidate.payload as { contract_version?: unknown; view?: unknown };
     return (
-      Object.keys(candidate.payload).join(',') === 'contract_version' &&
-      payload.contract_version === inventoryContractVersion
+      Object.keys(candidate.payload).sort().join(',') === 'contract_version,view' &&
+      payload.contract_version === inventoryContractVersion &&
+      (payload.view === 'personal' || payload.view === 'storage')
     );
   }
   if (candidate.type === 'ui.request.response') {

@@ -23,7 +23,7 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716000800_inventory_interactions.sql` as applied.
+- dbmate reports every ordered migration through `20260716000900_personal_storage_workspace.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core, Wave 1, item, and inventory policy tests.
 - no banking, vehicles, character jobs, rewards, oil, or crime gameplay exists; the implemented inventory is an economic foundation only.
@@ -125,13 +125,14 @@ pnpm db:migrate
 
 ## Wave 2 items and personal inventory
 
-1. Migrate through `20260716000800`, start `cnr_items` and `cnr_inventory` before `cnr_ui`, and confirm both resources report `ready`.
+1. Migrate through `20260716000900`, start `cnr_items` and `cnr_inventory` before `cnr_ui`, and confirm both resources report `ready`.
 2. Complete a controlled spawn, press F2, and confirm the English 24-slot grid shows two Water Bottles, two Sandwiches, and the existing State Identification Card with deterministic image-key fallbacks.
 3. Close and reopen the inventory, reconnect, and restart `cnr_inventory`; confirm one inventory, one referenced State ID instance, three entries, and one starter transaction remain.
 4. Confirm the snapshot request contains only `request_id` and `contract_version`. Submit unexpected account, session, character, definition, instance, metadata, weight, capacity, version, or cross-inventory target-slot fields and confirm rejection without mutation. Confirm reposition accepts only the source-owned inventory UUID, source slot, target slot, request ID, operation UUID, and contract version.
-5. Seed a local `PERSONAL_STORAGE` inventory and use the server transfer export to verify partial and full stack movement, stack merging, unique-instance movement, server-selected target slots, weight limits, slot limits, and inventory version increments.
+5. At the configured parking locker, press F3 and confirm the server creates exactly one 48-slot `PERSONAL_STORAGE` inventory and opens the English two-panel workspace. Move outside the configured radius and confirm workspace reads, storage repositioning, and transfers fail without mutation. Return to the locker and confirm access recovers.
 6. Repeat a transfer operation UUID with identical content and confirm the stored result. Change source, target, slot, quantity, action, account, or character and confirm `CONFLICT` without item movement.
 7. Stop `cnr_items`, `cnr_characters`, and `cnr_database` separately and confirm snapshots and transfers fail closed with correlation IDs. Restart each dependency and confirm inventory readiness recovers without reconnecting or duplicating the starter package.
 8. Inspect audit/security logs and confirm they contain stable object references and quantities but no raw platform identifier, item metadata, document content, or secret.
 9. Drag an occupied slot onto an empty slot and another occupied slot. Confirm the server performs an atomic move or swap, increments the inventory and entry versions, persists the layout after reconnect, returns the stored result for an identical operation UUID, and rejects changed reuse without mutation. Repeat with selection plus destination activation to verify the accessible fallback.
 10. Open `http://localhost:5173/?view=inventory` and confirm the browser mock renders all 24 slots, starter entries, image-key fallbacks, English loading/error states, drag/drop movement, slot capacity, and weight capacity.
+11. Open `http://localhost:5173/?view=storage`, transfer full stackable entries and the State ID in both directions, and confirm server-selected target placement, stack merging, unique-instance movement, weight/slot limits, both inventory versions, and immediate confirmed UI updates without a snapshot reload. Reconnect and confirm the persisted placement.

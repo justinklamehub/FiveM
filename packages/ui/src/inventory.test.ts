@@ -3,12 +3,15 @@ import {
   inventoryContractVersion,
   type InventoryRepositionOutcome,
   type InventoryRepositionRequest,
+  type InventoryTransferOutcome,
+  type InventoryWorkspaceSnapshot,
   type PersonalInventorySnapshot,
   type Result,
 } from '@cnr/contracts';
 import { postNui } from './nui';
 import {
   applyConfirmedInventoryReposition,
+  applyConfirmedInventoryTransfer,
   inventoryIconFallback,
   inventorySlotNumbers,
 } from './InventoryPanel';
@@ -90,6 +93,49 @@ describe('inventory browser mock', () => {
     expect(swapped.entries.find((entry) => entry.definition.code === 'state_id')?.slot_number).toBe(
       24,
     );
+  });
+
+  it('builds the personal-locker workspace and applies a server-placed transfer', async () => {
+    const result = await postNui<Result<InventoryWorkspaceSnapshot>>('inventory.workspace', {
+      request_id: 'inventory-browser-workspace-1',
+      contract_version: inventoryContractVersion,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.storage.inventory_type).toBe('PERSONAL_STORAGE');
+    expect(result.data.storage.slot_capacity).toBe(48);
+    const water = result.data.character.entries.find(
+      (entry) => entry.definition.code === 'water_bottle',
+    );
+    expect(water).toBeDefined();
+    if (!water) return;
+
+    const outcome: InventoryTransferOutcome = {
+      repeated: false,
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000093',
+      source_inventory_uuid: result.data.character.inventory_uuid,
+      target_inventory_uuid: result.data.storage.inventory_uuid,
+      source_slot: water.slot_number,
+      target_slot: 1,
+      target_entry_uuid: '0190b7a0-6000-7000-8000-000000000094',
+      quantity: water.quantity,
+      mode: 'CREATE_STACK',
+      source_version: result.data.character.version + 1,
+      target_version: result.data.storage.version + 1,
+    };
+    const transferred = applyConfirmedInventoryTransfer(result.data, outcome);
+    expect(
+      transferred.character.entries.some((entry) => entry.definition.code === 'water_bottle'),
+    ).toBe(false);
+    expect(transferred.storage.entries[0]).toMatchObject({
+      entry_uuid: outcome.target_entry_uuid,
+      slot_number: 1,
+      quantity: water.quantity,
+    });
+    expect(transferred.character.current_weight_grams).toBe(
+      result.data.character.current_weight_grams - water.total_weight_grams,
+    );
+    expect(transferred.storage.current_weight_grams).toBe(water.total_weight_grams);
   });
 
   it('moves browser-mock entries with the same narrow idempotent intent contract', async () => {

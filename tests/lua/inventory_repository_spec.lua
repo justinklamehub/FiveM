@@ -43,7 +43,7 @@ local function context(mode)
         },
         request_id = 'inventory-reposition-repository-1',
         correlation_id = 'inventory-reposition-correlation-1',
-        contract_version = 2,
+        contract_version = 3,
         payload_sha256 = string.rep('a', 64),
         plan = { mode = mode, source_slot = 1, target_slot = 4 },
     }
@@ -81,6 +81,68 @@ describe('inventory repository reposition transaction', function()
             else
                 assert.are.equal(5, #captured.queries)
             end
+        end)
+    end
+end)
+
+local function transfer_context(mode)
+    local value = {
+        operation_uuid = '0190b7a0-6200-7000-8000-000000000021',
+        account_uuid = '0190b7a0-6200-7000-8000-000000000022',
+        session_uuid = '0190b7a0-6200-7000-8000-000000000023',
+        character_uuid = '0190b7a0-6200-7000-8000-000000000024',
+        source_inventory = {
+            id = 1,
+            inventory_uuid = '0190b7a0-6200-7000-8000-000000000025',
+            version = 3,
+        },
+        target_inventory = {
+            id = 2,
+            inventory_uuid = '0190b7a0-6200-7000-8000-000000000026',
+            version = 4,
+            weight_capacity_grams = 100000,
+        },
+        source_entry = {
+            id = 10,
+            entry_uuid = '0190b7a0-6200-7000-8000-000000000027',
+            definition_id = 2,
+            item_instance_id = nil,
+            slot_number = 1,
+            version = 4,
+            quantity = 1,
+            definition = { max_stack = 10, unit_weight_grams = 500 },
+        },
+        target_entry_uuid = '0190b7a0-6200-7000-8000-000000000028',
+        quantity = 1,
+        request_id = 'inventory-transfer-repository-1',
+        correlation_id = 'inventory-transfer-correlation-1',
+        contract_version = 3,
+        payload_sha256 = string.rep('b', 64),
+        plan = { mode = mode, target_slot = 1 },
+    }
+    if mode == 'STACK' then
+        value.target_entry = {
+            id = 11,
+            entry_uuid = value.target_entry_uuid,
+            version = 2,
+            quantity = 2,
+        }
+    elseif mode == 'MOVE_INSTANCE' then
+        value.source_entry.item_instance_id = 12
+    end
+    return value
+end
+
+describe('inventory repository transfer transaction', function()
+    for _, mode in ipairs({ 'CREATE_STACK', 'STACK', 'MOVE_INSTANCE' }) do
+        it('matches detailed transfer SQL placeholders for ' .. mode, function()
+            local captured = {}
+            local repository = load_repository(captured)
+            local result = repository.transfer(transfer_context(mode))
+            assert.is_true(result.ok)
+            local operation = captured.queries[3]
+            assert.are.equal(placeholder_count(operation.query), #operation.values)
+            assert.is_truthy(operation.query:find('transfer_mode', 1, true))
         end)
     end
 end)

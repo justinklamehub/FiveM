@@ -45,6 +45,45 @@ local function source_context(player_source, correlation_id)
     }
 end
 
+local function convar_number(name, default)
+    return tonumber(GetConvar(name, tostring(default))) or default
+end
+
+local function personal_locker_access(player_source, correlation_id)
+    local ped = GetPlayerPed(player_source)
+    if type(ped) ~= 'number' or ped <= 0 then
+        return failure(
+            'PRECONDITION_FAILED',
+            'inventory.error.storage_access_required',
+            {},
+            correlation_id
+        )
+    end
+    local coordinates = GetEntityCoords(ped)
+    local player = coordinates
+            and {
+                x = tonumber(coordinates.x),
+                y = tonumber(coordinates.y),
+                z = tonumber(coordinates.z),
+            }
+        or nil
+    local locker = {
+        x = convar_number('cnr_inventory_locker_x', 215.76),
+        y = convar_number('cnr_inventory_locker_y', -810.12),
+        z = convar_number('cnr_inventory_locker_z', 30.73),
+    }
+    local radius = convar_number('cnr_inventory_locker_radius', 4.0)
+    if not Policy.within_access_radius(player, locker, radius) then
+        return failure(
+            'PRECONDITION_FAILED',
+            'inventory.error.storage_access_required',
+            {},
+            correlation_id
+        )
+    end
+    return nil
+end
+
 local function inventory_values(row)
     return {
         id = tonumber(row.id),
@@ -138,6 +177,28 @@ local function ensure_inventory(context, correlation_id)
     end
     if not row or row.status ~= 'ACTIVE' then
         return nil, failure('CONFLICT', 'inventory.error.inventory_unavailable', {}, correlation_id)
+    end
+    return inventory_values(row)
+end
+
+local function ensure_personal_storage(context, correlation_id)
+    local row, database_error = Repository.find_personal_storage(context.character_uuid)
+    if database_error then
+        return nil, database_error
+    end
+    if not row then
+        row, database_error = Repository.ensure_personal_storage(
+            context.character_uuid,
+            exports.cnr_core:create_uuid_v7(),
+            GetConvarInt('cnr_inventory_storage_slots', 48),
+            GetConvarInt('cnr_inventory_storage_weight_grams', 100000)
+        )
+    end
+    if database_error then
+        return nil, database_error
+    end
+    if not row or row.status ~= 'ACTIVE' then
+        return nil, failure('CONFLICT', 'inventory.error.storage_unavailable', {}, correlation_id)
     end
     return inventory_values(row)
 end
@@ -249,7 +310,52 @@ function Service.snapshot(player_source, payload, correlation_id)
     return success(public_snapshot(inventory, entries, true), correlation_id)
 end
 
-local function repeated_transfer(operation, context, hash, correlation_id)
+function Service.workspace(player_source, payload, correlation_id)
+    local validated, validation_code = Policy.validate_read(payload)
+    if not validated then
+        return failure(validation_code, 'inventory.error.invalid_request', {}, correlation_id)
+    end
+    local context, context_error = source_context(player_source, correlation_id)
+    if not context then
+        return context_error
+    end
+    local access_error = personal_locker_access(player_source, correlation_id)
+    if access_error then
+        return access_error
+    end
+    local inventory, inventory_error = ensure_inventory(context, correlation_id)
+    if not inventory then
+        return inventory_error
+    end
+    local provisioned, provision_error = provision(context, inventory, correlation_id)
+    if not provisioned then
+        return provision_error
+    end
+    local refreshed, refresh_error = Repository.find_character_inventory(context.character_uuid)
+    if refresh_error then
+        return refresh_error
+    end
+    inventory = inventory_values(refreshed)
+    local storage, storage_error = ensure_personal_storage(context, correlation_id)
+    if not storage then
+        return storage_error
+    end
+    local inventory_entries, inventory_entries_error = entries_for(inventory)
+    if not inventory_entries then
+        return inventory_entries_error
+    end
+    local storage_entries, storage_entries_error = entries_for(storage)
+    if not storage_entries then
+        return storage_entries_error
+    end
+    return success({
+        character = public_snapshot(inventory, inventory_entries, true),
+        storage = public_snapshot(storage, storage_entries, false),
+        access_label = 'Personal Locker',
+    }, correlation_id)
+end
+
+local function repeated_transfer(operation, context, hash, payload, correlation_id)
     if not operation then
         return nil
     end
@@ -264,6 +370,13 @@ local function repeated_transfer(operation, context, hash, correlation_id)
     return success({
         repeated = true,
         operation_uuid = operation.operation_uuid,
+        source_inventory_uuid = payload.source_inventory_uuid,
+        target_inventory_uuid = payload.target_inventory_uuid,
+        source_slot = tonumber(operation.source_slot),
+        target_slot = tonumber(operation.target_slot),
+        target_entry_uuid = operation.target_entry_uuid,
+        quantity = tonumber(operation.quantity),
+        mode = operation.transfer_mode,
         source_version = tonumber(operation.result_source_version),
         target_version = tonumber(operation.result_target_version),
     }, correlation_id)
@@ -314,10 +427,6 @@ function Service.reposition(player_source, payload, correlation_id)
     if operation_error then
         return operation_error
     end
-    local repeated = repeated_reposition(operation, context, hash.payload_sha256, correlation_id)
-    if repeated then
-        return repeated
-    end
     local inventory_row, inventory_error =
         Repository.find_owned(context.character_uuid, validated.inventory_uuid)
     if inventory_error then
@@ -327,6 +436,16 @@ function Service.reposition(player_source, payload, correlation_id)
         return failure('NOT_FOUND', 'inventory.error.inventory_not_found', {}, correlation_id)
     end
     local inventory = inventory_values(inventory_row)
+    if inventory.inventory_type == 'PERSONAL_STORAGE' then
+        local access_error = personal_locker_access(player_source, correlation_id)
+        if access_error then
+            return access_error
+        end
+    end
+    local repeated = repeated_reposition(operation, context, hash.payload_sha256, correlation_id)
+    if repeated then
+        return repeated
+    end
     local entries, entries_error = entries_for(inventory)
     if not entries then
         return entries_error
@@ -417,10 +536,6 @@ function Service.transfer(player_source, payload, correlation_id)
     if operation_error then
         return operation_error
     end
-    local repeated = repeated_transfer(operation, context, hash.payload_sha256, correlation_id)
-    if repeated then
-        return repeated
-    end
     local source_row, source_error =
         Repository.find_owned(context.character_uuid, validated.source_inventory_uuid)
     local target_row, target_error =
@@ -433,6 +548,28 @@ function Service.transfer(player_source, payload, correlation_id)
     end
     local source_inventory = inventory_values(source_row)
     local target_inventory = inventory_values(target_row)
+    if
+        not Policy.is_personal_storage_pair(
+            source_inventory.inventory_type,
+            target_inventory.inventory_type
+        )
+    then
+        return failure(
+            'PRECONDITION_FAILED',
+            'inventory.error.transfer_rejected',
+            {},
+            correlation_id
+        )
+    end
+    local access_error = personal_locker_access(player_source, correlation_id)
+    if access_error then
+        return access_error
+    end
+    local repeated =
+        repeated_transfer(operation, context, hash.payload_sha256, validated, correlation_id)
+    if repeated then
+        return repeated
+    end
     local source_entries, entries_error = entries_for(source_inventory)
     if not source_entries then
         return entries_error
@@ -495,7 +632,7 @@ function Service.transfer(player_source, payload, correlation_id)
     if not committed.ok then
         local concurrent = Repository.transaction(validated.operation_uuid)
         local recovered =
-            repeated_transfer(concurrent, context, hash.payload_sha256, correlation_id)
+            repeated_transfer(concurrent, context, hash.payload_sha256, validated, correlation_id)
         return recovered or committed
     end
     exports.cnr_logs:audit('cnr_inventory', 'inventory.item_transferred', {
@@ -511,6 +648,13 @@ function Service.transfer(player_source, payload, correlation_id)
     return success({
         repeated = false,
         operation_uuid = validated.operation_uuid,
+        source_inventory_uuid = validated.source_inventory_uuid,
+        target_inventory_uuid = validated.target_inventory_uuid,
+        source_slot = validated.source_slot,
+        target_slot = plan.target_slot,
+        target_entry_uuid = target_entry_uuid,
+        quantity = validated.quantity,
+        mode = plan.mode,
         source_version = source_inventory.version + 1,
         target_version = target_inventory.version + 1,
     }, correlation_id)

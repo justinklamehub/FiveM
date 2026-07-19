@@ -22,7 +22,22 @@ function Repository.ensure_character_inventory(character_uuid, inventory_uuid, s
     if not result.ok then
         return nil, result
     end
-    return Repository.find_owned(character_uuid, inventory_uuid)
+    return Repository.find_character_inventory(character_uuid)
+end
+
+function Repository.ensure_personal_storage(character_uuid, inventory_uuid, slots, weight_grams)
+    local result = exports.cnr_database:query(
+        [[INSERT IGNORE INTO cnr_inventories
+        (public_uuid, owner_character_uuid, inventory_type, slot_capacity,
+        weight_capacity_grams, version, status, created_at, updated_at)
+        VALUES (UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),'PERSONAL_STORAGE',?,?,1,
+        'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]],
+        { inventory_uuid, character_uuid, slots, weight_grams }
+    )
+    if not result.ok then
+        return nil, result
+    end
+    return Repository.find_personal_storage(character_uuid)
 end
 
 function Repository.find_owned(character_uuid, inventory_uuid)
@@ -53,6 +68,23 @@ function Repository.find_character_inventory(character_uuid)
         FROM cnr_inventories i
         WHERE i.owner_character_uuid=UNHEX(REPLACE(?,'-',''))
         AND i.inventory_type='CHARACTER' LIMIT 1]]):format(
+            uuid:format('i.public_uuid'),
+            uuid:format('i.owner_character_uuid')
+        ),
+        { character_uuid }
+    )
+end
+
+function Repository.find_personal_storage(character_uuid)
+    return single(
+        ([[SELECT i.id, %s inventory_uuid, %s owner_character_uuid, i.inventory_type,
+        i.slot_capacity, i.weight_capacity_grams, i.version, i.status,
+        (SELECT COALESCE(SUM(ii.quantity*d.unit_weight_grams),0)
+        FROM cnr_inventory_items ii INNER JOIN cnr_item_definitions d ON d.id=ii.definition_id
+        WHERE ii.inventory_id=i.id) current_weight_grams
+        FROM cnr_inventories i
+        WHERE i.owner_character_uuid=UNHEX(REPLACE(?,'-',''))
+        AND i.inventory_type='PERSONAL_STORAGE' LIMIT 1]]):format(
             uuid:format('i.public_uuid'),
             uuid:format('i.owner_character_uuid')
         ),
@@ -96,14 +128,16 @@ end
 function Repository.transaction(operation_uuid)
     return single(
         ([[SELECT %s operation_uuid, action, %s account_uuid, %s session_uuid,
-        %s character_uuid, LOWER(HEX(payload_sha256)) payload_sha256, source_slot, target_slot,
-        quantity, CASE WHEN target_entry_uuid IS NULL THEN 'MOVE' ELSE 'SWAP' END reposition_mode,
+        %s character_uuid, %s target_entry_uuid, LOWER(HEX(payload_sha256)) payload_sha256,
+        source_slot, target_slot, transfer_mode, quantity,
+        CASE WHEN target_entry_uuid IS NULL THEN 'MOVE' ELSE 'SWAP' END reposition_mode,
         result_source_version, result_target_version, result_status
         FROM cnr_item_transactions WHERE operation_uuid=UNHEX(REPLACE(?,'-','')) LIMIT 1]]):format(
             uuid:format('operation_uuid'),
             uuid:format('account_uuid'),
             uuid:format('session_uuid'),
-            uuid:format('character_uuid')
+            uuid:format('character_uuid'),
+            uuid:format('target_entry_uuid')
         ),
         { operation_uuid }
     )
@@ -304,6 +338,9 @@ function Repository.transfer(context)
         instance_value_sql = '?'
         operation_values[#operation_values + 1] = context.source_entry.item_instance_id
     end
+    operation_values[#operation_values + 1] = context.source_entry.slot_number
+    operation_values[#operation_values + 1] = context.plan.target_slot
+    operation_values[#operation_values + 1] = context.plan.mode
     operation_values[#operation_values + 1] = context.quantity
     operation_values[#operation_values + 1] = context.request_id
     operation_values[#operation_values + 1] = context.correlation_id
@@ -328,12 +365,13 @@ function Repository.transfer(context)
             query = ([[INSERT INTO cnr_item_transactions
             (operation_uuid, action, account_uuid, session_uuid, character_uuid,
             source_inventory_id, target_inventory_id, source_entry_uuid, target_entry_uuid,
-            definition_id, item_instance_id, quantity, request_id, correlation_id,
+            definition_id, item_instance_id, source_slot, target_slot, transfer_mode, quantity,
+            request_id, correlation_id,
             contract_version, payload_sha256, result_source_version, result_target_version,
             result_status, created_at, completed_at)
             VALUES (UNHEX(REPLACE(?,'-','')),'TRANSFER',UNHEX(REPLACE(?,'-','')),
             UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),?,?,UNHEX(REPLACE(?,'-','')),
-            UNHEX(REPLACE(?,'-','')),?,%s,?,?,?,?,UNHEX(?),%s,?,'COMPLETED',
+            UNHEX(REPLACE(?,'-','')),?,%s,?,?,?,?,?,?,?,UNHEX(?),%s,?,'COMPLETED',
             UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]]):format(instance_value_sql, guard_sql),
             values = operation_values,
         },

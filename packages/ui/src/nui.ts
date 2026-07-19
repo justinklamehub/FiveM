@@ -17,6 +17,7 @@ const bridgedEvents = new Set([
   'characters.appearanceConfiguration',
   'characters.appearanceSave',
   'inventory.snapshot',
+  'inventory.workspace',
   'inventory.reposition',
   'inventory.transfer',
 ]);
@@ -100,8 +101,11 @@ function browserMock(event: string, body: unknown): unknown {
   const request = body as {
     locale?: 'de' | 'en';
     operation_uuid?: string;
+    source_inventory_uuid?: string;
+    target_inventory_uuid?: string;
     source_slot?: number;
     target_slot?: number;
+    quantity?: number;
   };
   const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
   if (event === 'lifecycleRefresh') return { ok: true };
@@ -184,6 +188,30 @@ function browserMock(event: string, body: unknown): unknown {
       },
       correlation_id: 'mock-inventory',
     };
+  if (event === 'inventory.workspace') {
+    const character = browserMock('inventory.snapshot', body) as {
+      ok: true;
+      data: Record<string, unknown>;
+    };
+    return {
+      ok: true,
+      data: {
+        character: character.data,
+        storage: {
+          inventory_uuid: '0190b7a0-6000-7000-8000-000000000020',
+          inventory_type: 'PERSONAL_STORAGE',
+          slot_capacity: 48,
+          weight_capacity_grams: 100000,
+          current_weight_grams: 0,
+          version: 1,
+          starter_provisioned: false,
+          entries: [],
+        },
+        access_label: 'Personal Locker',
+      },
+      correlation_id: 'mock-inventory-workspace',
+    };
+  }
   if (event === 'inventory.reposition') {
     const source = [...mockInventorySlots.entries()].find(
       ([, slot]) => slot === request.source_slot,
@@ -216,6 +244,41 @@ function browserMock(event: string, body: unknown): unknown {
         mode: target ? 'SWAP' : 'MOVE',
       },
       correlation_id: 'mock-inventory-reposition',
+    };
+  }
+  if (event === 'inventory.transfer') {
+    if (
+      typeof request.source_inventory_uuid !== 'string' ||
+      typeof request.target_inventory_uuid !== 'string' ||
+      typeof request.source_slot !== 'number' ||
+      typeof request.quantity !== 'number'
+    )
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message_key: 'inventory.error.invalid_request',
+          safe_details: {},
+          correlation_id: 'mock-inventory-transfer-error',
+        },
+      };
+    mockInventoryVersion += 1;
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        source_inventory_uuid: request.source_inventory_uuid,
+        target_inventory_uuid: request.target_inventory_uuid,
+        source_slot: request.source_slot,
+        target_slot: 1,
+        target_entry_uuid: request.operation_uuid,
+        quantity: request.quantity,
+        mode: 'CREATE_STACK',
+        source_version: mockInventoryVersion,
+        target_version: 2,
+      },
+      correlation_id: 'mock-inventory-transfer',
     };
   }
   if (event === 'registrationStatus')

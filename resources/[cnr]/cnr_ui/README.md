@@ -47,10 +47,13 @@ Browser scenario query values are `registration`, `access`, `creation`, `selecti
 `spawn`, and `error`. They never bypass runtime server validation because the mock transport exists
 only when the FiveM NUI API is absent.
 
-Use `?view=inventory` for the English browser inventory mock. In FiveM, F2 and the
-`cnr_inventory_open` command open the source-owned dynamic slot grid only after controlled spawn.
-Occupied slots support drag-and-drop plus selection/target activation for keyboard and click input.
-Definition image keys render deterministic fallback tiles until the reviewed PNG asset pack is added.
+Use `?view=inventory` for the English personal-inventory mock and `?view=storage` for the two-panel
+locker workspace. In FiveM, F2 or `cnr_inventory_open` opens the character inventory after controlled
+spawn. F3 or `cnr_storage_open` requests the personal locker, which the server exposes only within the
+configured radius. Occupied slots support drag-and-drop plus selection/target activation for keyboard
+and click input. Cross-inventory drops send no target slot; the UI applies the server-selected placement
+only after confirmation. Definition image keys render deterministic fallback tiles until the reviewed
+PNG asset pack is added.
 
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
 registration view locally. It does not bypass server-side session, status, ruleset, or submission

@@ -160,9 +160,23 @@ describe('core contracts', () => {
       isNuiMessage({
         version: 1,
         type: 'ui.inventory.open',
-        payload: { contract_version: inventoryContractVersion },
+        payload: { contract_version: inventoryContractVersion, view: 'personal' },
       }),
     ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.open',
+        payload: { contract_version: inventoryContractVersion, view: 'storage' },
+      }),
+    ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.open',
+        payload: { contract_version: inventoryContractVersion },
+      }),
+    ).toBe(false);
 
     const reposition: InventoryRepositionRequest = {
       inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
