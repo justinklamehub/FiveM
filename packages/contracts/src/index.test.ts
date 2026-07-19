@@ -20,6 +20,7 @@ import {
   type CreateCharacterDraft,
   type PlayerLifecycleRefresh,
   type InventorySnapshotRequest,
+  type InventoryRepositionRequest,
   type InventoryTransferRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
@@ -162,6 +163,34 @@ describe('core contracts', () => {
         payload: { contract_version: inventoryContractVersion },
       }),
     ).toBe(true);
+
+    const reposition: InventoryRepositionRequest = {
+      inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      source_slot: 1,
+      target_slot: 4,
+      request_id: 'inventory-reposition-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000013',
+      contract_version: inventoryContractVersion,
+    };
+    expect(Object.keys(reposition).sort()).toEqual([
+      'contract_version',
+      'inventory_uuid',
+      'operation_uuid',
+      'request_id',
+      'source_slot',
+      'target_slot',
+    ]);
+    expect(Object.keys(reposition)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'entry_uuid',
+        'definition_uuid',
+        'item_instance_uuid',
+        'inventory_version',
+      ]),
+    );
   });
 
   it('keeps technical permission contracts role-agnostic', () => {
