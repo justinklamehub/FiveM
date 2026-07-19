@@ -178,7 +178,7 @@ function Repository.provision_starter(context)
             SELECT UNHEX(REPLACE(?,'-','')),?,?,inst.id,3,1,1,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
             FROM cnr_item_instances inst WHERE inst.reference_type='CHARACTER_DOCUMENT'
             AND inst.reference_uuid=UNHEX(REPLACE(?,'-',''))
-            ON DUPLICATE KEY UPDATE public_uuid=public_uuid]],
+            ON DUPLICATE KEY UPDATE public_uuid=cnr_inventory_items.public_uuid]],
             values = {
                 context.document_entry_uuid,
                 context.inventory.id,
