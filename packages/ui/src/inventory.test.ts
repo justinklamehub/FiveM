@@ -7,7 +7,11 @@ import {
   type Result,
 } from '@cnr/contracts';
 import { postNui } from './nui';
-import { inventoryIconFallback, inventorySlotNumbers } from './InventoryPanel';
+import {
+  applyConfirmedInventoryReposition,
+  inventoryIconFallback,
+  inventorySlotNumbers,
+} from './InventoryPanel';
 
 Object.defineProperty(globalThis, 'window', { value: {}, configurable: true });
 
@@ -39,6 +43,52 @@ describe('inventory browser mock', () => {
     ]);
     expect(result.data.entries.reduce((sum, entry) => sum + entry.total_weight_grams, 0)).toBe(
       result.data.current_weight_grams,
+    );
+  });
+
+  it('applies confirmed moves and swaps directly without requesting another snapshot', async () => {
+    const result = await postNui<Result<PersonalInventorySnapshot>>('inventory.snapshot', {
+      request_id: 'inventory-browser-immediate-1',
+      contract_version: inventoryContractVersion,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const waterSlot = result.data.entries.find(
+      (entry) => entry.definition.code === 'water_bottle',
+    )?.slot_number;
+    const stateIdSlot = result.data.entries.find(
+      (entry) => entry.definition.code === 'state_id',
+    )?.slot_number;
+    expect(waterSlot).toBeTypeOf('number');
+    expect(stateIdSlot).toBeTypeOf('number');
+    if (waterSlot === undefined || stateIdSlot === undefined) return;
+
+    const moved = applyConfirmedInventoryReposition(result.data, {
+      repeated: false,
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000091',
+      inventory_version: result.data.version + 1,
+      source_slot: waterSlot,
+      target_slot: 24,
+      mode: 'MOVE',
+    });
+    expect(moved.version).toBe(result.data.version + 1);
+    expect(
+      moved.entries.find((entry) => entry.definition.code === 'water_bottle')?.slot_number,
+    ).toBe(24);
+
+    const swapped = applyConfirmedInventoryReposition(moved, {
+      repeated: false,
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000092',
+      inventory_version: moved.version + 1,
+      source_slot: 24,
+      target_slot: stateIdSlot,
+      mode: 'SWAP',
+    });
+    expect(
+      swapped.entries.find((entry) => entry.definition.code === 'water_bottle')?.slot_number,
+    ).toBe(stateIdSlot);
+    expect(swapped.entries.find((entry) => entry.definition.code === 'state_id')?.slot_number).toBe(
+      24,
     );
   });
 
