@@ -64,6 +64,7 @@ function Repository.entries(inventory_id)
     local result = exports.cnr_database:query(
         ([[SELECT ii.id, %s entry_uuid, ii.slot_number, ii.quantity, ii.version,
         d.id definition_id, %s definition_uuid, d.code, d.category, d.label, d.description,
+        d.icon_key,
         d.is_stackable, d.is_unique, d.max_stack, d.unit_weight_grams, d.version definition_version,
         inst.id item_instance_id, CASE WHEN inst.id IS NULL THEN 0 ELSE 1 END has_instance
         FROM cnr_inventory_items ii
@@ -95,7 +96,8 @@ end
 function Repository.transaction(operation_uuid)
     return single(
         ([[SELECT %s operation_uuid, action, %s account_uuid, %s session_uuid,
-        %s character_uuid, LOWER(HEX(payload_sha256)) payload_sha256, quantity,
+        %s character_uuid, LOWER(HEX(payload_sha256)) payload_sha256, source_slot, target_slot,
+        quantity, CASE WHEN target_entry_uuid IS NULL THEN 'MOVE' ELSE 'SWAP' END reposition_mode,
         result_source_version, result_target_version, result_status
         FROM cnr_item_transactions WHERE operation_uuid=UNHEX(REPLACE(?,'-','')) LIMIT 1]]):format(
             uuid:format('operation_uuid'),
@@ -391,6 +393,155 @@ function Repository.transfer(context)
         query = [[UPDATE cnr_inventories SET version=version+1, updated_at=UTC_TIMESTAMP(6)
         WHERE id=?]],
         values = { context.target_inventory.id },
+    }
+    return exports.cnr_database:transaction(queries)
+end
+
+local function reposition_guard(context)
+    local instance_guard = 'AND si.item_instance_id IS NULL '
+    local instance_values = {}
+    if context.source_entry.item_instance_id then
+        instance_guard = 'AND si.item_instance_id=? '
+        instance_values[1] = context.source_entry.item_instance_id
+    end
+    local target_guard
+    local target_values
+    if context.target_entry then
+        target_guard = [[AND EXISTS (SELECT 1 FROM cnr_inventory_items ti
+        WHERE ti.id=? AND ti.inventory_id=i.id AND ti.slot_number=? AND ti.version=?) ]]
+        target_values = {
+            context.target_entry.id,
+            context.target_entry.slot_number,
+            context.target_entry.version,
+        }
+    else
+        target_guard = [[AND NOT EXISTS (SELECT 1 FROM cnr_inventory_items ti
+        WHERE ti.inventory_id=i.id AND ti.slot_number=?) ]]
+        target_values = { context.plan.target_slot }
+    end
+    local temporary_guard = ''
+    local temporary_values = {}
+    if context.plan.mode == 'SWAP' then
+        temporary_guard = [[AND NOT EXISTS (SELECT 1 FROM cnr_inventory_items tmp
+        WHERE tmp.inventory_id=i.id AND tmp.slot_number=?) ]]
+        temporary_values[1] = context.plan.temporary_slot
+    end
+    local sql = ([[COALESCE((SELECT i.version+1 FROM cnr_inventories i
+    INNER JOIN cnr_inventory_items si ON si.inventory_id=i.id
+    WHERE i.id=? AND i.public_uuid=UNHEX(REPLACE(?,'-','')) AND i.version=?
+    AND i.status='ACTIVE' AND i.owner_character_uuid=UNHEX(REPLACE(?,'-',''))
+    AND si.id=? AND si.slot_number=? AND si.version=? AND si.quantity=?
+    AND si.definition_id=? %s AND ?<=i.slot_capacity %s %s LIMIT 1),0)]]):format(
+        instance_guard,
+        target_guard,
+        temporary_guard
+    )
+    local values = {
+        context.inventory.id,
+        context.inventory.inventory_uuid,
+        context.inventory.version,
+        context.character_uuid,
+        context.source_entry.id,
+        context.source_entry.slot_number,
+        context.source_entry.version,
+        context.source_entry.quantity,
+        context.source_entry.definition_id,
+    }
+    for _, value in ipairs(instance_values) do
+        values[#values + 1] = value
+    end
+    values[#values + 1] = context.plan.target_slot
+    for _, value in ipairs(target_values) do
+        values[#values + 1] = value
+    end
+    for _, value in ipairs(temporary_values) do
+        values[#values + 1] = value
+    end
+    return sql, values
+end
+
+function Repository.reposition(context)
+    local guard_sql, guard_values = reposition_guard(context)
+    local target_entry_sql = 'NULL'
+    local instance_sql = 'NULL'
+    local values = {
+        context.operation_uuid,
+        context.account_uuid,
+        context.session_uuid,
+        context.character_uuid,
+        context.inventory.id,
+        context.inventory.id,
+        context.source_entry.entry_uuid,
+    }
+    if context.target_entry then
+        target_entry_sql = [[UNHEX(REPLACE(?,'-',''))]]
+        values[#values + 1] = context.target_entry.entry_uuid
+    end
+    values[#values + 1] = context.source_entry.definition_id
+    if context.source_entry.item_instance_id then
+        instance_sql = '?'
+        values[#values + 1] = context.source_entry.item_instance_id
+    end
+    values[#values + 1] = context.plan.source_slot
+    values[#values + 1] = context.plan.target_slot
+    values[#values + 1] = context.source_entry.quantity
+    values[#values + 1] = context.request_id
+    values[#values + 1] = context.correlation_id
+    values[#values + 1] = context.contract_version
+    values[#values + 1] = context.payload_sha256
+    for _, value in ipairs(guard_values) do
+        values[#values + 1] = value
+    end
+    values[#values + 1] = context.inventory.version + 1
+
+    local queries = {
+        {
+            query = [[SELECT id FROM cnr_inventories WHERE id=? FOR UPDATE]],
+            values = { context.inventory.id },
+        },
+        {
+            query = [[SELECT id FROM cnr_inventory_items WHERE inventory_id=?
+            ORDER BY id FOR UPDATE]],
+            values = { context.inventory.id },
+        },
+        {
+            query = ([[INSERT INTO cnr_item_transactions
+            (operation_uuid, action, account_uuid, session_uuid, character_uuid,
+            source_inventory_id, target_inventory_id, source_entry_uuid, target_entry_uuid,
+            definition_id, item_instance_id, source_slot, target_slot, quantity, request_id,
+            correlation_id, contract_version, payload_sha256, result_source_version,
+            result_target_version, result_status, created_at, completed_at)
+            VALUES (UNHEX(REPLACE(?,'-','')),'REPOSITION',UNHEX(REPLACE(?,'-','')),
+            UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),?,?,
+            UNHEX(REPLACE(?,'-','')),%s,?,%s,?,?,?,?,?,?,UNHEX(?),%s,?,'COMPLETED',
+            UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]]):format(
+                target_entry_sql,
+                instance_sql,
+                guard_sql
+            ),
+            values = values,
+        },
+    }
+    if context.plan.mode == 'SWAP' then
+        queries[#queries + 1] = {
+            query = [[UPDATE cnr_inventory_items SET slot_number=? WHERE id=?]],
+            values = { context.plan.temporary_slot, context.source_entry.id },
+        }
+        queries[#queries + 1] = {
+            query = [[UPDATE cnr_inventory_items SET slot_number=?, version=version+1,
+            updated_at=UTC_TIMESTAMP(6) WHERE id=?]],
+            values = { context.plan.source_slot, context.target_entry.id },
+        }
+    end
+    queries[#queries + 1] = {
+        query = [[UPDATE cnr_inventory_items SET slot_number=?, version=version+1,
+        updated_at=UTC_TIMESTAMP(6) WHERE id=?]],
+        values = { context.plan.target_slot, context.source_entry.id },
+    }
+    queries[#queries + 1] = {
+        query = [[UPDATE cnr_inventories SET version=version+1, updated_at=UTC_TIMESTAMP(6)
+        WHERE id=?]],
+        values = { context.inventory.id },
     }
     return exports.cnr_database:transaction(queries)
 end
