@@ -16,22 +16,46 @@ local function publish(next_status, details)
     exports.cnr_core:report_resource_status(status)
 end
 
-CreateThread(function()
-    for _ = 1, 300 do
-        local item_status = exports.cnr_items:get_status()
-        local character_status = exports.cnr_characters:get_status()
-        if
-            exports.cnr_core:is_ready()
-            and item_status.status == 'ready'
-            and character_status.status == 'ready'
-        then
-            publish('ready')
-            return
+local function dependency_failure()
+    for _, dependency in ipairs({ 'cnr_sessions', 'cnr_characters', 'cnr_items' }) do
+        if GetResourceState(dependency) ~= 'started' then
+            return dependency .. '_not_started'
         end
-        publish('degraded', { reason = 'dependency_not_ready' })
+    end
+    local item_status = exports.cnr_items:get_status()
+    if not item_status or item_status.status ~= 'ready' then
+        return 'items_not_ready'
+    end
+    local session_status = exports.cnr_sessions:get_status()
+    if not session_status or session_status.status ~= 'ready' then
+        return 'sessions_not_ready'
+    end
+    local character_status = exports.cnr_characters:get_status()
+    if not character_status or character_status.status ~= 'ready' then
+        return 'characters_not_ready'
+    end
+    return nil
+end
+
+CreateThread(function()
+    local unavailable_ticks = 0
+    while true do
+        local reason = dependency_failure()
+        if not reason and exports.cnr_core:is_ready() then
+            unavailable_ticks = 0
+            if status.status ~= 'ready' then
+                publish('ready')
+            end
+        else
+            unavailable_ticks = unavailable_ticks + 1
+            reason = reason or 'core_not_ready'
+            local next_status = unavailable_ticks >= 300 and 'unavailable' or 'degraded'
+            if status.status ~= next_status or status.details.reason ~= reason then
+                publish(next_status, { reason = reason })
+            end
+        end
         Wait(100)
     end
-    publish('unavailable', { reason = 'dependency_readiness_timeout' })
 end)
 
 RegisterNetEvent('cnr:inventory:request', function(action, payload)
@@ -80,6 +104,9 @@ AddEventHandler('cnr:characters:spawned', function(event)
     if not event or not event.source then
         return
     end
+    if status.status ~= 'ready' then
+        return
+    end
     CreateThread(function()
         local correlation_id = event.correlation_id or exports.cnr_core:create_correlation_id()
         local result = Service.provision_for_source(event.source, correlation_id)
@@ -95,6 +122,8 @@ end)
 AddEventHandler('onResourceStop', function(stopped)
     if stopped == resource_name then
         publish('stopping')
+    elseif stopped == 'cnr_sessions' or stopped == 'cnr_characters' or stopped == 'cnr_items' then
+        publish('degraded', { reason = stopped .. '_stopped' })
     end
 end)
 
@@ -102,11 +131,27 @@ exports('get_status', function()
     return status
 end)
 exports('snapshot_for_source', function(player_source, request_id, correlation_id)
+    if status.status ~= 'ready' then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'inventory.error.unavailable',
+            {},
+            correlation_id
+        )
+    end
     return Service.snapshot(player_source, {
         request_id = request_id,
         contract_version = 1,
     }, correlation_id)
 end)
 exports('transfer_for_source', function(player_source, payload, correlation_id)
+    if status.status ~= 'ready' then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'inventory.error.unavailable',
+            {},
+            correlation_id
+        )
+    end
     return Service.transfer(player_source, payload, correlation_id)
 end)
