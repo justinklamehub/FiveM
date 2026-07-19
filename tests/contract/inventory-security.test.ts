@@ -10,6 +10,7 @@ const repository = fs.readFileSync(
   'resources/[cnr]/cnr_inventory/server/repositories/inventory_repository.lua',
   'utf8',
 );
+const main = fs.readFileSync('resources/[cnr]/cnr_inventory/server/main.lua', 'utf8');
 
 describe('inventory security boundary', () => {
   it('accepts no account, session, character, definition, instance, metadata, or target-slot authority', () => {
@@ -42,5 +43,13 @@ describe('inventory security boundary', () => {
     expect(repository).toContain('cnr_item_transactions');
     expect(repository).toContain('payload_sha256');
     expect(repository).toContain('result_source_version');
+  });
+
+  it('fails closed and recovers when source-authority dependencies restart', () => {
+    expect(main).toContain("GetResourceState(dependency) ~= 'started'");
+    expect(main).toContain("stopped == 'cnr_sessions'");
+    expect(main).toContain("stopped == 'cnr_characters'");
+    expect(main).toContain("stopped == 'cnr_items'");
+    expect(main).toContain("if status.status ~= 'ready' then");
   });
 });
