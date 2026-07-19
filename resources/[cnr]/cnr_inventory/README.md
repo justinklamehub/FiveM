@@ -2,11 +2,11 @@
 
 ## Responsibility
 
-Owns personal character inventories, inventory entries, unique item instances, idempotency records, starter-item provisioning, and atomic inventory-to-inventory transfers.
+Owns personal character inventories, inventory entries, unique item instances, idempotency records, starter-item provisioning, atomic slot repositioning, and inventory-to-inventory transfers.
 
 ## Security boundary
 
-Every client request resolves the active FULL session and the spawned character from the FiveM source. The client cannot provide account, session, character, item definition, item instance, metadata, weight, capacity, target slot, inventory version, or result state. A transfer may reference only source/target inventory UUIDs returned by the server, a source slot, quantity, request ID, operation UUID, and contract version.
+Every client request resolves the active FULL session and the spawned character from the FiveM source. The client cannot provide account, session, character, item definition, item instance, metadata, weight, capacity, inventory version, or result state. A cross-inventory transfer never accepts a target slot. Same-inventory repositioning accepts source and target slots as user intent, then locks and derives both entries from the source-owned inventory before choosing an atomic move or swap.
 
 ## Non-responsibility
 
@@ -14,7 +14,9 @@ Does not implement item use effects, equipment, backpacks, vehicles, ground drop
 
 ## Public network interface
 
-- `cnr:inventory:request` with `snapshot` or `transfer`
+The snapshot, reposition, and transfer payloads use inventory contract version `2`.
+
+- `cnr:inventory:request` with `snapshot`, `reposition`, or `transfer`
 - `cnr:inventory:response`
 
 ## Public server exports
@@ -45,4 +47,4 @@ Exactly one package is provisioned per character: two Water Bottles, two Sandwic
 
 ## Recovery
 
-Snapshot reads also run the same idempotent provisioning check, so a missed spawn event or resource restart cannot duplicate or permanently omit the starter package. Transfers lock both inventories and their entries in deterministic order before applying the guarded transaction.
+Snapshot reads also run the same idempotent provisioning check, so a missed spawn event or resource restart cannot duplicate or permanently omit the starter package. Repositioning locks the personal inventory and all entries before applying a guarded empty-slot move or occupied-slot swap. Transfers lock both inventories and their entries in deterministic order.
