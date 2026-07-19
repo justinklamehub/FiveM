@@ -64,7 +64,7 @@ RegisterNetEvent('cnr:inventory:request', function(action, payload)
     local correlation_id = exports.cnr_core:create_correlation_id()
     local rate_limit = exports.cnr_core:consume_rate_limit(
         'inventory:' .. tostring(player_source),
-        10,
+        30,
         10000,
         correlation_id
     )
@@ -80,6 +80,8 @@ RegisterNetEvent('cnr:inventory:request', function(action, payload)
         )
     elseif action == 'snapshot' then
         result = Service.snapshot(player_source, payload, correlation_id)
+    elseif action == 'reposition' then
+        result = Service.reposition(player_source, payload, correlation_id)
     elseif action == 'transfer' then
         result = Service.transfer(player_source, payload, correlation_id)
     else
@@ -141,7 +143,7 @@ exports('snapshot_for_source', function(player_source, request_id, correlation_i
     end
     return Service.snapshot(player_source, {
         request_id = request_id,
-        contract_version = 1,
+        contract_version = 2,
     }, correlation_id)
 end)
 exports('transfer_for_source', function(player_source, payload, correlation_id)
