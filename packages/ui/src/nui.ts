@@ -17,6 +17,7 @@ const bridgedEvents = new Set([
   'characters.appearanceConfiguration',
   'characters.appearanceSave',
   'inventory.snapshot',
+  'inventory.reposition',
   'inventory.transfer',
 ]);
 const responseTimeoutMs = 10_000;
@@ -89,8 +90,19 @@ const mockRuleset = {
   content: 'Treat others respectfully. Cheating, exploits, and harassment are prohibited.',
   published_at: '2026-07-16T00:00:00Z',
 };
+const mockInventorySlots = new Map([
+  ['water_bottle', 1],
+  ['sandwich', 2],
+  ['state_id', 3],
+]);
+let mockInventoryVersion = 2;
 function browserMock(event: string, body: unknown): unknown {
-  const request = body as { locale?: 'de' | 'en'; operation_uuid?: string };
+  const request = body as {
+    locale?: 'de' | 'en';
+    operation_uuid?: string;
+    source_slot?: number;
+    target_slot?: number;
+  };
   const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
   if (event === 'lifecycleRefresh') return { ok: true };
   if (event === 'registrationRuleset')
@@ -108,12 +120,12 @@ function browserMock(event: string, body: unknown): unknown {
         slot_capacity: 24,
         weight_capacity_grams: 30000,
         current_weight_grams: 1520,
-        version: 2,
+        version: mockInventoryVersion,
         starter_provisioned: true,
         entries: [
           {
             entry_uuid: '0190b7a0-6000-7000-8000-000000000011',
-            slot_number: 1,
+            slot_number: mockInventorySlots.get('water_bottle') ?? 1,
             quantity: 2,
             definition: {
               definition_uuid: '0190b7a0-6000-7000-8000-000000000001',
@@ -121,6 +133,7 @@ function browserMock(event: string, body: unknown): unknown {
               category: 'CONSUMABLE',
               label: 'Water Bottle',
               description: 'A sealed bottle of drinking water.',
+              icon_key: 'water_bottle',
               is_stackable: true,
               is_unique: false,
               max_stack: 10,
@@ -131,7 +144,7 @@ function browserMock(event: string, body: unknown): unknown {
           },
           {
             entry_uuid: '0190b7a0-6000-7000-8000-000000000012',
-            slot_number: 2,
+            slot_number: mockInventorySlots.get('sandwich') ?? 2,
             quantity: 2,
             definition: {
               definition_uuid: '0190b7a0-6000-7000-8000-000000000002',
@@ -139,6 +152,7 @@ function browserMock(event: string, body: unknown): unknown {
               category: 'CONSUMABLE',
               label: 'Sandwich',
               description: 'A simple wrapped sandwich.',
+              icon_key: 'sandwich',
               is_stackable: true,
               is_unique: false,
               max_stack: 10,
@@ -149,7 +163,7 @@ function browserMock(event: string, body: unknown): unknown {
           },
           {
             entry_uuid: '0190b7a0-6000-7000-8000-000000000013',
-            slot_number: 3,
+            slot_number: mockInventorySlots.get('state_id') ?? 3,
             quantity: 1,
             definition: {
               definition_uuid: '0190b7a0-6000-7000-8000-000000000003',
@@ -157,6 +171,7 @@ function browserMock(event: string, body: unknown): unknown {
               category: 'DOCUMENT',
               label: 'State Identification Card',
               description: "The holder's official state identification card.",
+              icon_key: 'state_id',
               is_stackable: false,
               is_unique: true,
               max_stack: 1,
@@ -169,6 +184,40 @@ function browserMock(event: string, body: unknown): unknown {
       },
       correlation_id: 'mock-inventory',
     };
+  if (event === 'inventory.reposition') {
+    const source = [...mockInventorySlots.entries()].find(
+      ([, slot]) => slot === request.source_slot,
+    );
+    const target = [...mockInventorySlots.entries()].find(
+      ([, slot]) => slot === request.target_slot,
+    );
+    if (!source || typeof request.target_slot !== 'number')
+      return {
+        ok: false,
+        error: {
+          code: 'PRECONDITION_FAILED',
+          message_key: 'inventory.error.reposition_rejected',
+          safe_details: {},
+          correlation_id: 'mock-inventory-reposition-error',
+        },
+      };
+    mockInventorySlots.set(source[0], request.target_slot);
+    if (target && typeof request.source_slot === 'number')
+      mockInventorySlots.set(target[0], request.source_slot);
+    mockInventoryVersion += 1;
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        inventory_version: mockInventoryVersion,
+        source_slot: request.source_slot,
+        target_slot: request.target_slot,
+        mode: target ? 'SWAP' : 'MOVE',
+      },
+      correlation_id: 'mock-inventory-reposition',
+    };
+  }
   if (event === 'registrationStatus')
     return {
       ok: true,
