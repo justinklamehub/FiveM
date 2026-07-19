@@ -13,7 +13,7 @@ const repository = fs.readFileSync(
 const main = fs.readFileSync('resources/[cnr]/cnr_inventory/server/main.lua', 'utf8');
 
 describe('inventory security boundary', () => {
-  it('accepts no account, session, character, definition, instance, metadata, or target-slot authority', () => {
+  it('keeps cross-inventory placement free of account, item, metadata, and target-slot authority', () => {
     const allowedSection = policy.slice(
       policy.indexOf('source_inventory_uuid = true'),
       policy.indexOf('})', policy.indexOf('source_inventory_uuid = true')),
@@ -32,6 +32,27 @@ describe('inventory security boundary', () => {
     }
   });
 
+  it('accepts a target slot only for source-owned same-inventory reposition intent', () => {
+    const repositionStart = policy.indexOf('function Policy.validate_reposition');
+    const repositionSection = policy.slice(
+      policy.indexOf('inventory_uuid = true', repositionStart),
+      policy.indexOf('})', policy.indexOf('inventory_uuid = true', repositionStart)),
+    );
+    expect(repositionSection).toContain('target_slot = true');
+    for (const forbidden of [
+      'account_uuid',
+      'session_uuid',
+      'character_uuid',
+      'entry_uuid',
+      'definition_uuid',
+      'item_instance_uuid',
+      'inventory_version',
+    ]) {
+      expect(repositionSection).not.toContain(`${forbidden} = true`);
+    }
+    expect(service).toContain('Repository.find_owned(context.character_uuid');
+  });
+
   it('resolves FULL session and spawned character authority from the FiveM source', () => {
     expect(service).toContain('get_session_for_source(player_source)');
     expect(service).toContain('active_character_for_source');
@@ -46,6 +67,8 @@ describe('inventory security boundary', () => {
     expect(repository).toContain(
       'ON DUPLICATE KEY UPDATE public_uuid=cnr_inventory_items.public_uuid',
     );
+    expect(repository).toContain("'REPOSITION'");
+    expect(repository).toContain('temporary_slot');
   });
 
   it('fails closed and recovers when source-authority dependencies restart', () => {
