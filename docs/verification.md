@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation and the implemented Wave 1 connection, technical-permissions, registration, character lifecycle, selection, appearance, and controlled-spawn slices. A real FXServer smoke test for the new selection and appearance flow is still pending. The final loadscreen flow is not implemented and is not claimed by this document.
+The automated pipeline covers the Wave 0 foundation and all six Wave 1 slices: connection, technical permissions, registration, character lifecycle, selection/appearance/controlled spawn, and the final loadscreen orchestration. A live operator pass has confirmed one English path from connection through registration, character creation, visible appearance customization, persistence, and controlled entry. The new loadscreen-specific handoff and the full reconnect, failure, whitelist, and dual-model matrix remain manual FXServer checks and are not claimed as completed here.
 
 Run from a fresh checkout:
 
@@ -81,7 +81,7 @@ pnpm db:migrate
    If automatic opening must be isolated during diagnosis, run `cnr_registration_open` in the client
    F8 console. Confirm the ruleset replaces the loading state; a missing server response must show an
    English retry action within ten seconds rather than leaving the NUI pending indefinitely.
-2. Fetch the current ruleset in German and English; verify its UUID and version come from MariaDB.
+2. Fetch the current ruleset with the English locale and an unsupported locale; verify the server returns English content and that its UUID and version come from MariaDB.
 3. Submit without acceptance and with an outdated version; confirm both fail without database changes.
 4. Submit a valid operation in every whitelist mode and verify the server-chosen account/access transition.
 5. Repeat the same semantic payload with the same operation UUID and a new request ID; confirm `repeated = true` and one operation/acceptance row.
@@ -111,3 +111,14 @@ pnpm db:migrate
 8. Confirm the player remains frozen, invincible, collision-disabled, and unable to close the lifecycle view until the matching server-issued spawn UUID is acknowledged. A wrong or stale token must not release controls.
 9. Reconnect and confirm the stored appearance is applied without creating a duplicate appearance row. Confirm the new session receives a new binding and the prior binding is `ENDED`.
 10. Restart the character resource after ending a session and confirm stale bindings recover to `ENDED`. Verify `character.appearance_saved` and `character.spawned` audits contain UUIDs and correlation data but no raw platform identifiers or appearance JSON.
+
+## Wave 1 loadscreen and complete lifecycle NUI
+
+1. Stop every other loadscreen resource, keep `cnr_ui` enabled, clear the FiveM client cache after deployment, and reconnect. Confirm the CNR English loadscreen replaces the default presentation without external media requests.
+2. Confirm resource progress advances before client scripts start, then changes to the server-derived session phase. The client must not submit an account, session, access state, character, binding, routing bucket, or destination.
+3. Use a new account and confirm the loadscreen hands off to registration only after an ONBOARDING snapshot. Complete registration and confirm the same NUI moves through server refresh into character creation or selection without exposing the world or releasing controls.
+4. Use a hybrid/manual account with `LIMITED` access and confirm `Access Review Pending` appears. `Check Again` must be rate-limited and must not permit character or world access.
+5. Reconnect with no characters, with an active character, during required appearance, and with a pending controlled spawn. Confirm the server derives the corresponding creation, selection, appearance, or spawn phase each time.
+6. Stop `cnr_characters` during a FULL-session refresh and confirm the correlated `Lifecycle Unavailable` view appears after bounded recovery. Restart the resource, select `Retry`, and confirm the server derives the next state without reconnecting.
+7. Confirm the loading NUI shuts down during the validated handoff, while the interactive NUI remains unclosable until the matching controlled spawn is confirmed. No default spawn, visible real player ped, cursor-only blank screen, or world-control interval is permitted.
+8. Confirm the browser scenarios render independently with `?phase=registration`, `access`, `creation`, `selection`, `appearance`, `spawn`, and `error`, and run the production build that emits both HTML entries.

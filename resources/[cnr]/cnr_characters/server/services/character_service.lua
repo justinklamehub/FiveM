@@ -169,6 +169,37 @@ function Service.list(player_source, correlation_id)
     return success({ slot_limit = settings.slot_limit, characters = characters }, correlation_id)
 end
 
+function Service.lifecycle_snapshot(player_source, correlation_id)
+    local session, session_error = session_for_source(player_source, correlation_id)
+    if not session then
+        return session_error
+    end
+    local binding, binding_error = Repository.binding_for_session(session.session_id)
+    if binding_error then
+        return binding_error
+    end
+    if binding and binding.binding_status == 'ACTIVE' then
+        local phase = 'SPAWN_PENDING'
+        if binding.spawn_state == 'APPEARANCE_REQUIRED' then
+            phase = 'APPEARANCE_REQUIRED'
+        elseif binding.spawn_state == 'SPAWNED' then
+            phase = 'READY'
+        end
+        return success({ phase = phase }, correlation_id)
+    end
+
+    local characters, database_error = Repository.list(session.account_id)
+    if database_error then
+        return database_error
+    end
+    for _, character in ipairs(characters) do
+        if character.status == 'ACTIVE' then
+            return success({ phase = 'CHARACTER_SELECTION_REQUIRED' }, correlation_id)
+        end
+    end
+    return success({ phase = 'CHARACTER_CREATION_REQUIRED' }, correlation_id)
+end
+
 function Service.create_draft(player_source, payload, correlation_id)
     local settings, settings_error = Repository.settings()
     if settings_error then

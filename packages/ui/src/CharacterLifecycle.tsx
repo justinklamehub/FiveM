@@ -7,6 +7,7 @@ import {
   type CharacterSelectionOutcome,
   type CharacterSelectionStatus,
   type CharacterSummary,
+  type PlayerLifecyclePhase,
   type Result,
 } from '@cnr/contracts';
 import { AppearanceEditor } from './AppearanceEditor';
@@ -20,7 +21,11 @@ export function activeCharacters(characters: readonly CharacterSummary[]): Chara
   return characters.filter((character) => character.status === 'ACTIVE');
 }
 
-export function CharacterLifecycle() {
+export function CharacterLifecycle({
+  initialPhase,
+}: {
+  initialPhase?: PlayerLifecyclePhase | undefined;
+}) {
   const operations = useRef(new Map<string, string>());
   const [characters, setCharacters] = useState<readonly CharacterSummary[]>([]);
   const [view, setView] = useState<LifecycleView>('loading');
@@ -50,13 +55,18 @@ export function CharacterLifecycle() {
           setView('spawning');
         }
       } else {
-        setView(activeCharacters(listResult.data.characters).length > 0 ? 'selection' : 'creation');
+        setView(
+          initialPhase === 'CHARACTER_CREATION_REQUIRED' ||
+            activeCharacters(listResult.data.characters).length === 0
+            ? 'creation'
+            : 'selection',
+        );
       }
     } catch {
       setMessage('Character selection is currently unavailable. Please try again.');
       setView('selection');
     }
-  }, []);
+  }, [initialPhase]);
 
   useEffect(() => {
     void load();

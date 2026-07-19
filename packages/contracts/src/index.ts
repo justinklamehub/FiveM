@@ -206,6 +206,30 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
+export const playerLifecycleContractVersion = 1 as const;
+export const playerLifecyclePhases = [
+  'CONNECTING',
+  'SESSION_PENDING',
+  'REGISTRATION_REQUIRED',
+  'ACCESS_PENDING',
+  'CHARACTER_CREATION_REQUIRED',
+  'CHARACTER_SELECTION_REQUIRED',
+  'APPEARANCE_REQUIRED',
+  'SPAWN_PENDING',
+  'READY',
+  'RECOVERABLE_ERROR',
+] as const;
+export type PlayerLifecyclePhase = (typeof playerLifecyclePhases)[number];
+export interface PlayerLifecycleRefresh {
+  contract_version: typeof playerLifecycleContractVersion;
+}
+export interface PlayerLifecycleSnapshot {
+  contract_version: typeof playerLifecycleContractVersion;
+  phase: PlayerLifecyclePhase;
+  retryable: boolean;
+  correlation_id: string;
+}
+
 export interface ConnectionSession {
   session_uuid: string;
   account_uuid: string;
@@ -288,11 +312,10 @@ export interface NuiRequestResponse {
 }
 
 export type NuiMessage =
-  | { version: 1; type: 'ui.shell.open'; payload: { view: string; locale: string } }
   | { version: 1; type: 'ui.shell.close'; payload: Record<string, never> }
   | { version: 1; type: 'ui.resource.status'; payload: ResourceReadiness }
-  | { version: 1; type: 'ui.registration.open'; payload: { locale: 'en' } }
-  | { version: 1; type: 'ui.character_creation.open'; payload: Record<string, never> }
+  | { version: 1; type: 'ui.lifecycle.open'; payload: PlayerLifecycleSnapshot }
+  | { version: 1; type: 'ui.lifecycle.phase'; payload: PlayerLifecycleSnapshot }
   | {
       version: 1;
       type: 'ui.character.spawn_failed';
@@ -304,6 +327,29 @@ export function isResourceStatus(value: unknown): value is ResourceStatus {
   return typeof value === 'string' && resourceStatuses.includes(value as ResourceStatus);
 }
 
+export function isPlayerLifecyclePhase(value: unknown): value is PlayerLifecyclePhase {
+  return typeof value === 'string' && playerLifecyclePhases.includes(value as PlayerLifecyclePhase);
+}
+
+export function isPlayerLifecycleSnapshot(value: unknown): value is PlayerLifecycleSnapshot {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as {
+    contract_version?: unknown;
+    phase?: unknown;
+    retryable?: unknown;
+    correlation_id?: unknown;
+  };
+  const keys = Object.keys(value).sort();
+  return (
+    keys.join(',') === 'contract_version,correlation_id,phase,retryable' &&
+    candidate.contract_version === playerLifecycleContractVersion &&
+    isPlayerLifecyclePhase(candidate.phase) &&
+    typeof candidate.retryable === 'boolean' &&
+    typeof candidate.correlation_id === 'string' &&
+    candidate.correlation_id.length > 0
+  );
+}
+
 export function isNuiMessage(value: unknown): value is NuiMessage {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as { version?: unknown; type?: unknown; payload?: unknown };
@@ -311,11 +357,9 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
   if (typeof candidate.payload !== 'object' || candidate.payload === null) return false;
   if (candidate.type === 'ui.shell.close') return true;
   if (candidate.type === 'ui.resource.status') return true;
-  if (candidate.type === 'ui.registration.open') {
-    const payload = candidate.payload as { locale?: unknown };
-    return payload.locale === 'en';
+  if (candidate.type === 'ui.lifecycle.open' || candidate.type === 'ui.lifecycle.phase') {
+    return isPlayerLifecycleSnapshot(candidate.payload);
   }
-  if (candidate.type === 'ui.character_creation.open') return true;
   if (candidate.type === 'ui.character.spawn_failed') {
     const payload = candidate.payload as { correlation_id?: unknown };
     return typeof payload.correlation_id === 'string';
@@ -332,7 +376,5 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
       Object.hasOwn(payload, 'result')
     );
   }
-  if (candidate.type !== 'ui.shell.open') return false;
-  const payload = candidate.payload as { view?: unknown; locale?: unknown };
-  return typeof payload.view === 'string' && typeof payload.locale === 'string';
+  return false;
 }

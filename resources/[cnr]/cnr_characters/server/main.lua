@@ -168,3 +168,14 @@ end)
 exports('get_status', function()
     return status
 end)
+exports('lifecycle_snapshot', function(player_source, correlation_id)
+    if status.status ~= 'ready' then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'characters.error.unavailable',
+            {},
+            correlation_id
+        )
+    end
+    return Service.lifecycle_snapshot(player_source, correlation_id)
+end)

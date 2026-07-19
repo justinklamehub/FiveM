@@ -1,5 +1,6 @@
 /** FiveM NUI transport with correlated asynchronous server responses and browser mocks. */
 import { isNuiMessage } from '@cnr/contracts';
+import { browserLifecycleSnapshot, currentBrowserSearch } from './lifecycle';
 
 export const isBrowserMock = (): boolean => typeof window.GetParentResourceName !== 'function';
 
@@ -88,6 +89,8 @@ const mockRuleset = {
 };
 function browserMock(event: string, body: unknown): unknown {
   const request = body as { locale?: 'de' | 'en'; operation_uuid?: string };
+  const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
+  if (event === 'lifecycleRefresh') return { ok: true };
   if (event === 'registrationRuleset')
     return {
       ok: true,
@@ -139,17 +142,20 @@ function browserMock(event: string, body: unknown): unknown {
       ok: true,
       data: {
         slot_limit: 3,
-        characters: [
-          {
-            character_uuid: '0190b7a0-2000-7000-8000-000000000001',
-            slot_number: 1,
-            status: 'ACTIVE',
-            first_name: 'Alex',
-            last_name: 'Morgan',
-            date_of_birth: '1995-05-20',
-            background_code: 'local',
-          },
-        ],
+        characters:
+          lifecycle.phase === 'CHARACTER_CREATION_REQUIRED'
+            ? []
+            : [
+                {
+                  character_uuid: '0190b7a0-2000-7000-8000-000000000001',
+                  slot_number: 1,
+                  status: 'ACTIVE',
+                  first_name: 'Alex',
+                  last_name: 'Morgan',
+                  date_of_birth: '1995-05-20',
+                  background_code: 'local',
+                },
+              ],
       },
       correlation_id: 'mock-character-list',
     };
@@ -193,10 +199,18 @@ function browserMock(event: string, body: unknown): unknown {
     return {
       ok: true,
       data: {
-        selected: false,
-        binding_uuid: null,
+        selected: lifecycle.phase === 'APPEARANCE_REQUIRED' || lifecycle.phase === 'SPAWN_PENDING',
+        binding_uuid:
+          lifecycle.phase === 'APPEARANCE_REQUIRED' || lifecycle.phase === 'SPAWN_PENDING'
+            ? '0190b7a0-2100-7000-8000-000000000001'
+            : null,
         character: null,
-        next_state: null,
+        next_state:
+          lifecycle.phase === 'APPEARANCE_REQUIRED'
+            ? 'APPEARANCE_REQUIRED'
+            : lifecycle.phase === 'SPAWN_PENDING'
+              ? 'SPAWN_PENDING'
+              : null,
       },
       correlation_id: 'mock-character-selection-status',
     };

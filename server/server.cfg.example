@@ -26,4 +26,5 @@ ensure cnr_whitelist
 ensure cnr_sessions
 ensure cnr_registration
 ensure cnr_characters
+# Keep cnr_ui as the only active loadscreen resource.
 ensure cnr_ui

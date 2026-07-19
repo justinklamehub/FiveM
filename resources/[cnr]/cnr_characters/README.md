@@ -12,6 +12,11 @@ The active FiveM source resolves the account and session. The server allocates t
 
 Does not create money, inventory, roleplay jobs, property spawn choices, clothing catalogs, deletion, or character switching. The client executes appearance preview and spawn natives but owns no authoritative state.
 
+## Public exports
+
+- `get_status`
+- `lifecycle_snapshot(player_source, correlation_id)` for server-side orchestration; it derives only a lifecycle phase from the source-owned FULL session and never accepts account, session, character, or spawn authority from a client.
+
 ## Owned tables
 
 - `cnr_character_settings`

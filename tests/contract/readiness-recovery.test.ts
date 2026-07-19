@@ -62,16 +62,15 @@ describe('runtime readiness recovery', () => {
     expect(client).not.toContain("AddEventHandler('onClientResourceStart'");
     expect(server).toContain("RegisterNetEvent('cnr:ui:ready'");
     expect(server).toContain('exports.cnr_sessions:get_session_for_source(player_source)');
-    expect(server).toContain(
-      "TriggerClientEvent('cnr:ui:open', player_source, 'registration', 'en')",
-    );
-    expect(server).toContain('ready_sources[player_source]');
+    expect(server).toContain("TriggerClientEvent('cnr:ui:lifecycle'");
+    expect(server).toContain('opened_sources[player_source]');
+    expect(server).toContain('CNR_UI_LIFECYCLE_CONTRACT.phase_for_access(session.access_state)');
   });
 
   it('provides a registration-only client command for manual NUI smoke testing', () => {
     const client = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
     expect(client).toContain("RegisterCommand('cnr_registration_open'");
-    expect(client).toContain("TriggerEvent('cnr:ui:open', 'registration', 'en')");
+    expect(client).toContain("phase = 'REGISTRATION_REQUIRED'");
     expect(client).not.toContain("RegisterCommand('cnr_character");
   });
 

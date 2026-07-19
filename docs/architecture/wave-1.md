@@ -11,9 +11,9 @@ Wave 1 implements the player lifecycle defined by the project README without add
 | Registration and account activation | Implemented in draft PR #2 | Versioned rules, idempotent source-bound activation, audit evidence, contracts and English NUI                |
 | Character lifecycle                 | Implemented in draft PR #2 | Configurable slots, atomic drafts, validated identity, activation, base state ID and English NUI              |
 | Selection, appearance and spawn     | Implemented in draft PR #2 | Owned-character selection, session binding, persistent appearance and token-confirmed controlled spawn        |
-| Loadscreen and complete NUI flow    | Pending                    | Localized progress, registration and character views, browser mocks and typed contracts                       |
+| Loadscreen and complete NUI flow    | Implemented in draft PR #2 | English connection progress, server-derived lifecycle routing, recovery UX, browser mocks and typed contracts |
 
-Automated CI is green for the implemented slices. A real FXServer connection and permission smoke test remains required before Wave 1 can be considered runtime-verified.
+The full planned Wave 1 scope is implemented in draft PR #2. Automated CI and a live operator pass cover the foundation through one complete appearance flow. The new loadscreen handoff, limited-access view, reconnect matrix, both freemode models, and failure recovery still require a fresh FXServer operator pass before Wave 1 can be considered fully runtime-verified.
 
 ## Delivery slices
 
@@ -47,9 +47,10 @@ Automated CI is green for the implemented slices. A real FXServer connection and
    - persistent freemode appearance and isolated customization preview
    - server-issued spawn token and client acknowledgement before controls are released
 6. **Loadscreen and complete NUI flow**
-   - localized connection progress
-   - registration and character views
-   - browser mocks and typed message contracts
+   - packaged English connection progress with manual shutdown
+   - server-derived onboarding, limited-access, character, appearance, spawn, and ready phases
+   - fail-closed handoff into registration and character views
+   - correlated recovery UX, browser scenarios, and typed TypeScript/Lua message contracts
 
 ## Registration boundary
 
@@ -66,6 +67,12 @@ Character creation requires a server-resolved active FULL session and ACTIVE acc
 Activation issues one unique state identification card. An ACTIVE character can then be selected only through its source-owned FULL session. The binding is unique per session, its selection operation is idempotent, and stale bindings are ended during resource recovery.
 
 The first selection requires a curated freemode appearance. The server validates and persists every appearance field, places the player in an isolated routing bucket during preview, and chooses either the last safe location or the configured central default. The client keeps the real player ped locked and hidden, renders customization through a separate non-networked preview ped, executes only the server-issued spawn instruction, and remains locked until the matching spawn UUID is acknowledged. Clothing expansion, inventory, banking, deletion, switching, property spawn choices, jail, hospital, and tutorial priority remain later slices. All player-visible text is English.
+
+## Loadscreen and orchestration boundary
+
+The packaged loadscreen reports only transport progress until client scripts can request server authority. The server then resolves the active source-owned session and derives `REGISTRATION_REQUIRED`, `ACCESS_PENDING`, or the current character lifecycle phase. The loadscreen is manually dismissed only when that validated snapshot has been delivered to the interactive NUI, and the player remains locked until controlled spawn confirmation.
+
+The refresh callback carries only the lifecycle contract version. It cannot submit an account, session, access state, character, binding, routing bucket, or destination. Limited sessions receive an English access-review view without character or world access. Dependency failures use a correlated, rate-limited recovery path instead of guessing a destination or releasing the player.
 
 ## Technical permissions boundary
 
@@ -89,4 +96,5 @@ The next coding chat continues the existing Wave 1 branch and draft PR. It must 
 - Duplicate active sessions and duplicate active technical role assignments are rejected by database constraints.
 - Registration, role changes, whitelist decisions, character creation, selection, appearance persistence, document issuance, and controlled spawn are auditable.
 - Registration mutations require the current server ruleset and a server-resolved onboarding session.
+- The client cannot select a loadscreen destination or lifecycle phase; it can only request a fresh server snapshot.
 - No economic, vehicle, job, oil, or crime gameplay is part of Wave 1.

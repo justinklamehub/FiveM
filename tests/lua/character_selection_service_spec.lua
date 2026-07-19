@@ -119,4 +119,54 @@ describe('character selection service authority', function()
         assert.is_false(result.ok)
         assert.are.equal('NOT_FOUND', result.error.code)
     end)
+
+    it('derives lifecycle destinations from server-owned character and binding state', function()
+        local function session()
+            return {
+                session_uuid = 'session-1',
+                account_uuid = 'account-1',
+                account_id = 1,
+                session_id = 2,
+                account_status = 'ACTIVE',
+                access_state = 'FULL',
+            }
+        end
+        local memory = { session_uuid = 'session-1', account_uuid = 'account-1' }
+
+        local creation = load_service({
+            session_for_source = session,
+            binding_for_session = function()
+                return nil
+            end,
+            list = function()
+                return {}
+            end,
+        }, memory).lifecycle_snapshot(12, 'correlation-creation')
+        assert.are.equal('CHARACTER_CREATION_REQUIRED', creation.data.phase)
+
+        local selection = load_service({
+            session_for_source = session,
+            binding_for_session = function()
+                return nil
+            end,
+            list = function()
+                return { { status = 'ACTIVE' } }
+            end,
+        }, memory).lifecycle_snapshot(12, 'correlation-selection')
+        assert.are.equal('CHARACTER_SELECTION_REQUIRED', selection.data.phase)
+
+        for spawn_state, expected in pairs({
+            APPEARANCE_REQUIRED = 'APPEARANCE_REQUIRED',
+            PENDING = 'SPAWN_PENDING',
+            SPAWNED = 'READY',
+        }) do
+            local result = load_service({
+                session_for_source = session,
+                binding_for_session = function()
+                    return { binding_status = 'ACTIVE', spawn_state = spawn_state }
+                end,
+            }, memory).lifecycle_snapshot(12, 'correlation-binding')
+            assert.are.equal(expected, result.data.phase)
+        end
+    end)
 end)

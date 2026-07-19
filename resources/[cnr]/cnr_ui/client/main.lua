@@ -7,6 +7,7 @@ local preview_ped = nil
 local preview_appearance = nil
 local preview_focus_active = false
 local active_spawn_uuid = nil
+local loadscreen_shutdown = false
 local preview_scene = {
     ped_x = 402.92,
     ped_y = -996.72,
@@ -42,6 +43,36 @@ local function set_focus(owner)
     SetNuiFocus(owner ~= nil, owner ~= nil)
     SetNuiFocusKeepInput(false)
 end
+
+local function send_loadscreen_phase(phase, correlation_id)
+    if not CNR_UI_LIFECYCLE_CONTRACT.is_valid_phase(phase) then
+        return
+    end
+    SendLoadingScreenMessage(json.encode({
+        version = 1,
+        type = 'ui.lifecycle.phase',
+        payload = {
+            contract_version = CNR_UI_LIFECYCLE_CONTRACT.version,
+            phase = phase,
+            retryable = false,
+            correlation_id = correlation_id or 'awaiting-server-authority',
+        },
+    }))
+end
+
+local function shutdown_loadscreen()
+    if loadscreen_shutdown then
+        return
+    end
+    loadscreen_shutdown = true
+    ShutdownLoadingScreen()
+    ShutdownLoadingScreenNui()
+end
+
+CreateThread(function()
+    send_loadscreen_phase('SESSION_PENDING', 'awaiting-server-authority')
+end)
+
 RegisterNUICallback('close', function(_, callback)
     if lifecycle_locked then
         callback({ ok = false, locked = true })
@@ -52,6 +83,23 @@ RegisterNUICallback('close', function(_, callback)
 end)
 RegisterNUICallback('uiReady', function(_, callback)
     TriggerServerEvent('cnr:ui:ready')
+    callback({ ok = true })
+end)
+RegisterNUICallback('lifecycleRefresh', function(payload, callback)
+    if
+        type(payload) ~= 'table'
+        or payload.contract_version ~= CNR_UI_LIFECYCLE_CONTRACT.version
+    then
+        callback({ ok = false })
+        return
+    end
+    for key in pairs(payload) do
+        if key ~= 'contract_version' then
+            callback({ ok = false })
+            return
+        end
+    end
+    TriggerServerEvent('cnr:ui:refresh')
     callback({ ok = true })
 end)
 local pending_registration = {}
@@ -419,13 +467,43 @@ RegisterNUICallback('characters.appearancePreview', function(payload, callback)
     end)
 end)
 
-RegisterNetEvent('cnr:characters:lifecycleReady', function()
+local function complete_lifecycle()
     lifecycle_locked = false
     lifecycle_phase = 'RELEASED'
     destroy_preview_scene()
     release_player()
     set_focus(nil)
     SendNUIMessage({ version = 1, type = 'ui.shell.close', payload = {} })
+    shutdown_loadscreen()
+end
+
+RegisterNetEvent('cnr:characters:lifecycleReady', function()
+    complete_lifecycle()
+end)
+
+RegisterNetEvent('cnr:ui:lifecycle', function(snapshot)
+    if
+        type(snapshot) ~= 'table'
+        or snapshot.contract_version ~= CNR_UI_LIFECYCLE_CONTRACT.version
+        or not CNR_UI_LIFECYCLE_CONTRACT.is_valid_phase(snapshot.phase)
+        or type(snapshot.retryable) ~= 'boolean'
+        or type(snapshot.correlation_id) ~= 'string'
+        or snapshot.correlation_id == ''
+    then
+        return
+    end
+    send_loadscreen_phase(snapshot.phase, snapshot.correlation_id)
+    if snapshot.phase == 'READY' then
+        complete_lifecycle()
+        return
+    end
+    lifecycle_locked = true
+    lifecycle_phase = snapshot.phase
+    hold_player(true)
+    set_focus('playerLifecycle')
+    SendNUIMessage({ version = 1, type = 'ui.lifecycle.open', payload = snapshot })
+    Wait(0)
+    shutdown_loadscreen()
 end)
 
 RegisterNetEvent('cnr:characters:spawn', function(instruction)
@@ -465,14 +543,7 @@ RegisterNetEvent('cnr:characters:spawnConfirmed', function(spawn_uuid)
         return
     end
     active_spawn_uuid = nil
-    lifecycle_locked = false
-    lifecycle_phase = 'RELEASED'
-    destroy_preview_scene()
-    release_player()
-    set_focus(nil)
-    SendNUIMessage({ version = 1, type = 'ui.shell.close', payload = {} })
-    ShutdownLoadingScreen()
-    ShutdownLoadingScreenNui()
+    complete_lifecycle()
 end)
 
 RegisterNetEvent('cnr:characters:spawnRejected', function(correlation_id)
@@ -485,24 +556,21 @@ RegisterNetEvent('cnr:characters:spawnRejected', function(correlation_id)
         payload = { correlation_id = correlation_id },
     })
 end)
-RegisterNetEvent('cnr:ui:open', function(view, locale)
-    if focus_owner and focus_owner ~= view then
-        return
-    end
-    set_focus(view)
-    if view == 'registration' or view == 'characterLifecycle' then
-        lifecycle_locked = true
-        lifecycle_phase = view == 'registration' and 'REGISTRATION' or 'CHARACTER_SELECTION'
-        hold_player(true)
-    end
+RegisterCommand('cnr_registration_open', function()
+    lifecycle_locked = true
+    lifecycle_phase = 'REGISTRATION_REQUIRED'
+    hold_player(true)
+    set_focus('playerLifecycle')
     SendNUIMessage({
         version = 1,
-        type = 'ui.shell.open',
-        payload = { view = view, locale = locale or 'en' },
+        type = 'ui.lifecycle.open',
+        payload = {
+            contract_version = 1,
+            phase = 'REGISTRATION_REQUIRED',
+            retryable = false,
+            correlation_id = 'local-registration-smoke-test',
+        },
     })
-end)
-RegisterCommand('cnr_registration_open', function()
-    TriggerEvent('cnr:ui:open', 'registration', 'en')
 end, false)
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then

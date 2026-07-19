@@ -3,8 +3,12 @@ import {
   accountStatuses,
   errorCodes,
   isNuiMessage,
+  isPlayerLifecyclePhase,
+  isPlayerLifecycleSnapshot,
   isResourceStatus,
   resourceStatuses,
+  playerLifecycleContractVersion,
+  playerLifecyclePhases,
   sessionAccessStates,
   registrationContractVersion,
   characterContractVersion,
@@ -13,6 +17,7 @@ import {
   type SaveCharacterAppearance,
   type SelectCharacter,
   type CreateCharacterDraft,
+  type PlayerLifecycleRefresh,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -92,6 +97,31 @@ describe('core contracts', () => {
     expect(accountStatuses).toContain('PENDING_REGISTRATION');
     expect(sessionAccessStates).toEqual(['ONBOARDING', 'LIMITED', 'FULL']);
     expect(errorCodes).toContain('SESSION_ALREADY_ACTIVE');
+  });
+
+  it('validates every server-driven player lifecycle phase', () => {
+    for (const phase of playerLifecyclePhases) expect(isPlayerLifecyclePhase(phase)).toBe(true);
+    expect(isPlayerLifecyclePhase('CLIENT_SELECTED_ACCOUNT')).toBe(false);
+  });
+
+  it('requires a narrow versioned lifecycle snapshot', () => {
+    const snapshot = {
+      contract_version: playerLifecycleContractVersion,
+      phase: 'CHARACTER_SELECTION_REQUIRED',
+      retryable: false,
+      correlation_id: 'correlation-lifecycle-1',
+    } as const;
+    expect(isPlayerLifecycleSnapshot(snapshot)).toBe(true);
+    expect(isNuiMessage({ version: 1, type: 'ui.lifecycle.open', payload: snapshot })).toBe(true);
+    expect(isPlayerLifecycleSnapshot({ ...snapshot, account_uuid: 'forbidden' })).toBe(false);
+    expect(isPlayerLifecycleSnapshot({ ...snapshot, contract_version: 2 })).toBe(false);
+  });
+
+  it('keeps lifecycle refresh free of account, session, character, and destination authority', () => {
+    const refresh: PlayerLifecycleRefresh = {
+      contract_version: playerLifecycleContractVersion,
+    };
+    expect(Object.keys(refresh)).toEqual(['contract_version']);
   });
 
   it('keeps technical permission contracts role-agnostic', () => {
