@@ -98,6 +98,10 @@ local function inventory_values(row)
     }
 end
 
+local function database_boolean(value)
+    return value == true or value == 1 or value == '1'
+end
+
 local function entry_values(row)
     return {
         id = tonumber(row.id),
@@ -107,7 +111,7 @@ local function entry_values(row)
         version = tonumber(row.version),
         definition_id = tonumber(row.definition_id),
         item_instance_id = row.item_instance_id and tonumber(row.item_instance_id) or nil,
-        has_instance = tonumber(row.has_instance) == 1,
+        has_instance = database_boolean(row.has_instance),
         definition = {
             definition_uuid = row.definition_uuid,
             code = row.code,
@@ -115,8 +119,8 @@ local function entry_values(row)
             label = row.label,
             description = row.description,
             icon_key = row.icon_key,
-            is_stackable = tonumber(row.is_stackable) == 1,
-            is_unique = tonumber(row.is_unique) == 1,
+            is_stackable = database_boolean(row.is_stackable),
+            is_unique = database_boolean(row.is_unique),
             max_stack = tonumber(row.max_stack),
             unit_weight_grams = tonumber(row.unit_weight_grams),
             version = tonumber(row.definition_version),
