@@ -233,7 +233,7 @@ local function inventory_request(action, payload, callback)
     TriggerServerEvent('cnr:inventory:request', action, payload)
     callback({ ok = true, queued = true, request_id = request_id })
 end
-for _, callback_name in ipairs({ 'snapshot', 'transfer' }) do
+for _, callback_name in ipairs({ 'snapshot', 'reposition', 'transfer' }) do
     RegisterNUICallback('inventory.' .. callback_name, function(payload, callback)
         inventory_request(callback_name, payload, callback)
     end)
@@ -622,7 +622,7 @@ RegisterCommand('cnr_inventory_open', function()
     SendNUIMessage({
         version = 1,
         type = 'ui.inventory.open',
-        payload = { contract_version = 1 },
+        payload = { contract_version = 2 },
     })
 end, false)
 RegisterKeyMapping('cnr_inventory_open', 'Open personal inventory', 'keyboard', 'F2')
