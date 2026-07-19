@@ -6,7 +6,7 @@ Owns versioned item definitions and exposes normalized active catalogue reads to
 
 ## Security boundary
 
-Definitions, weights, stack limits, categories, trade/drop flags, handlers, and metadata schema versions come only from MariaDB. No client event can create or modify a definition.
+Definitions, image keys, weights, stack limits, categories, trade/drop flags, handlers, and metadata schema versions come only from MariaDB. No client event can create or modify a definition. Image keys are stable logical references; packaged PNG assets will be added separately without accepting arbitrary client URLs.
 
 ## Non-responsibility
 
