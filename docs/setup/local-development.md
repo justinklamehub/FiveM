@@ -15,7 +15,7 @@ For current Wave 1 work:
 ```bash
 git clone <repository>
 cd FiveM
-git switch agent/wave-1-player-lifecycle
+git switch agent/wave-2-economic-foundations
 cp .env.example .env
 ```
 
