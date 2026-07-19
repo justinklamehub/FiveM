@@ -22,6 +22,31 @@ export const inventoryIconFallback = (iconKey: string) =>
 export const inventorySlotNumbers = (capacity: number) =>
   Array.from({ length: capacity }, (_, index) => index + 1);
 
+export function applyConfirmedInventoryReposition(
+  snapshot: PersonalInventorySnapshot,
+  outcome: InventoryRepositionOutcome,
+): PersonalInventorySnapshot {
+  const sourceEntry = snapshot.entries.find((entry) => entry.slot_number === outcome.source_slot);
+  const targetEntry = snapshot.entries.find((entry) => entry.slot_number === outcome.target_slot);
+  if (!sourceEntry) throw new Error('The confirmed source slot is not present in the snapshot.');
+  if (outcome.mode === 'MOVE' && targetEntry)
+    throw new Error('The confirmed move destination is occupied in the snapshot.');
+  if (outcome.mode === 'SWAP' && !targetEntry)
+    throw new Error('The confirmed swap destination is empty in the snapshot.');
+
+  const entries = snapshot.entries
+    .map((entry) => {
+      if (entry.entry_uuid === sourceEntry.entry_uuid)
+        return { ...entry, slot_number: outcome.target_slot };
+      if (entry.entry_uuid === targetEntry?.entry_uuid)
+        return { ...entry, slot_number: outcome.source_slot };
+      return entry;
+    })
+    .sort((left, right) => left.slot_number - right.slot_number);
+
+  return { ...snapshot, version: outcome.inventory_version, entries };
+}
+
 export function InventoryPanel({ onClose }: { onClose: () => void }) {
   const [snapshot, setSnapshot] = useState<PersonalInventorySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,16 +101,23 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
           payload,
         );
         if (!result.ok) throw new Error(result.error.code);
+        if (snapshot?.inventory_uuid !== payload.inventory_uuid)
+          throw new Error('The confirmed reposition result does not match the inventory.');
+        if (
+          result.data.source_slot !== payload.source_slot ||
+          result.data.target_slot !== payload.target_slot
+        )
+          throw new Error('The confirmed reposition result does not match the request.');
+        setSnapshot(applyConfirmedInventoryReposition(snapshot, result.data));
         setRetryMove(null);
         setSelectedSlot(null);
-        await load();
       } catch {
-        setMoveError('The item could not be moved. Retry the operation or refresh the inventory.');
+        setMoveError('The item could not be moved. Retry the operation or reopen the inventory.');
       } finally {
         setMoving(false);
       }
     },
-    [load],
+    [snapshot],
   );
 
   const requestMove = useCallback(
@@ -132,8 +164,8 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
     if (Number.isInteger(sourceSlot)) requestMove(sourceSlot, targetSlot);
   };
 
-  const close = async () => {
-    await postNui<{ ok: boolean }>('close', {}).catch(() => ({ ok: false }));
+  const close = () => {
+    void postNui<{ ok: boolean }>('close', {}).catch(() => ({ ok: false }));
     onClose();
   };
 
@@ -162,76 +194,78 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {loading && (
-          <div className="inventory-loading" role="status">
-            <div className="spinner" aria-hidden="true" />
-            <span>Loading personal inventory…</span>
-          </div>
-        )}
-
-        {!loading && snapshot && (
-          <>
-            <div className="inventory-slot-grid" aria-label="Inventory slots">
-              {slots.map((slot) => {
-                const entry = entriesBySlot.get(slot);
-                const selected = selectedSlot === slot;
-                return (
-                  <button
-                    type="button"
-                    className={`inventory-slot-tile${entry ? ' inventory-slot-tile--occupied' : ''}${selected ? ' inventory-slot-tile--selected' : ''}${draggingSlot === slot ? ' inventory-slot-tile--dragging' : ''}`}
-                    key={slot}
-                    draggable={Boolean(entry) && !moving}
-                    disabled={moving}
-                    aria-label={
-                      entry
-                        ? `Slot ${String(slot)}: ${entry.definition.label}`
-                        : `Empty slot ${String(slot)}`
-                    }
-                    aria-pressed={selected}
-                    title={entry?.definition.description ?? `Empty slot ${String(slot)}`}
-                    onClick={() => activateSlot(slot, entry)}
-                    onDragStart={(event) => startDrag(event, slot)}
-                    onDragEnd={() => setDraggingSlot(null)}
-                    onDragOver={(event) => {
-                      if (draggingSlot !== null && draggingSlot !== slot) event.preventDefault();
-                    }}
-                    onDrop={(event) => drop(event, slot)}
-                  >
-                    <span className="inventory-slot-number">{slot}</span>
-                    {entry ? (
-                      <>
-                        <span
-                          className="inventory-item-icon"
-                          data-icon-key={entry.definition.icon_key}
-                          aria-hidden="true"
-                        >
-                          {inventoryIconFallback(entry.definition.icon_key)}
-                        </span>
-                        <span className="inventory-item-label">{entry.definition.label}</span>
-                        <span className="inventory-item-quantity">×{entry.quantity}</span>
-                      </>
-                    ) : (
-                      <span className="inventory-empty-slot" aria-hidden="true" />
-                    )}
-                  </button>
-                );
-              })}
+        <div className="inventory-content" aria-busy={loading || moving}>
+          {loading && (
+            <div className="inventory-loading" role="status">
+              <div className="spinner" aria-hidden="true" />
+              <span>Loading personal inventory…</span>
             </div>
-            <div className="inventory-selection" aria-live="polite">
-              {moving && <span>Moving item…</span>}
-              {!moving && selectedEntry && (
-                <span>
-                  <strong>{selectedEntry.definition.label}</strong> selected from slot{' '}
-                  {selectedSlot}. Choose another slot to move or swap it.
-                </span>
-              )}
-              {!moving && !selectedEntry && <span>Select or drag an occupied slot.</span>}
-            </div>
-          </>
-        )}
+          )}
 
-        {snapshotError && <p role="alert">{snapshotError}</p>}
-        {moveError && <p role="alert">{moveError}</p>}
+          {!loading && snapshot && (
+            <>
+              <div className="inventory-slot-grid" aria-label="Inventory slots">
+                {slots.map((slot) => {
+                  const entry = entriesBySlot.get(slot);
+                  const selected = selectedSlot === slot;
+                  return (
+                    <button
+                      type="button"
+                      className={`inventory-slot-tile${entry ? ' inventory-slot-tile--occupied' : ''}${selected ? ' inventory-slot-tile--selected' : ''}${draggingSlot === slot ? ' inventory-slot-tile--dragging' : ''}`}
+                      key={slot}
+                      draggable={Boolean(entry) && !moving}
+                      disabled={moving}
+                      aria-label={
+                        entry
+                          ? `Slot ${String(slot)}: ${entry.definition.label}`
+                          : `Empty slot ${String(slot)}`
+                      }
+                      aria-pressed={selected}
+                      title={entry?.definition.description ?? `Empty slot ${String(slot)}`}
+                      onClick={() => activateSlot(slot, entry)}
+                      onDragStart={(event) => startDrag(event, slot)}
+                      onDragEnd={() => setDraggingSlot(null)}
+                      onDragOver={(event) => {
+                        if (draggingSlot !== null && draggingSlot !== slot) event.preventDefault();
+                      }}
+                      onDrop={(event) => drop(event, slot)}
+                    >
+                      <span className="inventory-slot-number">{slot}</span>
+                      {entry ? (
+                        <>
+                          <span
+                            className="inventory-item-icon"
+                            data-icon-key={entry.definition.icon_key}
+                            aria-hidden="true"
+                          >
+                            {inventoryIconFallback(entry.definition.icon_key)}
+                          </span>
+                          <span className="inventory-item-label">{entry.definition.label}</span>
+                          <span className="inventory-item-quantity">×{entry.quantity}</span>
+                        </>
+                      ) : (
+                        <span className="inventory-empty-slot" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="inventory-selection" aria-live="polite">
+                {moving && <span>Moving item…</span>}
+                {!moving && selectedEntry && (
+                  <span>
+                    <strong>{selectedEntry.definition.label}</strong> selected from slot{' '}
+                    {selectedSlot}. Choose another slot to move or swap it.
+                  </span>
+                )}
+                {!moving && !selectedEntry && <span>Select or drag an occupied slot.</span>}
+              </div>
+            </>
+          )}
+
+          {snapshotError && <p role="alert">{snapshotError}</p>}
+          {moveError && <p role="alert">{moveError}</p>}
+        </div>
         <div className="shell-card__footer">
           <span className="runtime-badge">
             {snapshot?.starter_provisioned ? 'Starter package secured' : 'Server inventory'}
@@ -252,7 +286,7 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
                 Retry Move
               </button>
             )}
-            <button type="button" disabled={moving} onClick={() => void close()}>
+            <button type="button" disabled={moving} onClick={close}>
               Close
             </button>
           </div>
