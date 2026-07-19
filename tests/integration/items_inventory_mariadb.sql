@@ -207,10 +207,12 @@ CALL assert_duplicate_reference_rejected();
 INSERT INTO cnr_inventory_items
 (public_uuid, inventory_id, definition_id, item_instance_id, slot_number, quantity,
 version, created_at, updated_at)
-VALUES
-(UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000043','-','')),
-@source_inventory_id, @state_id_definition_id, @document_instance_id, 3, 1, 1,
-UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+SELECT
+UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000043','-','')),
+@source_inventory_id, @state_id_definition_id, inst.id, 3, 1, 1,
+UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+FROM cnr_item_instances inst WHERE inst.id=@document_instance_id
+ON DUPLICATE KEY UPDATE public_uuid=cnr_inventory_items.public_uuid;
 
 INSERT INTO cnr_item_transactions
 (operation_uuid, action, account_uuid, session_uuid, character_uuid,
