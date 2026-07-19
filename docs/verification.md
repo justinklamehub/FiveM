@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation and all six Wave 1 slices: connection, technical permissions, registration, character lifecycle, selection/appearance/controlled spawn, and the final loadscreen orchestration. A live operator pass has confirmed one English path from connection through registration, character creation, visible appearance customization, persistence, and controlled entry. The new loadscreen-specific handoff and the full reconnect, failure, whitelist, and dual-model matrix remain manual FXServer checks and are not claimed as completed here.
+The automated pipeline covers the Wave 0 foundation and all six Wave 1 slices: connection, technical permissions, registration, character lifecycle, selection/appearance/controlled spawn, and the final loadscreen orchestration. Live operator passes have confirmed one English path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, and a successful reconnect with the stored appearance and spawn location. Failure recovery, alternate whitelist policies, negative security cases, and the second freemode model remain manual FXServer checks and are not claimed as completed here.
 
 Run from a fresh checkout:
 
