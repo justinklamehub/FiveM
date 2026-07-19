@@ -16,6 +16,7 @@ describe('item policy', function()
             category = 'CONSUMABLE',
             label = 'Water Bottle',
             description = 'Water',
+            icon_key = 'water_bottle',
             is_stackable = 1,
             is_unique = 0,
             max_stack = '10',
@@ -27,6 +28,7 @@ describe('item policy', function()
         })
         assert.is_true(definition.is_stackable)
         assert.is_false(definition.is_unique)
+        assert.are.equal('water_bottle', definition.icon_key)
         assert.are.equal(500, definition.unit_weight_grams)
     end)
 end)
