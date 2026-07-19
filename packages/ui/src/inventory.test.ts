@@ -14,6 +14,7 @@ import {
   applyConfirmedInventoryReposition,
   applyConfirmedInventoryTransfer,
   inventoryIconFallback,
+  inventoryIconSource,
   inventorySlotNumbers,
 } from './InventoryPanel';
 
@@ -24,6 +25,10 @@ describe('inventory browser mock', () => {
     expect(inventorySlotNumbers(24)).toEqual(Array.from({ length: 24 }, (_, index) => index + 1));
     expect(inventoryIconFallback('water_bottle')).toBe('WB');
     expect(inventoryIconFallback('state_id')).toBe('SI');
+    expect(inventoryIconSource('water_bottle')).toBe('./assets/items/water_bottle.png');
+    expect(inventoryIconSource('sandwich')).toBe('./assets/items/sandwich.png');
+    expect(inventoryIconSource('state_id')).toBe('./assets/items/state_id.png');
+    expect(inventoryIconSource('future_item')).toBeNull();
   });
 
   it('returns the server-shaped starter inventory without authoritative request fields', async () => {

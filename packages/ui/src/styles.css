@@ -679,6 +679,18 @@ button {
   font-weight: 850;
   letter-spacing: 0.08em;
 }
+.inventory-item-icon img,
+.inventory-drag-ghost__icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+.inventory-item-icon img {
+  transform: scale(1.14);
+}
 .inventory-item-label {
   width: 100%;
   overflow: hidden;
@@ -768,6 +780,9 @@ button {
   background: rgba(217, 164, 65, 0.12);
   font-size: 0.75rem;
   font-weight: 850;
+}
+.inventory-drag-ghost__icon img {
+  transform: scale(1.08);
 }
 .inventory-drag-ghost strong {
   color: var(--cnr-accent);

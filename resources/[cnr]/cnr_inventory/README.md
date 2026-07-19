@@ -50,6 +50,8 @@ Consumes `cnr:characters:spawned` to provision the starter package. Repeated eve
 
 Exactly one package is provisioned per character: two Water Bottles, two Sandwiches, and the existing State Identification Card as a referenced unique item.
 
+Their server-owned image keys resolve to reviewed transparent PNGs in `cnr_ui`. The inventory service never accepts filenames or asset paths from a client, and definitions without packaged artwork use the UI's deterministic fallback.
+
 ## Recovery
 
 Snapshot reads also run the same idempotent provisioning check, so a missed spawn event or resource restart cannot duplicate or permanently omit the starter package. Locker creation uses the owner/type uniqueness constraint and is safe to repeat. Repositioning locks the selected inventory and all entries before applying a guarded empty-slot move or occupied-slot swap. Transfers lock both inventories and their entries in deterministic order and persist replayable placement details.

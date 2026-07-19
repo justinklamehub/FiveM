@@ -24,6 +24,13 @@ import { postNui } from './nui';
 
 const newId = () => crypto.randomUUID();
 const kilograms = (grams: number) => `${(grams / 1000).toFixed(2)} kg`;
+const inventoryIconSources: Readonly<Record<string, string>> = {
+  water_bottle: './assets/items/water_bottle.png',
+  sandwich: './assets/items/sandwich.png',
+  state_id: './assets/items/state_id.png',
+};
+
+export const inventoryIconSource = (iconKey: string) => inventoryIconSources[iconKey] ?? null;
 export const inventoryIconFallback = (iconKey: string) =>
   iconKey
     .split('_')
@@ -33,6 +40,23 @@ export const inventoryIconFallback = (iconKey: string) =>
     .toUpperCase();
 export const inventorySlotNumbers = (capacity: number) =>
   Array.from({ length: capacity }, (_, index) => index + 1);
+
+function InventoryIcon({ iconKey, className }: { iconKey: string; className: string }) {
+  const source = inventoryIconSource(iconKey);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => setFailed(false), [source]);
+
+  return (
+    <span className={className} data-icon-key={iconKey} aria-hidden="true">
+      {source && !failed ? (
+        <img src={source} alt="" draggable={false} onError={() => setFailed(true)} />
+      ) : (
+        inventoryIconFallback(iconKey)
+      )}
+    </span>
+  );
+}
 
 interface InventoryViewState {
   character: InventoryWorkspaceSnapshot['character'];
@@ -519,13 +543,10 @@ export function InventoryPanel({
                 <span className="inventory-slot-number">{slot}</span>
                 {entry ? (
                   <>
-                    <span
+                    <InventoryIcon
                       className="inventory-item-icon"
-                      data-icon-key={entry.definition.icon_key}
-                      aria-hidden="true"
-                    >
-                      {inventoryIconFallback(entry.definition.icon_key)}
-                    </span>
+                      iconKey={entry.definition.icon_key}
+                    />
                     <span className="inventory-item-label">{entry.definition.label}</span>
                     <span className="inventory-item-quantity">×{entry.quantity}</span>
                   </>
@@ -616,9 +637,10 @@ export function InventoryPanel({
           style={{ left: dragVisual.x, top: dragVisual.y }}
           aria-hidden="true"
         >
-          <span className="inventory-drag-ghost__icon">
-            {inventoryIconFallback(dragVisual.entry.definition.icon_key)}
-          </span>
+          <InventoryIcon
+            className="inventory-drag-ghost__icon"
+            iconKey={dragVisual.entry.definition.icon_key}
+          />
           <span>{dragVisual.entry.definition.label}</span>
           <strong>×{dragVisual.entry.quantity}</strong>
         </div>

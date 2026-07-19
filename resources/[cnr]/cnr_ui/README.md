@@ -1,7 +1,7 @@
 # cnr_ui
 
 ## Responsibility
-Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration, character and personal-inventory views, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
+Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration, character and personal-inventory views, reviewed starter-item PNG artwork, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
@@ -52,8 +52,9 @@ locker workspace. In FiveM, F2 or `cnr_inventory_open` opens the character inven
 spawn. F3 or `cnr_storage_open` requests the personal locker, which the server exposes only within the
 configured radius. Occupied slots use direct pointer drag-and-drop with a destination highlight and
 drop animation; click-selection is not part of the interaction. Cross-inventory drops send the intended
-destination slot, while the UI applies the server-validated placement only after confirmation. Definition image keys render deterministic fallback tiles until the reviewed
-PNG asset pack is added.
+destination slot, while the UI applies the server-validated placement only after confirmation. Reviewed
+transparent PNGs are resolved from an explicit allowlist for the three starter image keys. Unknown keys
+or failed image loads retain deterministic two-letter fallback tiles.
 
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
 registration view locally. It does not bypass server-side session, status, ruleset, or submission
@@ -71,4 +72,4 @@ and exposes a correlated recovery view when dependencies remain unavailable. The
 the server to derive a new snapshot and never accepts a destination from the client.
 
 ## Tests
-Focus, English visual text, lifecycle browser mocks, contracts, manifests, and the production build are checked in CI.
+Focus, English visual text, lifecycle browser mocks, inventory image-key resolution, PNG dimensions and transparency, contracts, manifests, and the production build are checked in CI.

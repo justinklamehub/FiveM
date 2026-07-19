@@ -17,7 +17,7 @@ The first slice implements:
 - one server-created `PERSONAL_STORAGE` locker per character with configurable slots and weight;
 - a proximity-gated two-panel locker workspace with atomic cross-inventory drag/drop;
 - replayable, server-validated destination slots and transfer modes for confirmed in-place UI updates;
-- stable server-owned image keys with deterministic UI fallbacks for a later PNG asset pack;
+- stable server-owned image keys, reviewed transparent starter-item PNGs, and deterministic UI fallbacks for unknown keys or failed loads;
 - browser mocks, contracts, MariaDB tests, Lua policy tests, and audit events.
 
 Banking, reservations, use effects, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
@@ -29,6 +29,10 @@ Banking, reservations, use effects, backpacks, shared/faction storage, vehicles,
 `cnr_inventory` owns inventories, inventory entries, item instances, and transaction history. It resolves the active FULL session and spawned character from the FiveM source through `cnr_sessions` and `cnr_characters`.
 
 Cross-resource references use canonical UUIDs. Inventory tables retain the stable character UUID instead of importing the character module's internal relational ID.
+
+## Item artwork boundary
+
+Item definitions expose only a stable `icon_key`. The browser resolves known keys through a packaged allowlist and never interprets a client-supplied URL or filesystem path. The initial 256×256 RGBA pack covers Water Bottle, Sandwich, and State Identification Card in one navy-and-gold visual language. Missing assets degrade to deterministic text initials without blocking inventory use.
 
 ## Client contract
 
