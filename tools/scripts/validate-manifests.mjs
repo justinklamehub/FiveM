@@ -9,7 +9,66 @@ const expected = new Map([
   ['cnr_locales', ['/onesync']],
   ['cnr_config', ['/onesync', 'cnr_logs', 'cnr_locales']],
   ['cnr_core', ['/onesync', 'cnr_database', 'cnr_logs', 'cnr_locales', 'cnr_config']],
-  ['cnr_ui', ['/onesync', 'cnr_core', 'cnr_logs', 'cnr_locales', 'cnr_config']],
+  ['cnr_ui', ['/onesync', 'spawnmanager']],
+  [
+    'cnr_accounts',
+    ['/onesync', 'cnr_database', 'cnr_logs', 'cnr_locales', 'cnr_config', 'cnr_core'],
+  ],
+  [
+    'cnr_permissions',
+    [
+      '/onesync',
+      'cnr_database',
+      'cnr_logs',
+      'cnr_locales',
+      'cnr_config',
+      'cnr_core',
+      'cnr_accounts',
+    ],
+  ],
+  [
+    'cnr_whitelist',
+    ['/onesync', 'cnr_database', 'cnr_logs', 'cnr_locales', 'cnr_config', 'cnr_core'],
+  ],
+  [
+    'cnr_sessions',
+    [
+      '/onesync',
+      'cnr_database',
+      'cnr_logs',
+      'cnr_locales',
+      'cnr_config',
+      'cnr_core',
+      'cnr_accounts',
+      'cnr_whitelist',
+    ],
+  ],
+  [
+    'cnr_registration',
+    [
+      '/onesync',
+      'cnr_database',
+      'cnr_logs',
+      'cnr_locales',
+      'cnr_config',
+      'cnr_core',
+      'cnr_accounts',
+      'cnr_whitelist',
+      'cnr_sessions',
+    ],
+  ],
+  [
+    'cnr_characters',
+    [
+      '/onesync',
+      'cnr_database',
+      'cnr_logs',
+      'cnr_config',
+      'cnr_core',
+      'cnr_accounts',
+      'cnr_sessions',
+    ],
+  ],
 ]);
 
 const dependencyGraph = new Map();

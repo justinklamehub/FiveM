@@ -1,6 +1,7 @@
 -- Coordinates dependency readiness and exposes common technical contracts without gameplay state.
 local ErrorCodes = require('shared.error_codes')
 local Correlation = require('shared.correlation')
+local UuidV7 = require('shared.uuid_v7')
 local Result = require('shared.result')
 local Readiness = require('shared.readiness')
 local RateLimiter = require('shared.rate_limiter')
@@ -12,6 +13,14 @@ local readiness = Readiness.new(resource_name, version)
 local rate_limiter = RateLimiter.new(GetGameTimer)
 local dependencies = { 'cnr_database', 'cnr_logs', 'cnr_locales', 'cnr_config' }
 local registry = {}
+local function runtime_now_ms()
+    return math.floor(os.time() * 1000) + (GetGameTimer() % 1000)
+end
+local server_instance_id = GlobalState.cnrServerInstanceId
+if type(server_instance_id) ~= 'string' or server_instance_id == '' then
+    server_instance_id = UuidV7.create(runtime_now_ms)
+    GlobalState.cnrServerInstanceId = server_instance_id
+end
 
 local function copy(value)
     if type(value) ~= 'table' then
@@ -89,8 +98,19 @@ local function report_resource_status(snapshot)
 end
 
 CreateThread(function()
-    Wait(0)
-    refresh_dependencies()
+    for _ = 1, 300 do
+        refresh_dependencies()
+        if readiness.status == 'ready' then
+            return
+        end
+        Wait(100)
+    end
+end)
+AddEventHandler('cnr:database:status_changed', function()
+    CreateThread(function()
+        Wait(0)
+        refresh_dependencies()
+    end)
 end)
 AddEventHandler('onResourceStart', function(started)
     if started == resource_name then
@@ -161,6 +181,12 @@ exports('consume_rate_limit', function(key, limit, window_ms, correlation_id)
 end)
 exports('create_request_context', RequestContext.create)
 exports('create_correlation_id', Correlation.create)
+exports('create_uuid_v7', function()
+    return UuidV7.create(runtime_now_ms)
+end)
+exports('get_server_instance_id', function()
+    return server_instance_id
+end)
 exports('create_success_result', Result.success)
 exports('create_error_result', Result.failure)
 exports('get_error_codes', function()

@@ -1,65 +1,286 @@
-/** Renders the minimal shared NUI shell and reacts only to validated versioned messages. */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { isNuiMessage } from '@cnr/contracts';
-import { claimFocus, initialFocusState, releaseFocus } from './focus';
-import { translate, type Locale } from './i18n';
+/** Renders the interactive server-authoritative Wave 1 player lifecycle. */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  isNuiMessage,
+  playerLifecycleContractVersion,
+  registrationContractVersion,
+  type CurrentRuleset,
+  type PlayerLifecycleSnapshot,
+  type RegistrationOutcome,
+  type Result,
+} from '@cnr/contracts';
+import { CharacterLifecycle } from './CharacterLifecycle';
+import { claimFocus, initialFocusState } from './focus';
+import { translate } from './i18n';
+import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase } from './lifecycle';
 import { isBrowserMock, postNui } from './nui';
+
+const newId = () => crypto.randomUUID();
 
 export function App() {
   const mock = useMemo(isBrowserMock, []);
-  const [locale, setLocale] = useState<Locale>('de');
+  const operationUuid = useRef(newId());
+  const browserReadySent = useRef(false);
+  const [snapshot, setSnapshot] = useState<PlayerLifecycleSnapshot | null>(() =>
+    mock ? browserLifecycleSnapshot(currentBrowserSearch()) : null,
+  );
   const [visible, setVisible] = useState(mock);
   const [focus, setFocus] = useState(initialFocusState);
+  const [ruleset, setRuleset] = useState<CurrentRuleset | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const close = useCallback(async () => {
-    setFocus((current) => releaseFocus(current, current.owner ?? 'cnr_ui'));
-    setVisible(false);
-    await postNui<{ ok: boolean }>('close', {});
+  const loadRuleset = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const result = await postNui<Result<CurrentRuleset>>('registrationRuleset', {
+        request_id: newId(),
+        locale: 'en',
+        contract_version: registrationContractVersion,
+      });
+      if (!result.ok) throw new Error(result.error.code);
+      setRuleset(result.data);
+    } catch {
+      setRuleset(null);
+      setMessage(translate('en', 'registration.loadError'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && visible) void close();
-    };
-    window.addEventListener('keydown', onEscape);
-
-    const listener = (event: MessageEvent<unknown>) => {
-      const message = event.data;
-      if (!isNuiMessage(message)) return;
-      if (message.type === 'ui.shell.open') {
-        setLocale(message.payload.locale === 'en' ? 'en' : 'de');
-        setFocus((current) => claimFocus(current, message.payload.view));
-        setVisible(true);
+  const applySnapshot = useCallback(
+    (next: PlayerLifecycleSnapshot) => {
+      setSnapshot(next);
+      setRefreshing(false);
+      setMessage(null);
+      if (next.phase === 'READY') {
+        setVisible(false);
+        setFocus(initialFocusState);
+        return;
       }
-      if (message.type === 'ui.shell.close') {
+      setVisible(true);
+      setFocus((current) => claimFocus(current, 'playerLifecycle'));
+      if (next.phase === 'REGISTRATION_REQUIRED') void loadRuleset();
+    },
+    [loadRuleset],
+  );
+
+  const refreshLifecycle = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setMessage(null);
+    try {
+      const acknowledgement = await postNui<{ ok: boolean }>('lifecycleRefresh', {
+        contract_version: playerLifecycleContractVersion,
+      });
+      if (!acknowledgement.ok) throw new Error('refresh_rejected');
+      if (mock) applySnapshot(browserLifecycleSnapshot(currentBrowserSearch()));
+    } catch {
+      setRefreshing(false);
+      setMessage('The lifecycle status could not be refreshed. Please try again.');
+    }
+  }, [applySnapshot, mock, refreshing]);
+
+  const submit = useCallback(async () => {
+    if (!ruleset || !accepted || submitting) return;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const result = await postNui<Result<RegistrationOutcome>>('registrationSubmit', {
+        ruleset_uuid: ruleset.ruleset_uuid,
+        ruleset_version: ruleset.version,
+        acceptance: true,
+        locale: 'en',
+        request_id: newId(),
+        operation_uuid: operationUuid.current,
+        contract_version: registrationContractVersion,
+      });
+      if (!result.ok) throw new Error(result.error.code);
+      setRefreshing(true);
+      if (mock) {
+        applySnapshot({
+          contract_version: playerLifecycleContractVersion,
+          phase: 'CHARACTER_SELECTION_REQUIRED',
+          retryable: false,
+          correlation_id: 'browser-registration-complete',
+        });
+      } else {
+        const acknowledgement = await postNui<{ ok: boolean }>('lifecycleRefresh', {
+          contract_version: playerLifecycleContractVersion,
+        });
+        if (!acknowledgement.ok) throw new Error('refresh_rejected');
+      }
+    } catch {
+      setRefreshing(false);
+      setMessage(translate('en', 'registration.error'));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [accepted, applySnapshot, mock, ruleset, submitting]);
+
+  useEffect(() => {
+    if (
+      mock &&
+      browserLifecycleSnapshot(currentBrowserSearch()).phase === 'REGISTRATION_REQUIRED'
+    ) {
+      void loadRuleset();
+    }
+  }, [loadRuleset, mock]);
+
+  useEffect(() => {
+    const listener = (event: MessageEvent<unknown>) => {
+      if (!isNuiMessage(event.data)) return;
+      if (event.data.type === 'ui.shell.close') {
         setFocus(initialFocusState);
         setVisible(false);
+      } else if (event.data.type === 'ui.lifecycle.open') {
+        applySnapshot(event.data.payload);
+      } else if (event.data.type === 'ui.character.spawn_failed') {
+        applySnapshot({
+          contract_version: playerLifecycleContractVersion,
+          phase: 'RECOVERABLE_ERROR',
+          retryable: true,
+          correlation_id: event.data.payload.correlation_id,
+        });
       }
     };
     window.addEventListener('message', listener);
-    return () => {
-      window.removeEventListener('message', listener);
-      window.removeEventListener('keydown', onEscape);
-    };
-  }, [close, visible]);
+    if (!mock && !browserReadySent.current) {
+      browserReadySent.current = true;
+      void postNui<{ ok: boolean }>('uiReady', {}).catch(() => {
+        browserReadySent.current = false;
+      });
+    }
+    return () => window.removeEventListener('message', listener);
+  }, [applySnapshot, mock]);
 
   if (!visible) return null;
+  const view = snapshot ? lifecycleViewForPhase(snapshot.phase) : 'loading';
+  if (refreshing || view === 'loading') {
+    return (
+      <main className="nui-stage" aria-label="Player lifecycle">
+        <section className="shell-card lifecycle-state" role="status">
+          <div className="spinner" aria-hidden="true" />
+          <h1>Authorizing Session</h1>
+          <p>The server is resolving the next safe player lifecycle step.</p>
+          {message && <p role="alert">{message}</p>}
+        </section>
+      </main>
+    );
+  }
+  if (view === 'accessPending') {
+    return (
+      <main className="nui-stage" aria-label="Access review pending">
+        <section className="shell-card access-card">
+          <div className="shell-card__topline">
+            <span>City Administration</span>
+            <span className="status-pill">Limited Access</span>
+          </div>
+          <h1>Access Review Pending</h1>
+          <p>
+            Registration is complete, but this session has limited access under the current
+            whitelist policy. Character and world access remain locked until the server grants full
+            access.
+          </p>
+          <div className="shell-card__footer">
+            <span className="runtime-badge">Server status</span>
+            <button type="button" onClick={() => void refreshLifecycle()}>
+              Check Again
+            </button>
+          </div>
+          {message && <p role="alert">{message}</p>}
+        </section>
+      </main>
+    );
+  }
+  if (view === 'error') {
+    return (
+      <main className="nui-stage" aria-label="Lifecycle unavailable">
+        <section className="shell-card error-card">
+          <div className="shell-card__topline">
+            <span>Connection Recovery</span>
+            <span className="status-pill">Attention</span>
+          </div>
+          <h1>Lifecycle Unavailable</h1>
+          <p>
+            The server could not determine the next player lifecycle step without weakening its
+            security checks. Retry when the required resources are ready.
+          </p>
+          <p className="correlation-reference">Reference: {snapshot?.correlation_id}</p>
+          <div className="shell-card__footer">
+            <span className="runtime-badge">Safe recovery</span>
+            <button type="button" onClick={() => void refreshLifecycle()}>
+              Retry
+            </button>
+          </div>
+          {message && <p role="alert">{message}</p>}
+        </section>
+      </main>
+    );
+  }
+  if (view === 'characterLifecycle') {
+    return (
+      <main className="nui-stage nui-stage--lifecycle" aria-label="Character Lifecycle">
+        <section className="shell-card lifecycle-card">
+          <CharacterLifecycle initialPhase={snapshot?.phase} />
+          {message && <p role="alert">{message}</p>}
+          <output className="sr-only">Focus owner: {focus.owner ?? 'none'}</output>
+        </section>
+      </main>
+    );
+  }
+  if (view === 'ready') return null;
   return (
-    <main className="nui-stage" aria-label={translate(locale, 'shell.title')}>
-      <section className="shell-card">
+    <main className="nui-stage" aria-label={translate('en', 'registration.title')}>
+      <section className="shell-card registration-card">
         <div className="shell-card__topline">
-          <span>{translate(locale, 'shell.eyebrow')}</span>
-          <span className="status-pill">{translate(locale, 'status.ready')}</span>
+          <span>{translate('en', 'registration.eyebrow')}</span>
+          <span className="status-pill">Secure Onboarding</span>
         </div>
-        <h1>{translate(locale, 'shell.title')}</h1>
-        <p>{translate(locale, 'shell.description')}</p>
+        <h1>{translate('en', 'registration.title')}</h1>
+        <p>{translate('en', 'registration.description')}</p>
+        {loading ? (
+          <p role="status">{translate('en', 'registration.loading')}</p>
+        ) : (
+          ruleset && (
+            <>
+              <div className="ruleset-meta">
+                {translate('en', 'registration.version')}: {ruleset.version}
+              </div>
+              <article className="ruleset-copy">{ruleset.content}</article>
+              <label className="acceptance">
+                <input
+                  type="checkbox"
+                  checked={accepted}
+                  onChange={(event) => setAccepted(event.target.checked)}
+                />
+                <span>{translate('en', 'registration.accept')}</span>
+              </label>
+            </>
+          )
+        )}
+        {message && <p role="alert">{message}</p>}
         <div className="shell-card__footer">
           <span className="runtime-badge">
-            {translate(locale, mock ? 'shell.browserMock' : 'shell.fivem')}
+            {translate('en', mock ? 'shell.browserMock' : 'shell.fivem')}
           </span>
-          <button type="button" onClick={() => void close()}>
-            {translate(locale, 'shell.close')}
-          </button>
+          {!loading && !ruleset ? (
+            <button type="button" onClick={() => void loadRuleset()}>
+              {translate('en', 'registration.retry')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!accepted || !ruleset || submitting}
+              onClick={() => void submit()}
+            >
+              {translate('en', submitting ? 'registration.submitting' : 'registration.submit')}
+            </button>
+          )}
         </div>
         <output className="sr-only">Focus owner: {focus.owner ?? 'none'}</output>
       </section>
