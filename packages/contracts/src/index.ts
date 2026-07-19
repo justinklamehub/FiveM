@@ -206,6 +206,56 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
+export const inventoryContractVersion = 1 as const;
+export interface InventoryItemDefinition {
+  definition_uuid: string;
+  code: string;
+  category: 'CONSUMABLE' | 'DOCUMENT' | 'TOOL' | 'CONTAINER' | 'MATERIAL' | 'EVIDENCE';
+  label: string;
+  description: string;
+  is_stackable: boolean;
+  is_unique: boolean;
+  max_stack: number;
+  unit_weight_grams: number;
+  version: number;
+}
+export interface InventoryEntry {
+  entry_uuid: string;
+  slot_number: number;
+  quantity: number;
+  definition: InventoryItemDefinition;
+  total_weight_grams: number;
+}
+export interface PersonalInventorySnapshot {
+  inventory_uuid: string;
+  inventory_type: 'CHARACTER';
+  slot_capacity: number;
+  weight_capacity_grams: number;
+  current_weight_grams: number;
+  version: number;
+  starter_provisioned: boolean;
+  entries: readonly InventoryEntry[];
+}
+export interface InventorySnapshotRequest {
+  request_id: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryTransferRequest {
+  source_inventory_uuid: string;
+  target_inventory_uuid: string;
+  source_slot: number;
+  quantity: number;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryTransferOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  source_version: number;
+  target_version: number;
+}
+
 export const playerLifecycleContractVersion = 1 as const;
 export const playerLifecyclePhases = [
   'CONNECTING',
@@ -318,6 +368,11 @@ export type NuiMessage =
   | { version: 1; type: 'ui.lifecycle.phase'; payload: PlayerLifecycleSnapshot }
   | {
       version: 1;
+      type: 'ui.inventory.open';
+      payload: { contract_version: typeof inventoryContractVersion };
+    }
+  | {
+      version: 1;
       type: 'ui.character.spawn_failed';
       payload: { correlation_id: string };
     }
@@ -363,6 +418,13 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
   if (candidate.type === 'ui.character.spawn_failed') {
     const payload = candidate.payload as { correlation_id?: unknown };
     return typeof payload.correlation_id === 'string';
+  }
+  if (candidate.type === 'ui.inventory.open') {
+    const payload = candidate.payload as { contract_version?: unknown };
+    return (
+      Object.keys(candidate.payload).join(',') === 'contract_version' &&
+      payload.contract_version === inventoryContractVersion
+    );
   }
   if (candidate.type === 'ui.request.response') {
     const payload = candidate.payload as {

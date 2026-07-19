@@ -169,4 +169,53 @@ describe('character selection service authority', function()
             assert.are.equal(expected, result.data.phase)
         end
     end)
+
+    it('exports only a source-bound spawned character and active State ID', function()
+        local function session()
+            return {
+                session_uuid = 'session-1',
+                account_uuid = 'account-1',
+                account_id = 1,
+                session_id = 2,
+                account_status = 'ACTIVE',
+                access_state = 'FULL',
+            }
+        end
+        local memory = { session_uuid = 'session-1', account_uuid = 'account-1' }
+        local pending = load_service({
+            session_for_source = session,
+            binding_for_session = function()
+                return {
+                    binding_status = 'ACTIVE',
+                    spawn_state = 'PENDING',
+                    status = 'ACTIVE',
+                }
+            end,
+        }, memory).active_character_for_source(12, 'correlation-pending')
+        assert.is_false(pending.ok)
+        assert.are.equal('CHARACTER_REQUIRED', pending.error.code)
+
+        local spawned = load_service({
+            session_for_source = session,
+            binding_for_session = function()
+                return {
+                    binding_status = 'ACTIVE',
+                    binding_uuid = 'binding-1',
+                    spawn_state = 'SPAWNED',
+                    status = 'ACTIVE',
+                    character_id = 5,
+                    character_uuid = 'character-1',
+                }
+            end,
+            state_document = function()
+                return { document_uuid = 'document-1' }
+            end,
+        }, memory).active_character_for_source(12, 'correlation-spawned')
+        assert.is_true(spawned.ok)
+        assert.are.same({
+            character_uuid = 'character-1',
+            binding_uuid = 'binding-1',
+            state_document_uuid = 'document-1',
+        }, spawned.data)
+    end)
 end)

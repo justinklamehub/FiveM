@@ -16,6 +16,8 @@ const bridgedEvents = new Set([
   'characters.select',
   'characters.appearanceConfiguration',
   'characters.appearanceSave',
+  'inventory.snapshot',
+  'inventory.transfer',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -96,6 +98,76 @@ function browserMock(event: string, body: unknown): unknown {
       ok: true,
       data: { ...mockRuleset, locale: 'en' },
       correlation_id: 'mock-ruleset',
+    };
+  if (event === 'inventory.snapshot')
+    return {
+      ok: true,
+      data: {
+        inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+        inventory_type: 'CHARACTER',
+        slot_capacity: 24,
+        weight_capacity_grams: 30000,
+        current_weight_grams: 1520,
+        version: 2,
+        starter_provisioned: true,
+        entries: [
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000011',
+            slot_number: 1,
+            quantity: 2,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000001',
+              code: 'water_bottle',
+              category: 'CONSUMABLE',
+              label: 'Water Bottle',
+              description: 'A sealed bottle of drinking water.',
+              is_stackable: true,
+              is_unique: false,
+              max_stack: 10,
+              unit_weight_grams: 500,
+              version: 1,
+            },
+            total_weight_grams: 1000,
+          },
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000012',
+            slot_number: 2,
+            quantity: 2,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000002',
+              code: 'sandwich',
+              category: 'CONSUMABLE',
+              label: 'Sandwich',
+              description: 'A simple wrapped sandwich.',
+              is_stackable: true,
+              is_unique: false,
+              max_stack: 10,
+              unit_weight_grams: 250,
+              version: 1,
+            },
+            total_weight_grams: 500,
+          },
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000013',
+            slot_number: 3,
+            quantity: 1,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000003',
+              code: 'state_id',
+              category: 'DOCUMENT',
+              label: 'State Identification Card',
+              description: "The holder's official state identification card.",
+              is_stackable: false,
+              is_unique: true,
+              max_stack: 1,
+              unit_weight_grams: 20,
+              version: 1,
+            },
+            total_weight_grams: 20,
+          },
+        ],
+      },
+      correlation_id: 'mock-inventory',
     };
   if (event === 'registrationStatus')
     return {

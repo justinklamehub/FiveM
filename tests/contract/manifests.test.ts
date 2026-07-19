@@ -13,6 +13,8 @@ describe('FiveM manifest contract', () => {
     'cnr_permissions',
     'cnr_whitelist',
     'cnr_sessions',
+    'cnr_items',
+    'cnr_inventory',
   ];
   it.each(resources)('%s uses the approved manifest runtime', (resource) => {
     const manifest = fs.readFileSync(`resources/[cnr]/${resource}/fxmanifest.lua`, 'utf8');

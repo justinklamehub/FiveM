@@ -200,6 +200,47 @@ function Service.lifecycle_snapshot(player_source, correlation_id)
     return success({ phase = 'CHARACTER_CREATION_REQUIRED' }, correlation_id)
 end
 
+function Service.active_character_for_source(player_source, correlation_id)
+    local session, session_error = session_for_source(player_source, correlation_id)
+    if not session then
+        return session_error
+    end
+    local binding, binding_error = Repository.binding_for_session(session.session_id)
+    if binding_error then
+        return binding_error
+    end
+    if
+        not binding
+        or binding.binding_status ~= 'ACTIVE'
+        or binding.spawn_state ~= 'SPAWNED'
+        or binding.status ~= 'ACTIVE'
+    then
+        return failure(
+            'CHARACTER_REQUIRED',
+            'characters.error.spawned_character_required',
+            {},
+            correlation_id
+        )
+    end
+    local document, document_error = Repository.state_document(binding.character_id)
+    if document_error then
+        return document_error
+    end
+    if not document then
+        return failure(
+            'PRECONDITION_FAILED',
+            'characters.error.base_document_required',
+            {},
+            correlation_id
+        )
+    end
+    return success({
+        character_uuid = binding.character_uuid,
+        binding_uuid = binding.binding_uuid,
+        state_document_uuid = document.document_uuid,
+    }, correlation_id)
+end
+
 function Service.create_draft(player_source, payload, correlation_id)
     local settings, settings_error = Repository.settings()
     if settings_error then
@@ -730,7 +771,12 @@ function Service.acknowledge_spawn(player_source, payload, correlation_id)
         and binding.spawn_state == 'SPAWNED'
         and binding.spawn_uuid == validated.spawn_uuid
     then
-        return success({ spawn_uuid = validated.spawn_uuid, repeated = true }, correlation_id)
+        return success({
+            spawn_uuid = validated.spawn_uuid,
+            repeated = true,
+            character_uuid = binding.character_uuid,
+            binding_uuid = binding.binding_uuid,
+        }, correlation_id)
     end
     if
         not binding
@@ -770,7 +816,11 @@ function Service.acknowledge_spawn(player_source, payload, correlation_id)
         spawn_reason = binding.spawn_reason,
         correlation_id = correlation_id,
     })
-    return success({ spawn_uuid = validated.spawn_uuid }, correlation_id)
+    return success({
+        spawn_uuid = validated.spawn_uuid,
+        character_uuid = binding.character_uuid,
+        binding_uuid = binding.binding_uuid,
+    }, correlation_id)
 end
 
 function Service.end_session_binding(session)

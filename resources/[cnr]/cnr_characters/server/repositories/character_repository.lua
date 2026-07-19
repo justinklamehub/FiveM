@@ -121,6 +121,17 @@ function Repository.appearance(character_id)
     return decode_appearance(row)
 end
 
+function Repository.state_document(character_id)
+    return single(
+        ([[SELECT %s document_uuid FROM cnr_character_documents d
+        INNER JOIN cnr_document_types dt ON dt.id=d.document_type_id
+        WHERE d.character_id=? AND dt.code='state_id' AND d.status='ACTIVE' LIMIT 1]]):format(
+            uuid:format('d.public_uuid')
+        ),
+        { character_id }
+    )
+end
+
 function Repository.last_safe_location(character_id)
     return single(
         [[SELECT x, y, z, heading, location_type FROM cnr_character_locations

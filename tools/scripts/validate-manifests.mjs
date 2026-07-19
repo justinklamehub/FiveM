@@ -69,6 +69,20 @@ const expected = new Map([
       'cnr_sessions',
     ],
   ],
+  ['cnr_items', ['/onesync', 'cnr_database', 'cnr_logs', 'cnr_config', 'cnr_core']],
+  [
+    'cnr_inventory',
+    [
+      '/onesync',
+      'cnr_database',
+      'cnr_logs',
+      'cnr_config',
+      'cnr_core',
+      'cnr_sessions',
+      'cnr_characters',
+      'cnr_items',
+    ],
+  ],
 ]);
 
 const dependencyGraph = new Map();

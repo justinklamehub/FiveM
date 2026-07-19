@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation and all six Wave 1 slices: connection, technical permissions, registration, character lifecycle, selection/appearance/controlled spawn, and the final loadscreen orchestration. Live operator passes have confirmed one English path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. The complete four-mode whitelist matrix, negative security cases, and the second freemode model remain manual FXServer checks and are not claimed as completed here.
+The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the first Wave 2 item/inventory slice. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. The Wave 2 personal inventory requires a fresh FXServer operator pass and is not claimed as runtime-verified here.
 
 Run from a fresh checkout:
 
@@ -23,10 +23,10 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716000600_character_selection_appearance.sql` as applied.
+- dbmate reports every ordered migration through `20260716000700_items_inventory_foundation.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
-- Busted passes all pure Lua core and implemented Wave 1 tests.
-- no vehicles, character jobs, economy, inventory, oil, or crime features exist.
+- Busted passes all pure Lua core, Wave 1, item, and inventory policy tests.
+- no banking, vehicles, character jobs, rewards, oil, or crime gameplay exists; the implemented inventory is an economic foundation only.
 
 For a destructive local migration rehearsal only:
 
@@ -122,3 +122,15 @@ pnpm db:migrate
 6. Stop `cnr_characters` during a FULL-session refresh and confirm the correlated `Lifecycle Unavailable` view appears after bounded recovery. Restart the resource, select `Retry`, and confirm the server derives the next state without reconnecting.
 7. Confirm the loading NUI shuts down during the validated handoff, while the interactive NUI remains unclosable until the matching controlled spawn is confirmed. No default spawn, visible real player ped, cursor-only blank screen, or world-control interval is permitted.
 8. Confirm the browser scenarios render independently with `?phase=registration`, `access`, `creation`, `selection`, `appearance`, `spawn`, and `error`, and run the production build that emits both HTML entries.
+
+## Wave 2 items and personal inventory
+
+1. Migrate through `20260716000700`, start `cnr_items` and `cnr_inventory` before `cnr_ui`, and confirm both resources report `ready`.
+2. Complete a controlled spawn, press F2, and confirm the English personal inventory shows two Water Bottles, two Sandwiches, and the existing State Identification Card.
+3. Close and reopen the inventory, reconnect, and restart `cnr_inventory`; confirm one inventory, one referenced State ID instance, three entries, and one starter transaction remain.
+4. Confirm the snapshot request contains only `request_id` and `contract_version`. Submit unexpected account, session, character, definition, instance, metadata, weight, capacity, version, or target-slot fields and confirm rejection without mutation.
+5. Seed a local `PERSONAL_STORAGE` inventory and use the server transfer export to verify partial and full stack movement, stack merging, unique-instance movement, server-selected target slots, weight limits, slot limits, and inventory version increments.
+6. Repeat a transfer operation UUID with identical content and confirm the stored result. Change source, target, slot, quantity, action, account, or character and confirm `CONFLICT` without item movement.
+7. Stop `cnr_items`, `cnr_characters`, and `cnr_database` separately and confirm snapshots and transfers fail closed with correlation IDs.
+8. Inspect audit/security logs and confirm they contain stable object references and quantities but no raw platform identifier, item metadata, document content, or secret.
+9. Open `http://localhost:5173/?view=inventory` and confirm the browser mock renders all starter entries, English loading/error states, slot capacity, and weight capacity.

@@ -1,0 +1,72 @@
+-- Verifies client input, capacity, stack, and unique-item transfer policy without FiveM.
+local Policy = dofile('resources/[cnr]/cnr_inventory/shared/inventory_policy.lua')
+
+local function transfer_payload()
+    return {
+        source_inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
+        target_inventory_uuid = '0190b7a0-6000-7000-8000-000000000011',
+        source_slot = 1,
+        quantity = 1,
+        request_id = 'inventory-transfer-1',
+        operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
+        contract_version = 1,
+    }
+end
+
+local function plan_context()
+    return {
+        source_entry = {
+            quantity = 4,
+            has_instance = false,
+            definition = {
+                is_stackable = true,
+                is_unique = false,
+                max_stack = 10,
+                unit_weight_grams = 500,
+            },
+        },
+        target_inventory = { slot_capacity = 4, weight_capacity_grams = 3000 },
+        target_entries = {},
+        target_stack = nil,
+        target_weight_grams = 0,
+        quantity = 2,
+    }
+end
+
+describe('inventory policy', function()
+    it('accepts only the narrow versioned transfer contract', function()
+        assert.is_table(Policy.validate_transfer(transfer_payload()))
+        local value = transfer_payload()
+        value.character_uuid = value.operation_uuid
+        assert.are.equal('VALIDATION_ERROR', select(2, Policy.validate_transfer(value)))
+        value = transfer_payload()
+        value.quantity = 0
+        assert.are.equal('VALIDATION_ERROR', select(2, Policy.validate_transfer(value)))
+    end)
+
+    it('plans a server-selected slot and enforces stack limits', function()
+        local plan = Policy.transfer_plan(plan_context())
+        assert.are.equal('CREATE_STACK', plan.mode)
+        assert.are.equal(1, plan.target_slot)
+        local value = plan_context()
+        value.target_stack = { quantity = 9, slot_number = 2 }
+        assert.are.equal('INSUFFICIENT_CAPACITY', select(2, Policy.transfer_plan(value)))
+    end)
+
+    it('enforces weight, quantity, slots, and unique-instance movement', function()
+        local value = plan_context()
+        value.target_weight_grams = 2501
+        assert.are.equal('INSUFFICIENT_CAPACITY', select(2, Policy.transfer_plan(value)))
+        value = plan_context()
+        value.quantity = 5
+        assert.are.equal('INSUFFICIENT_QUANTITY', select(2, Policy.transfer_plan(value)))
+        value = plan_context()
+        value.source_entry.definition.is_stackable = false
+        value.source_entry.definition.is_unique = true
+        value.source_entry.has_instance = true
+        value.source_entry.quantity = 1
+        value.quantity = 1
+        local plan = Policy.transfer_plan(value)
+        assert.are.equal('MOVE_INSTANCE', plan.mode)
+    end)
+end)

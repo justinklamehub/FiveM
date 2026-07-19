@@ -12,6 +12,7 @@ import {
 import { CharacterLifecycle } from './CharacterLifecycle';
 import { claimFocus, initialFocusState } from './focus';
 import { translate } from './i18n';
+import { InventoryPanel } from './InventoryPanel';
 import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase } from './lifecycle';
 import { isBrowserMock, postNui } from './nui';
 
@@ -19,6 +20,10 @@ const newId = () => crypto.randomUUID();
 
 export function App() {
   const mock = useMemo(isBrowserMock, []);
+  const browserInventory = useMemo(
+    () => mock && new URLSearchParams(currentBrowserSearch()).get('view') === 'inventory',
+    [mock],
+  );
   const operationUuid = useRef(newId());
   const browserReadySent = useRef(false);
   const [snapshot, setSnapshot] = useState<PlayerLifecycleSnapshot | null>(() =>
@@ -32,6 +37,7 @@ export function App() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [inventoryOpen, setInventoryOpen] = useState(browserInventory);
 
   const loadRuleset = useCallback(async () => {
     setLoading(true);
@@ -138,7 +144,12 @@ export function App() {
         setFocus(initialFocusState);
         setVisible(false);
       } else if (event.data.type === 'ui.lifecycle.open') {
+        setInventoryOpen(false);
         applySnapshot(event.data.payload);
+      } else if (event.data.type === 'ui.inventory.open') {
+        setInventoryOpen(true);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'inventory'));
       } else if (event.data.type === 'ui.character.spawn_failed') {
         applySnapshot({
           contract_version: playerLifecycleContractVersion,
@@ -158,6 +169,17 @@ export function App() {
     return () => window.removeEventListener('message', listener);
   }, [applySnapshot, mock]);
 
+  if (inventoryOpen) {
+    return (
+      <InventoryPanel
+        onClose={() => {
+          setInventoryOpen(false);
+          setVisible(false);
+          setFocus(initialFocusState);
+        }}
+      />
+    );
+  }
   if (!visible) return null;
   const view = snapshot ? lifecycleViewForPhase(snapshot.phase) : 'loading';
   if (refreshing || view === 'loading') {

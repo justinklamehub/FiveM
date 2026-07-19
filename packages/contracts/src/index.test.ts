@@ -14,10 +14,13 @@ import {
   characterContractVersion,
   characterAppearanceContractVersion,
   characterSelectionContractVersion,
+  inventoryContractVersion,
   type SaveCharacterAppearance,
   type SelectCharacter,
   type CreateCharacterDraft,
   type PlayerLifecycleRefresh,
+  type InventorySnapshotRequest,
+  type InventoryTransferRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -122,6 +125,43 @@ describe('core contracts', () => {
       contract_version: playerLifecycleContractVersion,
     };
     expect(Object.keys(refresh)).toEqual(['contract_version']);
+  });
+
+  it('keeps inventory reads and transfers free of character, item, metadata, and capacity authority', () => {
+    const snapshot: InventorySnapshotRequest = {
+      request_id: 'inventory-read-1',
+      contract_version: inventoryContractVersion,
+    };
+    const transfer: InventoryTransferRequest = {
+      source_inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      target_inventory_uuid: '0190b7a0-6000-7000-8000-000000000011',
+      source_slot: 1,
+      quantity: 1,
+      request_id: 'inventory-transfer-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000012',
+      contract_version: inventoryContractVersion,
+    };
+    expect(Object.keys(snapshot).sort()).toEqual(['contract_version', 'request_id']);
+    expect(Object.keys(transfer)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'definition_uuid',
+        'item_instance_uuid',
+        'metadata',
+        'weight',
+        'target_slot',
+        'inventory_version',
+      ]),
+    );
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.open',
+        payload: { contract_version: inventoryContractVersion },
+      }),
+    ).toBe(true);
   });
 
   it('keeps technical permission contracts role-agnostic', () => {

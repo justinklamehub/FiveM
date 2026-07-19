@@ -212,6 +212,48 @@ RegisterNetEvent('cnr:characters:response', function(action, request_id, result)
     end
 end)
 
+local pending_inventory = {}
+local function inventory_request(action, payload, callback)
+    local request_id = payload and payload.request_id
+    if type(request_id) ~= 'string' or request_id == '' or pending_inventory[request_id] then
+        callback({
+            ok = false,
+            error = {
+                code = 'VALIDATION_ERROR',
+                message_key = 'inventory.error.invalid_request',
+            },
+        })
+        return
+    end
+    pending_inventory[request_id] = {
+        action = action,
+        event = 'inventory.' .. action,
+    }
+    expire_pending(pending_inventory, request_id)
+    TriggerServerEvent('cnr:inventory:request', action, payload)
+    callback({ ok = true, queued = true, request_id = request_id })
+end
+for _, callback_name in ipairs({ 'snapshot', 'transfer' }) do
+    RegisterNUICallback('inventory.' .. callback_name, function(payload, callback)
+        inventory_request(callback_name, payload, callback)
+    end)
+end
+RegisterNetEvent('cnr:inventory:response', function(action, request_id, result)
+    local pending = pending_inventory[request_id]
+    if pending and pending.action == action then
+        pending_inventory[request_id] = nil
+        SendNUIMessage({
+            version = 1,
+            type = 'ui.request.response',
+            payload = {
+                event = pending.event,
+                request_id = request_id,
+                result = result,
+            },
+        })
+    end
+end)
+
 local function hold_player(hidden)
     local ped = PlayerPedId()
     if ped == 0 then
@@ -572,6 +614,18 @@ RegisterCommand('cnr_registration_open', function()
         },
     })
 end, false)
+RegisterCommand('cnr_inventory_open', function()
+    if lifecycle_locked then
+        return
+    end
+    set_focus('inventory')
+    SendNUIMessage({
+        version = 1,
+        type = 'ui.inventory.open',
+        payload = { contract_version = 1 },
+    })
+end, false)
+RegisterKeyMapping('cnr_inventory_open', 'Open personal inventory', 'keyboard', 'F2')
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         set_focus(nil)

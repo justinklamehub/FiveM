@@ -1,7 +1,7 @@
 # cnr_ui
 
 ## Responsibility
-Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration and character views, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
+Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration, character and personal-inventory views, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
@@ -9,7 +9,7 @@ Does not calculate authoritative prices, rewards, ownership, or permissions.
 ## Dependencies
 
 The manifest declares only the client-compatible `/onesync` constraint and stock `spawnmanager`. Server-side integrations with
-`cnr_core`, `cnr_registration`, `cnr_sessions`, and `cnr_characters` are ordered by `server.cfg` and
+`cnr_core`, `cnr_registration`, `cnr_sessions`, `cnr_characters`, and `cnr_inventory` are ordered by `server.cfg` and
 guarded by runtime readiness checks; declaring server-only resources as hard dependencies would make
 the FiveM client reject `cnr_ui` because those resources have no client package.
 
@@ -20,7 +20,7 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 
 `uiReady` and `lifecycleRefresh` (browser-to-Lua NUI callbacks), `cnr:ui:ready` and
 `cnr:ui:refresh` (client-to-server events), `cnr:ui:lifecycle` (server-to-client snapshot),
-registration NUI callbacks, character lifecycle callbacks, and controlled-spawn events. The server
+registration NUI callbacks, character lifecycle callbacks, inventory snapshot/transfer callbacks, and controlled-spawn events. The server
 derives the view from the source-owned session; the client cannot select its access state, lifecycle
 phase, or onboarding destination.
 
@@ -46,6 +46,9 @@ may be active in the server recipe.
 Browser scenario query values are `registration`, `access`, `creation`, `selection`, `appearance`,
 `spawn`, and `error`. They never bypass runtime server validation because the mock transport exists
 only when the FiveM NUI API is absent.
+
+Use `?view=inventory` for the English browser inventory mock. In FiveM, F2 and the
+`cnr_inventory_open` command open the source-owned personal snapshot only after controlled spawn.
 
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
 registration view locally. It does not bypass server-side session, status, ruleset, or submission
