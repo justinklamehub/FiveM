@@ -43,6 +43,9 @@ describe('inventory security boundary', () => {
     expect(repository).toContain('cnr_item_transactions');
     expect(repository).toContain('payload_sha256');
     expect(repository).toContain('result_source_version');
+    expect(repository).toContain(
+      'ON DUPLICATE KEY UPDATE public_uuid=cnr_inventory_items.public_uuid',
+    );
   });
 
   it('fails closed and recovers when source-authority dependencies restart', () => {
