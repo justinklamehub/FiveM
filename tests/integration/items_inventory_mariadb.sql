@@ -213,6 +213,44 @@ UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000043','-','')),
 UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
 FROM cnr_item_instances inst WHERE inst.id=@document_instance_id
 ON DUPLICATE KEY UPDATE public_uuid=cnr_inventory_items.public_uuid;
+SET @document_entry_id = (
+    SELECT id FROM cnr_inventory_items WHERE item_instance_id=@document_instance_id
+);
+
+START TRANSACTION;
+SELECT id FROM cnr_inventories WHERE id=@source_inventory_id FOR UPDATE;
+SELECT id FROM cnr_inventory_items
+WHERE inventory_id=@source_inventory_id ORDER BY id FOR UPDATE;
+INSERT INTO cnr_item_transactions
+(operation_uuid, action, account_uuid, session_uuid, character_uuid,
+source_inventory_id, target_inventory_id, source_entry_uuid, target_entry_uuid,
+source_slot, target_slot, definition_id, item_instance_id, quantity, request_id,
+correlation_id, contract_version, payload_sha256, result_source_version,
+result_target_version, result_status, created_at, completed_at)
+VALUES
+(UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000044','-','')), 'REPOSITION',
+@inventory_account_uuid, @inventory_session_uuid, @inventory_character_uuid,
+@source_inventory_id, @source_inventory_id,
+UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000020','-','')),
+UNHEX(REPLACE('0190b7a0-6100-7000-8000-000000000043','-','')),
+1, 3, @water_definition_id, NULL, 1, 'inventory-reposition-1',
+'inventory-reposition-correlation-1', 2, UNHEX(SHA2('reposition',256)),
+3, 3, 'COMPLETED', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));
+UPDATE cnr_inventory_items SET slot_number=25 WHERE id=@source_entry_id;
+UPDATE cnr_inventory_items SET slot_number=1, version=version+1
+WHERE id=@document_entry_id;
+UPDATE cnr_inventory_items SET slot_number=3, version=version+1
+WHERE id=@source_entry_id;
+UPDATE cnr_inventories SET version=version+1 WHERE id=@source_inventory_id;
+COMMIT;
+CALL assert_inventory_true(
+    (SELECT slot_number=3 FROM cnr_inventory_items WHERE id=@source_entry_id),
+    'reposition swap did not move the source entry'
+);
+CALL assert_inventory_true(
+    (SELECT slot_number=1 FROM cnr_inventory_items WHERE id=@document_entry_id),
+    'reposition swap did not move the target entry'
+);
 
 INSERT INTO cnr_item_transactions
 (operation_uuid, action, account_uuid, session_uuid, character_uuid,
