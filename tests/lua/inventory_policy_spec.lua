@@ -9,7 +9,18 @@ local function transfer_payload()
         quantity = 1,
         request_id = 'inventory-transfer-1',
         operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-        contract_version = 1,
+        contract_version = 2,
+    }
+end
+
+local function reposition_payload()
+    return {
+        inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
+        source_slot = 1,
+        target_slot = 4,
+        request_id = 'inventory-reposition-1',
+        operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
+        contract_version = 2,
     }
 end
 
@@ -68,5 +79,30 @@ describe('inventory policy', function()
         value.quantity = 1
         local plan = Policy.transfer_plan(value)
         assert.are.equal('MOVE_INSTANCE', plan.mode)
+    end)
+
+    it('validates narrow reposition intent and plans moves or swaps within capacity', function()
+        assert.is_table(Policy.validate_reposition(reposition_payload()))
+        local invalid = reposition_payload()
+        invalid.character_uuid = invalid.operation_uuid
+        assert.are.equal('VALIDATION_ERROR', select(2, Policy.validate_reposition(invalid)))
+        invalid = reposition_payload()
+        invalid.target_slot = invalid.source_slot
+        assert.are.equal('VALIDATION_ERROR', select(2, Policy.validate_reposition(invalid)))
+
+        local context = {
+            inventory = { slot_capacity = 24 },
+            source_entry = { slot_number = 1 },
+            source_slot = 1,
+            target_slot = 4,
+        }
+        local move = Policy.reposition_plan(context)
+        assert.are.equal('MOVE', move.mode)
+        context.target_entry = { slot_number = 4 }
+        local swap = Policy.reposition_plan(context)
+        assert.are.equal('SWAP', swap.mode)
+        assert.are.equal(25, swap.temporary_slot)
+        context.target_slot = 25
+        assert.are.equal('PRECONDITION_FAILED', select(2, Policy.reposition_plan(context)))
     end)
 end)
