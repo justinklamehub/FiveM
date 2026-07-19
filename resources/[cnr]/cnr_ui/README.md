@@ -20,7 +20,7 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 
 `uiReady` and `lifecycleRefresh` (browser-to-Lua NUI callbacks), `cnr:ui:ready` and
 `cnr:ui:refresh` (client-to-server events), `cnr:ui:lifecycle` (server-to-client snapshot),
-registration NUI callbacks, character lifecycle callbacks, inventory snapshot/transfer callbacks, and controlled-spawn events. The server
+registration NUI callbacks, character lifecycle callbacks, inventory snapshot/reposition/transfer callbacks, and controlled-spawn events. The server
 derives the view from the source-owned session; the client cannot select its access state, lifecycle
 phase, or onboarding destination.
 
@@ -48,7 +48,9 @@ Browser scenario query values are `registration`, `access`, `creation`, `selecti
 only when the FiveM NUI API is absent.
 
 Use `?view=inventory` for the English browser inventory mock. In FiveM, F2 and the
-`cnr_inventory_open` command open the source-owned personal snapshot only after controlled spawn.
+`cnr_inventory_open` command open the source-owned dynamic slot grid only after controlled spawn.
+Occupied slots support drag-and-drop plus selection/target activation for keyboard and click input.
+Definition image keys render deterministic fallback tiles until the reviewed PNG asset pack is added.
 
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
 registration view locally. It does not bypass server-side session, status, ruleset, or submission
