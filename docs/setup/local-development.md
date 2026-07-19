@@ -87,7 +87,7 @@ Apply `20260716000500_character_lifecycle.sql` before ensuring `cnr_characters`.
 
 Apply `20260716000600_character_selection_appearance.sql` before starting the current Wave 1 resources and set the minimum schema to `20260716000600`. The stock `spawnmanager` resource must start before `cnr_ui`; do not start the default `basic-gamemode` in the CNR production recipe because CNR owns spawn authorization.
 
-Apply `20260716000700_items_inventory_foundation.sql` before starting the Wave 2 item resources and set the minimum schema to `20260716000700`. Start `cnr_items` after `cnr_characters`, then `cnr_inventory`, and keep `cnr_ui` last. Personal inventory defaults are 24 slots and 30 kilograms; both values are server convars and are never accepted from NUI requests.
+Apply `20260716000800_inventory_interactions.sql` after the item/inventory foundation and set the minimum schema to `20260716000800`. Start `cnr_items` after `cnr_characters`, then `cnr_inventory`, and keep `cnr_ui` last. Personal inventory defaults are 24 slots and 30 kilograms; both values are server convars and are never accepted from NUI requests. Reposition requests may express source and target slots within the source-owned personal inventory, while the server resolves entries, versions, move/swap mode, and persistence.
 
 For txAdmin, edit the active recipe `server.cfg` rather than the generated example and remove or comment out `ensure basic-gamemode`. A running stock gamemode can re-enable map spawnpoints before character selection is complete. `cnr_ui` also disables stock auto-spawn continuously while lifecycle authority is locked, keeps the real player ped hidden, and uses a separate non-networked ped for appearance preview. The real player is released only after the server accepts the matching controlled-spawn acknowledgement.
 
@@ -111,7 +111,7 @@ Run `pnpm --filter @cnr/ui dev` to serve them. `loadscreen.html` is a separate n
 The server chooses the controlled central fallback spawn. Clients cannot submit coordinates, routing buckets, session IDs, or spawn state.
 
 ```cfg
-set cnr_schema_minimum "20260716000700"
+set cnr_schema_minimum "20260716000800"
 set cnr_spawn_default_x "215.76"
 set cnr_spawn_default_y "-810.12"
 set cnr_spawn_default_z "30.73"
