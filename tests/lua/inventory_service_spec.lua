@@ -64,7 +64,7 @@ local function load_service(repository, session, character_result)
     return chunk()
 end
 
-local read = { request_id = 'inventory-read-1', contract_version = 1 }
+local read = { request_id = 'inventory-read-1', contract_version = 2 }
 local transfer = {
     source_inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
     target_inventory_uuid = '0190b7a0-6000-7000-8000-000000000011',
@@ -72,7 +72,15 @@ local transfer = {
     quantity = 1,
     request_id = 'inventory-transfer-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-    contract_version = 1,
+    contract_version = 2,
+}
+local reposition = {
+    inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
+    source_slot = 1,
+    target_slot = 4,
+    request_id = 'inventory-reposition-1',
+    operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
+    contract_version = 2,
 }
 
 describe('inventory service authority', function()
@@ -131,5 +139,73 @@ describe('inventory service authority', function()
         }).transfer(12, transfer, 'correlation-foreign')
         assert.is_false(result.ok)
         assert.are.equal('NOT_FOUND', result.error.code)
+    end)
+
+    it('rejects a reused reposition operation with changed semantic content', function()
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = string.rep('b', 64) }
+            end,
+            transaction = function()
+                return {
+                    action = 'REPOSITION',
+                    account_uuid = 'account-1',
+                    character_uuid = 'character-1',
+                    payload_sha256 = string.rep('a', 64),
+                }
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).reposition(12, reposition, 'correlation-reposition')
+        assert.is_false(result.ok)
+        assert.are.equal('CONFLICT', result.error.code)
+    end)
+
+    it('returns the stored result for an identical reposition operation', function()
+        local hash = string.rep('a', 64)
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = hash }
+            end,
+            transaction = function()
+                return {
+                    operation_uuid = reposition.operation_uuid,
+                    action = 'REPOSITION',
+                    account_uuid = 'account-1',
+                    character_uuid = 'character-1',
+                    payload_sha256 = hash,
+                    result_target_version = 4,
+                    source_slot = 1,
+                    target_slot = 4,
+                    reposition_mode = 'MOVE',
+                }
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).reposition(12, reposition, 'correlation-repeated')
+        assert.is_true(result.ok)
+        assert.is_true(result.data.repeated)
+        assert.are.equal(4, result.data.inventory_version)
+        assert.are.equal('MOVE', result.data.mode)
     end)
 end)
