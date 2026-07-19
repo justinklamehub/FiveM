@@ -19,6 +19,7 @@ function Policy.definition(row)
         category = row.category,
         label = row.label,
         description = row.description,
+        icon_key = row.icon_key,
         is_stackable = tonumber(row.is_stackable) == 1,
         is_unique = tonumber(row.is_unique) == 1,
         max_stack = tonumber(row.max_stack),
