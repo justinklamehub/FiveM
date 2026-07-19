@@ -131,6 +131,6 @@ pnpm db:migrate
 4. Confirm the snapshot request contains only `request_id` and `contract_version`. Submit unexpected account, session, character, definition, instance, metadata, weight, capacity, version, or target-slot fields and confirm rejection without mutation.
 5. Seed a local `PERSONAL_STORAGE` inventory and use the server transfer export to verify partial and full stack movement, stack merging, unique-instance movement, server-selected target slots, weight limits, slot limits, and inventory version increments.
 6. Repeat a transfer operation UUID with identical content and confirm the stored result. Change source, target, slot, quantity, action, account, or character and confirm `CONFLICT` without item movement.
-7. Stop `cnr_items`, `cnr_characters`, and `cnr_database` separately and confirm snapshots and transfers fail closed with correlation IDs.
+7. Stop `cnr_items`, `cnr_characters`, and `cnr_database` separately and confirm snapshots and transfers fail closed with correlation IDs. Restart each dependency and confirm inventory readiness recovers without reconnecting or duplicating the starter package.
 8. Inspect audit/security logs and confirm they contain stable object references and quantities but no raw platform identifier, item metadata, document content, or secret.
 9. Open `http://localhost:5173/?view=inventory` and confirm the browser mock renders all starter entries, English loading/error states, slot capacity, and weight capacity.
