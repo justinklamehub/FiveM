@@ -28,7 +28,7 @@ function Policy.validate_read(payload)
         return nil, 'VALIDATION_ERROR'
     end
     if
-        payload.contract_version ~= 1
+        payload.contract_version ~= 2
         or type(payload.request_id) ~= 'string'
         or #payload.request_id < 1
         or #payload.request_id > 64
@@ -57,7 +57,7 @@ function Policy.validate_transfer(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 1 then
+    if payload.contract_version ~= 2 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -74,6 +74,46 @@ function Policy.validate_transfer(payload)
         or type(payload.quantity) ~= 'number'
         or payload.quantity % 1 ~= 0
         or payload.quantity < 1
+    then
+        return nil, 'VALIDATION_ERROR'
+    end
+    return payload
+end
+
+---@param payload unknown
+---@return table?, string?
+function Policy.validate_reposition(payload)
+    if type(payload) ~= 'table' then
+        return nil, 'VALIDATION_ERROR'
+    end
+    if
+        not strict_keys(payload, {
+            inventory_uuid = true,
+            source_slot = true,
+            target_slot = true,
+            request_id = true,
+            operation_uuid = true,
+            contract_version = true,
+        })
+    then
+        return nil, 'VALIDATION_ERROR'
+    end
+    if payload.contract_version ~= 2 then
+        return nil, 'PRECONDITION_FAILED'
+    end
+    if
+        not is_uuid(payload.inventory_uuid)
+        or not is_uuid(payload.operation_uuid)
+        or type(payload.request_id) ~= 'string'
+        or #payload.request_id < 1
+        or #payload.request_id > 64
+        or type(payload.source_slot) ~= 'number'
+        or payload.source_slot % 1 ~= 0
+        or payload.source_slot < 1
+        or type(payload.target_slot) ~= 'number'
+        or payload.target_slot % 1 ~= 0
+        or payload.target_slot < 1
+        or payload.source_slot == payload.target_slot
     then
         return nil, 'VALIDATION_ERROR'
     end
@@ -139,6 +179,36 @@ function Policy.transfer_plan(context)
         return nil, 'INSUFFICIENT_CAPACITY'
     end
     return { mode = 'CREATE_STACK', target_slot = slot }
+end
+
+---@param context table
+---@return table?, string?
+function Policy.reposition_plan(context)
+    local inventory = context.inventory
+    local source = context.source_entry
+    if
+        not inventory
+        or not source
+        or context.source_slot ~= source.slot_number
+        or context.source_slot > inventory.slot_capacity
+        or context.target_slot > inventory.slot_capacity
+        or context.source_slot == context.target_slot
+    then
+        return nil, 'PRECONDITION_FAILED'
+    end
+    if context.target_entry then
+        return {
+            mode = 'SWAP',
+            source_slot = context.source_slot,
+            target_slot = context.target_slot,
+            temporary_slot = inventory.slot_capacity + 1,
+        }
+    end
+    return {
+        mode = 'MOVE',
+        source_slot = context.source_slot,
+        target_slot = context.target_slot,
+    }
 end
 
 return Policy
