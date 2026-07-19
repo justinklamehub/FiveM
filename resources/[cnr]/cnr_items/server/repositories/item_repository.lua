@@ -2,7 +2,7 @@
 local Repository = {}
 local uuid = [[LOWER(INSERT(INSERT(INSERT(INSERT(HEX(%s),9,0,'-'),14,0,'-'),19,0,'-'),24,0,'-'))]]
 
-local columns = ([[%s definition_uuid, code, category, label, description, is_stackable,
+local columns = ([[%s definition_uuid, code, category, label, description, icon_key, is_stackable,
 is_unique, max_stack, unit_weight_grams, is_tradeable, is_drop_allowed, use_handler,
 metadata_schema_version, version]]):format(uuid:format('public_uuid'))
 
