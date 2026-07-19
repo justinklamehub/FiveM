@@ -206,13 +206,14 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
-export const inventoryContractVersion = 1 as const;
+export const inventoryContractVersion = 2 as const;
 export interface InventoryItemDefinition {
   definition_uuid: string;
   code: string;
   category: 'CONSUMABLE' | 'DOCUMENT' | 'TOOL' | 'CONTAINER' | 'MATERIAL' | 'EVIDENCE';
   label: string;
   description: string;
+  icon_key: string;
   is_stackable: boolean;
   is_unique: boolean;
   max_stack: number;
@@ -254,6 +255,22 @@ export interface InventoryTransferOutcome {
   operation_uuid: string;
   source_version: number;
   target_version: number;
+}
+export interface InventoryRepositionRequest {
+  inventory_uuid: string;
+  source_slot: number;
+  target_slot: number;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryRepositionOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  inventory_version: number;
+  source_slot: number;
+  target_slot: number;
+  mode: 'MOVE' | 'SWAP';
 }
 
 export const playerLifecycleContractVersion = 1 as const;
