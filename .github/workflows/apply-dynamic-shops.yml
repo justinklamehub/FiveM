@@ -1,9 +1,11 @@
 name: Apply dynamic shops implementation
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/wave-2-economic-foundations
+      - agent/wave-1-player-lifecycle
+    types:
+      - synchronize
 
 permissions:
   contents: write
@@ -11,7 +13,9 @@ permissions:
 
 jobs:
   apply:
-    if: github.event.head_commit.message == 'Prepare dynamic shops implementation'
+    if: >-
+      github.event.pull_request.number == 3 &&
+      github.event.pull_request.head.ref == 'agent/wave-2-economic-foundations'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the existing Wave 2 branch
@@ -26,6 +30,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -f database/migrations/20260716001500_dynamic_shops_item_purchases.sql ]]; then
+            echo 'The dynamic shops implementation is already present.'
+            exit 0
+          fi
           gh api --paginate --slurp repos/${{ github.repository }}/issues/3/comments > /tmp/comments.json
           python3 <<'PY'
           import base64
