@@ -141,6 +141,7 @@ jobs:
           MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/items_inventory_mariadb.sql
           MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/tablet_device_shell_mariadb.sql
           MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/banking_mariadb.sql
+          MYSQL_PWD=ci-migration-password mariadb -h 127.0.0.1 -P 3306 -u cnr_migration cnr_ci < tests/integration/atm_banking_mariadb.sql
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema rollback
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql --no-dump-schema up
           pnpm exec dbmate --migrations-dir database/migrations --schema-file database/schema.sql status

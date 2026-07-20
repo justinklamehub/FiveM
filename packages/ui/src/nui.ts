@@ -23,6 +23,7 @@ const bridgedEvents = new Set([
   'inventory.use',
   'banking.snapshot',
   'banking.transfer',
+  'banking.atmCash',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -101,8 +102,10 @@ const mockInventorySlots = new Map([
   ['city_tablet', 4],
 ]);
 let mockInventoryVersion = 3;
+let mockCashBalance = 5000;
 let mockCheckingBalance = 25000;
 const mockBankingTransfers = new Map<string, { fingerprint: string; receipt: unknown }>();
+const mockAtmOperations = new Map<string, { fingerprint: string; receipt: unknown }>();
 const mockBankingTransactions: Record<string, unknown>[] = [
   {
     transaction_uuid: '0190b7a0-7000-7000-8000-000000000020',
@@ -127,8 +130,8 @@ const mockBankingSnapshot = () => ({
       account_type: 'CASH_WALLET',
       currency: 'USD',
       status: 'ACTIVE',
-      balance_minor: 5000,
-      version: 1,
+      balance_minor: mockCashBalance,
+      version: 1 + mockAtmOperations.size,
     },
     {
       account_uuid: '0190b7a0-7000-7000-8000-000000000011',
@@ -137,7 +140,7 @@ const mockBankingSnapshot = () => ({
       currency: 'USD',
       status: 'ACTIVE',
       balance_minor: mockCheckingBalance,
-      version: 1 + mockBankingTransfers.size,
+      version: 1 + mockBankingTransfers.size + mockAtmOperations.size,
     },
   ],
   recent_transactions: mockBankingTransactions,
@@ -155,6 +158,8 @@ function browserMock(event: string, body: unknown): unknown {
     recipient_account_number?: string;
     amount_minor?: number;
     purpose?: string;
+    atm_uuid?: string;
+    direction?: 'DEPOSIT' | 'WITHDRAW';
   };
   const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
   if (event === 'lifecycleRefresh') return { ok: true };
@@ -232,6 +237,71 @@ function browserMock(event: string, body: unknown): unknown {
     };
     mockBankingTransfers.set(operationUuid, { fingerprint, receipt });
     return { ok: true, data: receipt, correlation_id: 'mock-transfer-posted' };
+  }
+  if (event === 'banking.atmCash') {
+    const operationUuid = request.operation_uuid ?? '';
+    const fingerprint = JSON.stringify([request.atm_uuid, request.direction, request.amount_minor]);
+    const replay = mockAtmOperations.get(operationUuid);
+    if (replay)
+      return replay.fingerprint === fingerprint
+        ? {
+            ok: true,
+            data: {
+              ...(replay.receipt as object),
+              repeated: true,
+              snapshot: mockBankingSnapshot(),
+            },
+            correlation_id: 'mock-atm-replay',
+          }
+        : {
+            ok: false,
+            error: {
+              code: 'CONFLICT',
+              message_key: 'banking.error.operation_conflict',
+              safe_details: {},
+              correlation_id: 'mock-atm-conflict',
+            },
+          };
+    const amountMinor = request.amount_minor ?? 0;
+    const sourceBalance = request.direction === 'DEPOSIT' ? mockCashBalance : mockCheckingBalance;
+    if (amountMinor < 1 || amountMinor > sourceBalance)
+      return {
+        ok: false,
+        error: {
+          code: 'PRECONDITION_FAILED',
+          message_key: 'banking.error.insufficient_funds',
+          safe_details: {},
+          correlation_id: 'mock-atm-funds',
+        },
+      };
+    if (request.direction === 'DEPOSIT') {
+      mockCashBalance -= amountMinor;
+      mockCheckingBalance += amountMinor;
+    } else {
+      mockCheckingBalance -= amountMinor;
+      mockCashBalance += amountMinor;
+    }
+    const transactionUuid = crypto.randomUUID();
+    const transactionNumber = `TX-${transactionUuid.replaceAll('-', '').toUpperCase()}`;
+    const receipt = {
+      repeated: false,
+      operation_uuid: operationUuid,
+      transaction_uuid: transactionUuid,
+      transaction_number: transactionNumber,
+      atm_uuid: request.atm_uuid,
+      atm_label: 'Legion Square Parking ATM',
+      direction: request.direction,
+      source_account_number:
+        request.direction === 'DEPOSIT' ? 'CASH-800000000010' : 'SA-800000000011',
+      destination_account_number:
+        request.direction === 'DEPOSIT' ? 'SA-800000000011' : 'CASH-800000000010',
+      amount_minor: amountMinor,
+      currency: 'USD',
+      posted_at: new Date().toISOString(),
+      snapshot: mockBankingSnapshot(),
+    };
+    mockAtmOperations.set(operationUuid, { fingerprint, receipt });
+    return { ok: true, data: receipt, correlation_id: 'mock-atm-posted' };
   }
   if (event === 'inventory.snapshot')
     return {

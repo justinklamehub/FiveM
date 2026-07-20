@@ -3,7 +3,7 @@ fx_version('cerulean')
 game('gta5')
 
 author("Cops'N'Robbers RP")
-description('Character cash, checking accounts, starter funding, and secure bank transfers.')
+description('Character accounts, immutable transfers, and proximity-secured dynamic ATMs.')
 version('0.1.0')
 
 dependencies({
@@ -14,6 +14,7 @@ dependencies({
     'cnr_core',
     'cnr_sessions',
     'cnr_characters',
+    'cnr_permissions',
 })
 
 server_only('yes')

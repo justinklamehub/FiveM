@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the Wave 2 item/inventory, Tablet, ledger, and banking-transfer slices. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. A live Wave 2 pass has also confirmed starter provisioning, F2/F3 inventory opening, direct same- and cross-inventory drag/drop, immediate confirmed UI updates, persistent locker transfer, item use, the character-bound Tablet handoff, and the original read-only Banking snapshot. The new transparent icon launcher and banking-transfer mutation require the focused live checks below.
+The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the Wave 2 item/inventory, Tablet, ledger, banking-transfer, and dynamic-ATM slices. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. A live Wave 2 pass has also confirmed starter provisioning, F2/F3 inventory opening, direct same- and cross-inventory drag/drop, immediate confirmed UI updates, persistent locker transfer, item use, the character-bound Tablet handoff, and the original read-only Banking snapshot. The transparent icon launcher, banking-transfer mutation, and new ATM flow require the focused live checks below.
 
 Run from a fresh checkout:
 
@@ -23,10 +23,10 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716001300_banking_transfers.sql` as applied.
+- dbmate reports every ordered migration through `20260716001400_dynamic_atms_cash_operations.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
-- Busted passes all pure Lua core, Wave 1, item, and inventory policy tests.
-- no client-owned money mutation, cash deposit/withdrawal, cards, vehicles, character jobs, rewards, oil, or crime gameplay exists; only server-authoritative Personal Checking transfers are enabled.
+- Busted passes all pure Lua core, Wave 1, item, inventory, banking, and ATM policy/service tests.
+- no client-owned money mutation, cards, vehicles, character jobs, rewards, oil, or crime gameplay exists; only server-authoritative checking transfers and proximity-gated ATM cash/checking movements are enabled.
 
 For a destructive local migration rehearsal only:
 
@@ -143,7 +143,7 @@ pnpm db:migrate
 
 ## Wave 2 banking foundation
 
-1. Migrate through `20260716001300`, start `cnr_banking` after `cnr_characters` and before `cnr_ui`, and confirm it reports `ready`.
+1. Migrate through `20260716001400`, start `cnr_banking` after `cnr_permissions` and `cnr_characters` and before `cnr_ui`, and confirm it reports `ready`.
 2. Complete a controlled spawn, use the City Tablet from F2, open Banking, and confirm the English app shows exactly one Cash Wallet, one Personal Checking account, and one posted starter allocation.
 3. Confirm the wallet and checking balances equal the migration-backed starter shares and that the associated three ledger entries sum to zero.
 4. Return to the Tablet home and reopen Banking, reconnect, and restart `cnr_banking`; confirm no duplicate account, transaction, or entry is created and all displayed balances remain unchanged.
@@ -155,3 +155,15 @@ pnpm db:migrate
 10. Repeat the same operation UUID and identical intent and confirm the stored receipt without a second debit. Change recipient, amount, purpose, source character, or any extra field and confirm `CONFLICT` or validation failure without movement.
 11. Attempt a self-transfer, unknown/frozen recipient, zero/negative/over-limit amount, insufficient balance, LIMITED session, inactive session, and missing active character. Confirm every attempt fails without a partial transaction or account disclosure.
 12. Interrupt the client response after confirmation, select the same retry action, and confirm the preserved operation UUID safely resolves the stored result. Restart `cnr_banking` and reconnect both players; balances and signed histories must remain unchanged.
+
+## Wave 2 dynamic ATMs
+
+1. Confirm the seeded `ATM-LEGION-PARKING` row is active and the owner/administrator technical roles each map to `banking.atms.manage`.
+2. Enter the seeded parking terminal radius after controlled spawn. Confirm the English marker prompt appears and `E` opens the ATM only after the server returns an active terminal and account snapshot. `http://localhost:5173/?view=atm` covers the browser mock.
+3. Deposit part of Cash Wallet into Personal Checking. Confirm one `ATM_DEPOSIT`, two opposite signed entries with a zero sum, a lower wallet balance, a higher checking balance, and an audit containing UUID/correlation fields but no platform identifier.
+4. Withdraw part of Personal Checking into Cash Wallet and confirm the inverse `ATM_WITHDRAWAL` movement. Attempt zero, negative, over-limit, and insufficient amounts and confirm no account marker, transaction, or entry survives.
+5. Repeat the same operation UUID and payload with a new request ID and confirm the stored receipt without a second movement. Change ATM, direction, amount, character, or add an account/balance/currency/coordinate field and confirm conflict or validation rejection without mutation.
+6. Walk outside the interaction radius before opening and before confirming a reviewed transaction. Confirm both paths fail against server-observed ped coordinates and do not trust the client marker or submitted terminal UUID alone.
+7. Grant the source account `owner` or `administrator`, run `/cnr_atm_create Downtown ATM`, and confirm the terminal appears dynamically at the server-observed player position without a restart. `/cnr_atm_list` must show active terminals ordered by distance. `/cnr_atm_remove` must deactivate only the nearest terminal inside the administrator radius.
+8. Repeat all three management commands without `banking.atms.manage`, from the server console, and under rate limiting. Confirm fail-closed English results and data-minimized security logs.
+9. Restart `cnr_banking`, reconnect, and confirm dynamic terminal state, account balances, immutable history, and operation replay survive. Stop `cnr_permissions`, `cnr_characters`, and `cnr_database` separately and confirm ATM access becomes unavailable rather than bypassing authority.

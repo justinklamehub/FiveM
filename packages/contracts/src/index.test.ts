@@ -16,6 +16,7 @@ import {
   characterSelectionContractVersion,
   inventoryContractVersion,
   bankingContractVersion,
+  atmContractVersion,
   tabletContractVersion,
   type SaveCharacterAppearance,
   type SelectCharacter,
@@ -27,6 +28,7 @@ import {
   type InventoryUseRequest,
   type BankingSnapshotRequest,
   type BankingTransferRequest,
+  type AtmCashRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -330,6 +332,40 @@ describe('core contracts', () => {
         'currency',
         'status',
         'ledger_entries',
+      ]),
+    );
+  });
+
+  it('keeps ATM intent free of coordinates, accounts, balances, and ledger authority', () => {
+    const request: AtmCashRequest = {
+      atm_uuid: '0190b7a0-7400-7000-8000-000000000010',
+      direction: 'WITHDRAW',
+      amount_minor: 5000,
+      request_id: 'atm-cash-1',
+      operation_uuid: '0190b7a0-7400-7000-8000-000000000020',
+      contract_version: atmContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual([
+      'amount_minor',
+      'atm_uuid',
+      'contract_version',
+      'direction',
+      'operation_uuid',
+      'request_id',
+    ]);
+    expect(Object.keys(request)).not.toEqual(
+      expect.arrayContaining([
+        'x',
+        'y',
+        'z',
+        'interaction_radius',
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'source_account_uuid',
+        'destination_account_uuid',
+        'balance_minor',
+        'currency',
       ]),
     );
   });

@@ -29,8 +29,10 @@ The first slice implements:
 - a reusable transparent-stage English Tablet shell with an icon launcher and Banking as its first enabled app;
 - a Banking app with account balances, signed activity, and confirmed checking transfers;
 - replay-safe character-to-character transfers with server-derived senders and atomic debit/credit entries.
+- persistent, command-managed ATM locations with server-owned coordinates and technical permissions;
+- proximity-gated ATM NUI deposits and withdrawals between Cash Wallet and Personal Checking.
 
-Cash deposits, withdrawals, cards, recurring payments, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
+Cards, recurring payments, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
 
 ## Ownership boundaries
 
@@ -117,6 +119,20 @@ versions, and client-supplied sender or ledger fields. One guarded transaction m
 versions with the operation UUID, inserts the immutable transfer, and posts equal debit and credit
 entries. The same operation UUID and payload returns the stored receipt and refreshed snapshot; changed
 reuse returns `CONFLICT`. Both sender and recipient histories are derived from their signed entries.
+
+ATM contract version 1 adds a separate proximity-bound cash intent. Active terminals are stored with
+`BINARY(16)` identity, label, server-owned coordinates, interaction radius, state, version, and
+creation/deactivation actors. The client receives active positions only for marker rendering and may
+submit only the selected terminal UUID, `DEPOSIT` or `WITHDRAW`, positive minor-unit amount, request
+ID, operation UUID, and contract version. Every open and mutation resolves the FULL session and active
+character again, loads the terminal again, and compares its radius with the server-observed player ped.
+
+A deposit debits Cash Wallet and credits Personal Checking. A withdrawal performs the inverse. Both
+account identities, balances, transaction type, purpose, currency, ledger entries, and receipt are
+server-derived and committed atomically behind version/operation guards. Identical operation replay
+returns the stored result; changed reuse returns `CONFLICT`. The `banking.atms.manage` permission lets
+an in-game owner or administrator create an ATM at their current server-observed position, list active
+terminals by distance, or deactivate the nearest terminal without restarting the resource.
 
 ## Branch strategy
 

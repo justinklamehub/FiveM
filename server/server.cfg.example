@@ -2,7 +2,7 @@
 set onesync on
 set sv_stateBagStrictMode true
 set cnr_maintenance_mode 0
-set cnr_schema_minimum "20260716001300"
+set cnr_schema_minimum "20260716001400"
 set cnr_registration_enabled 1
 set cnr_whitelist_mode "open"
 set cnr_identifier_pepper "replace-with-at-least-32-random-characters"
@@ -19,6 +19,8 @@ set cnr_inventory_locker_y "-810.12"
 set cnr_inventory_locker_z "30.73"
 set cnr_inventory_locker_radius "4.0"
 set cnr_inventory_document_show_radius "3.0"
+set cnr_banking_atm_radius "2.5"
+set cnr_banking_atm_admin_radius "8.0"
 set mysql_connection_string "mysql://cnr_runtime:replace-locally@127.0.0.1:3307/cnr_development?charset=utf8mb4"
 
 ensure oxmysql

@@ -1,11 +1,13 @@
 /** Renders the interactive server-authoritative Wave 1 player lifecycle. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  atmContractVersion,
   inventoryContractVersion,
   isNuiMessage,
   playerLifecycleContractVersion,
   registrationContractVersion,
   type CurrentRuleset,
+  type AtmSessionSnapshot,
   type InventoryOpenView,
   type InventoryUseEffect,
   type PlayerLifecycleSnapshot,
@@ -21,6 +23,7 @@ import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase }
 import { isBrowserMock, postNui } from './nui';
 import { StateIdentificationCard } from './StateIdentificationCard';
 import { TabletPanel, type TabletApp } from './TabletPanel';
+import { AtmPanel } from './AtmPanel';
 
 const newId = () => crypto.randomUUID();
 
@@ -46,6 +49,50 @@ export function App() {
       new URLSearchParams(currentBrowserSearch()).get('view') === 'banking' ? 'banking' : 'home',
     [],
   );
+  const browserAtm = useMemo<AtmSessionSnapshot | null>(() => {
+    if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'atm') return null;
+    return {
+      contract_version: atmContractVersion,
+      atm: {
+        atm_uuid: '0190b7a0-7400-7000-8000-000000000010',
+        code: 'ATM-LEGION-PARKING',
+        label: 'Legion Square Parking ATM',
+        x: 215.76,
+        y: -810.12,
+        z: 30.73,
+        heading: 157,
+        interaction_radius: 3,
+        status: 'ACTIVE',
+        version: 1,
+      },
+      banking: {
+        currency: 'USD',
+        starter_provisioned: true,
+        repeated: true,
+        accounts: [
+          {
+            account_uuid: '0190b7a0-7000-7000-8000-000000000010',
+            account_number: 'CASH-800000000010',
+            account_type: 'CASH_WALLET',
+            currency: 'USD',
+            status: 'ACTIVE',
+            balance_minor: 5000,
+            version: 1,
+          },
+          {
+            account_uuid: '0190b7a0-7000-7000-8000-000000000011',
+            account_number: 'SA-800000000011',
+            account_type: 'PERSONAL_CHECKING',
+            currency: 'USD',
+            status: 'ACTIVE',
+            balance_minor: 25000,
+            version: 1,
+          },
+        ],
+        recent_transactions: [],
+      },
+    };
+  }, [mock]);
   const browserIdentification = useMemo<StateIdentificationPresentation | null>(() => {
     if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'document')
       return null;
@@ -82,6 +129,7 @@ export function App() {
   const [identification, setIdentification] = useState<StateIdentificationPresentation | null>(
     browserIdentification,
   );
+  const [atmSnapshot, setAtmSnapshot] = useState<AtmSessionSnapshot | null>(browserAtm);
 
   const loadRuleset = useCallback(async () => {
     setLoading(true);
@@ -190,6 +238,7 @@ export function App() {
       } else if (event.data.type === 'ui.lifecycle.open') {
         setInventoryOpen(false);
         setTabletOpen(false);
+        setAtmSnapshot(null);
         applySnapshot(event.data.payload);
       } else if (event.data.type === 'ui.inventory.open') {
         setTabletOpen(false);
@@ -203,6 +252,12 @@ export function App() {
         setTabletOpen(true);
         setVisible(true);
         setFocus((current) => claimFocus(current, 'tablet'));
+      } else if (event.data.type === 'ui.atm.open') {
+        setInventoryOpen(false);
+        setTabletOpen(false);
+        setAtmSnapshot(event.data.payload);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'atm'));
       } else if (event.data.type === 'ui.inventory.document') {
         setIdentification(event.data.payload);
       } else if (event.data.type === 'ui.character.spawn_failed') {
@@ -252,6 +307,19 @@ export function App() {
         initialApp={tabletInitialApp}
         onClose={() => {
           setTabletOpen(false);
+          setVisible(false);
+          setFocus(initialFocusState);
+        }}
+      />
+    );
+  }
+
+  if (atmSnapshot) {
+    return (
+      <AtmPanel
+        initialSnapshot={atmSnapshot}
+        onClose={() => {
+          setAtmSnapshot(null);
           setVisible(false);
           setFocus(initialFocusState);
         }}

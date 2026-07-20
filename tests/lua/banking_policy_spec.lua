@@ -69,4 +69,39 @@ describe('banking policy', function()
             version = 1,
         }))
     end)
+
+    it('accepts only narrow ATM open and cash intents', function()
+        local open = Policy.validate_atm_snapshot({
+            atm_uuid = '0190b7a0-7400-7000-8000-000000000010',
+            request_id = 'atm-open-1',
+            contract_version = 1,
+        })
+        assert.are.equal('0190b7a0-7400-7000-8000-000000000010', open.atm_uuid)
+        local cash = Policy.validate_atm_cash({
+            atm_uuid = '0190b7a0-7400-7000-8000-000000000010',
+            direction = 'DEPOSIT',
+            amount_minor = 2000,
+            request_id = 'atm-cash-1',
+            operation_uuid = '0190b7a0-7400-7000-8000-000000000020',
+            contract_version = 1,
+        })
+        assert.are.equal('DEPOSIT', cash.direction)
+        assert.is_nil(Policy.validate_atm_cash({
+            atm_uuid = '0190b7a0-7400-7000-8000-000000000010',
+            direction = 'WITHDRAW',
+            amount_minor = 2000,
+            request_id = 'atm-cash-2',
+            operation_uuid = '0190b7a0-7400-7000-8000-000000000020',
+            contract_version = 1,
+            account_uuid = 'client-authority',
+        }))
+    end)
+
+    it('calculates three-dimensional ATM proximity using the server radius', function()
+        local atm = { x = 10, y = 10, z = 10, interaction_radius = 3 }
+        assert.is_true(Policy.within_atm_radius({ x = 12, y = 10, z = 10 }, atm))
+        assert.is_false(Policy.within_atm_radius({ x = 14, y = 10, z = 10 }, atm))
+        assert.are.equal('Central ATM', Policy.normalize_atm_label(' Central ATM '))
+        assert.is_nil(Policy.normalize_atm_label('x'))
+    end)
 end)

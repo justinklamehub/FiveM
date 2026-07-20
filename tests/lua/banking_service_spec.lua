@@ -12,7 +12,7 @@ local function error_result(code, key, details, correlation_id)
     }
 end
 
-local function load_service(repository, session, character_result)
+local function load_service(repository, session, character_result, coordinates, permission_result)
     local environment = {}
     setmetatable(environment, { __index = _G })
     environment.require = function(name)
@@ -47,7 +47,24 @@ local function load_service(repository, session, character_result)
             end,
         },
         cnr_logs = { audit = function() end },
+        cnr_permissions = {
+            require_permission = function()
+                return permission_result or { ok = true, data = { allowed = true } }
+            end,
+        },
     }
+    environment.GetPlayerPed = function()
+        return 42
+    end
+    environment.GetEntityCoords = function()
+        return coordinates or { x = 215.76, y = -810.12, z = 30.73 }
+    end
+    environment.GetEntityHeading = function()
+        return 157
+    end
+    environment.GetConvar = function(_, fallback)
+        return fallback
+    end
     local chunk = assert(
         loadfile(
             'resources/[cnr]/cnr_banking/server/services/banking_service.lua',
@@ -159,6 +176,200 @@ describe('banking service authority', function()
         assert.are.equal(25000, result.data.accounts[2].balance_minor)
         assert.are.equal(30000, result.data.recent_transactions[1].amount_minor)
         assert.are.equal('CREDIT', result.data.recent_transactions[1].direction)
+    end)
+end)
+
+describe('ATM banking service', function()
+    local atm_uuid = '0190b7a0-7400-7000-8000-000000000010'
+    local operation_uuid = '0190b7a0-7400-7000-8000-000000000020'
+    local atm_row = {
+        atm_uuid = atm_uuid,
+        code = 'ATM-LEGION-PARKING',
+        label = 'Legion Square Parking ATM',
+        x = 215.76,
+        y = -810.12,
+        z = 30.73,
+        heading = 157,
+        interaction_radius = 3,
+        status = 'ACTIVE',
+        version = 1,
+    }
+
+    local function account_rows()
+        return {
+            {
+                account_uuid = 'wallet-1',
+                account_number = 'CASH-1',
+                account_type = 'CASH_WALLET',
+                currency = 'USD',
+                status = 'ACTIVE',
+                balance_minor = 3000,
+                version = 2,
+            },
+            {
+                account_uuid = 'checking-1',
+                account_number = 'SA-1',
+                account_type = 'PERSONAL_CHECKING',
+                currency = 'USD',
+                status = 'ACTIVE',
+                balance_minor = 27000,
+                version = 2,
+            },
+        }
+    end
+
+    it(
+        'rejects ATM access when the server-observed player position is outside its radius',
+        function()
+            local repository = {
+                atm = function()
+                    return atm_row
+                end,
+            }
+            local result = load_service(
+                repository,
+                full_session,
+                active_character,
+                { x = 300, y = -810.12, z = 30.73 }
+            ).atm_snapshot(12, {
+                atm_uuid = atm_uuid,
+                request_id = 'atm-open-far',
+                contract_version = 1,
+            }, 'atm-far')
+            assert.is_false(result.ok)
+            assert.are.equal('PRECONDITION_FAILED', result.error.code)
+        end
+    )
+
+    it('posts a server-derived cash deposit and returns refreshed balances', function()
+        local posted = false
+        local repository = {
+            atm = function(requested_uuid)
+                assert.are.equal(atm_uuid, requested_uuid)
+                return atm_row
+            end,
+            starter_transaction = function()
+                return { transaction_uuid = 'starter-1' }
+            end,
+            atm_payload_hash = function(character_uuid, requested_atm, direction)
+                assert.are.equal('character-1', character_uuid)
+                assert.are.equal(atm_uuid, requested_atm)
+                assert.are.equal('DEPOSIT', direction)
+                return { payload_sha256 = 'atm-hash' }
+            end,
+            atm_transaction = function()
+                if not posted then
+                    return nil
+                end
+                return {
+                    operation_uuid = operation_uuid,
+                    transaction_uuid = 'atm-transaction-1',
+                    transaction_number = 'TX-ATM-1',
+                    transaction_type = 'ATM_DEPOSIT',
+                    amount_minor = 2000,
+                    currency = 'USD',
+                    payload_sha256 = 'atm-hash',
+                    atm_uuid = atm_uuid,
+                    atm_label = atm_row.label,
+                    source_account_number = 'CASH-1',
+                    destination_account_number = 'SA-1',
+                    posted_at = '2026-07-20T14:00:00Z',
+                }
+            end,
+            settings = function()
+                return { maximum_atm_operation_minor = 10000000 }
+            end,
+            atm_context = function(character_uuid, direction)
+                assert.are.equal('character-1', character_uuid)
+                assert.are.equal('DEPOSIT', direction)
+                return {
+                    source_id = 10,
+                    source_version = 1,
+                    source_balance_minor = 5000,
+                    destination_id = 11,
+                    destination_version = 1,
+                }
+            end,
+            post_atm_transaction = function(context)
+                assert.are.equal('ATM_DEPOSIT', context.transaction_type)
+                assert.are.equal('account-1', context.account_uuid)
+                assert.are.equal('session-1', context.session_uuid)
+                assert.are.equal(2000, context.amount_minor)
+                posted = true
+                return { ok = true, data = { committed = true } }
+            end,
+            accounts = account_rows,
+            recent_transactions = function()
+                return {
+                    {
+                        transaction_uuid = 'atm-transaction-1',
+                        transaction_number = 'TX-ATM-1',
+                        transaction_type = 'ATM_DEPOSIT',
+                        status = 'POSTED',
+                        amount_minor = 2000,
+                        direction = 'DEBIT',
+                        currency = 'USD',
+                        purpose = 'ATM cash deposit',
+                        posted_at = '2026-07-20T14:00:00Z',
+                    },
+                }
+            end,
+        }
+        local result = load_service(repository, full_session, active_character).atm_cash(12, {
+            atm_uuid = atm_uuid,
+            direction = 'DEPOSIT',
+            amount_minor = 2000,
+            request_id = 'atm-cash-1',
+            operation_uuid = operation_uuid,
+            contract_version = 1,
+        }, 'atm-success')
+        assert.is_true(result.ok)
+        assert.is_false(result.data.repeated)
+        assert.are.equal(3000, result.data.snapshot.accounts[1].balance_minor)
+        assert.are.equal(27000, result.data.snapshot.accounts[2].balance_minor)
+    end)
+
+    it('rejects changed ATM content for a previously used operation UUID', function()
+        local repository = {
+            atm = function()
+                return atm_row
+            end,
+            starter_transaction = function()
+                return { transaction_uuid = 'starter-1' }
+            end,
+            atm_payload_hash = function()
+                return { payload_sha256 = 'changed-hash' }
+            end,
+            atm_transaction = function()
+                return { payload_sha256 = 'stored-hash' }
+            end,
+        }
+        local result = load_service(repository, full_session, active_character).atm_cash(12, {
+            atm_uuid = atm_uuid,
+            direction = 'WITHDRAW',
+            amount_minor = 500,
+            request_id = 'atm-conflict-1',
+            operation_uuid = operation_uuid,
+            contract_version = 1,
+        }, 'atm-conflict')
+        assert.is_false(result.ok)
+        assert.are.equal('CONFLICT', result.error.code)
+    end)
+
+    it('rejects dynamic ATM creation without the technical management permission', function()
+        local denied = error_result(
+            'PERMISSION_DENIED',
+            'permissions.error.denied',
+            { required_permission = 'banking.atms.manage' },
+            'atm-permission'
+        )
+        local result = load_service({}, full_session, active_character, nil, denied).create_atm(
+            12,
+            'Unauthorized ATM',
+            'atm-permission'
+        )
+        assert.is_false(result.ok)
+        assert.are.equal('PERMISSION_DENIED', result.error.code)
     end)
 end)
 

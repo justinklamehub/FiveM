@@ -296,7 +296,7 @@ local function banking_request(action, payload, callback)
     TriggerServerEvent('cnr:banking:request', action, payload)
     callback({ ok = true, queued = true, request_id = request_id })
 end
-for _, action in ipairs({ 'snapshot', 'transfer' }) do
+for _, action in ipairs({ 'snapshot', 'transfer', 'atmCash' }) do
     RegisterNUICallback('banking.' .. action, function(payload, callback)
         banking_request(action, payload, callback)
     end)
@@ -315,6 +315,141 @@ RegisterNetEvent('cnr:banking:response', function(action, request_id, result)
         })
     end
 end)
+
+local active_atms = {}
+local pending_atm_open = nil
+
+local function atm_request_id(prefix)
+    return ('%s-%d-%d'):format(prefix, GetGameTimer(), GetPlayerServerId(PlayerId()))
+end
+
+local function request_atm_directory()
+    TriggerServerEvent('cnr:banking:atmDirectoryRequest', {
+        request_id = atm_request_id('atm-directory'),
+        contract_version = 1,
+    })
+end
+
+RegisterNetEvent('cnr:banking:atmDirectory', function(result)
+    if
+        type(result) ~= 'table'
+        or result.ok ~= true
+        or type(result.data) ~= 'table'
+        or result.data.contract_version ~= 1
+        or type(result.data.atms) ~= 'table'
+    then
+        return
+    end
+    local validated = {}
+    for _, atm in ipairs(result.data.atms) do
+        if
+            type(atm) == 'table'
+            and type(atm.atm_uuid) == 'string'
+            and type(atm.label) == 'string'
+            and tonumber(atm.x)
+            and tonumber(atm.y)
+            and tonumber(atm.z)
+            and tonumber(atm.interaction_radius)
+        then
+            validated[#validated + 1] = atm
+        end
+    end
+    active_atms = validated
+end)
+
+RegisterNetEvent('cnr:banking:atmDirectoryChanged', function()
+    if not lifecycle_locked then
+        request_atm_directory()
+    end
+end)
+
+local function open_atm(atm)
+    if lifecycle_locked or focus_owner or pending_atm_open then
+        return
+    end
+    local request_id = atm_request_id('atm-open')
+    pending_atm_open = request_id
+    TriggerServerEvent('cnr:banking:atmOpenRequest', {
+        atm_uuid = atm.atm_uuid,
+        request_id = request_id,
+        contract_version = 1,
+    })
+    SetTimeout(request_timeout_ms, function()
+        if pending_atm_open == request_id then
+            pending_atm_open = nil
+        end
+    end)
+end
+
+RegisterNetEvent('cnr:banking:atmOpenResponse', function(request_id, result)
+    if request_id ~= pending_atm_open then
+        return
+    end
+    pending_atm_open = nil
+    if type(result) ~= 'table' or result.ok ~= true or type(result.data) ~= 'table' then
+        local code = result and result.error and result.error.code or 'INTERNAL_ERROR'
+        local reference = result and result.error and result.error.correlation_id or 'unavailable'
+        TriggerEvent('chat:addMessage', {
+            color = { 239, 91, 91 },
+            args = {
+                'CNR Banking',
+                ('The ATM could not be opened (%s). Reference: %s'):format(code, reference),
+            },
+        })
+        return
+    end
+    set_focus('atm')
+    SendNUIMessage({
+        version = 1,
+        type = 'ui.atm.open',
+        payload = result.data,
+    })
+end)
+
+local function distance_to_atm(coordinates, atm)
+    local delta_x = coordinates.x - tonumber(atm.x)
+    local delta_y = coordinates.y - tonumber(atm.y)
+    local delta_z = coordinates.z - tonumber(atm.z)
+    return math.sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z)
+end
+
+local function nearest_usable_atm()
+    local ped = PlayerPedId()
+    if ped == 0 then
+        return nil
+    end
+    local coordinates = GetEntityCoords(ped)
+    local nearest = nil
+    local nearest_distance = nil
+    for _, atm in ipairs(active_atms) do
+        local distance = distance_to_atm(coordinates, atm)
+        if not nearest_distance or distance < nearest_distance then
+            nearest = atm
+            nearest_distance = distance
+        end
+    end
+    if
+        nearest
+        and nearest_distance
+        and nearest_distance <= tonumber(nearest.interaction_radius)
+    then
+        return nearest, nearest_distance
+    end
+    return nil
+end
+
+local function show_atm_help()
+    BeginTextCommandDisplayHelp('STRING')
+    AddTextComponentSubstringPlayerName('Press ~INPUT_CONTEXT~ to use the ATM')
+    EndTextCommandDisplayHelp(0, false, true, -1)
+end
+
+RegisterCommand('cnr_atm_open', function()
+    local atm = nearest_usable_atm()
+    if atm then
+        open_atm(atm)
+    end
+end, false)
 
 local function play_inventory_animation(dictionary, animation)
     CreateThread(function()
@@ -751,6 +886,63 @@ RegisterCommand('cnr_storage_open', function()
     })
 end, false)
 RegisterKeyMapping('cnr_storage_open', 'Open nearby personal locker', 'keyboard', 'F3')
+
+CreateThread(function()
+    while true do
+        if not lifecycle_locked then
+            request_atm_directory()
+            Wait(15000)
+        else
+            Wait(1000)
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        if not lifecycle_locked and not focus_owner then
+            local nearest = nearest_usable_atm()
+            if nearest then
+                DrawMarker(
+                    1,
+                    tonumber(nearest.x),
+                    tonumber(nearest.y),
+                    tonumber(nearest.z) - 1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.65,
+                    0.65,
+                    0.35,
+                    229,
+                    174,
+                    62,
+                    155,
+                    false,
+                    false,
+                    2,
+                    false,
+                    nil,
+                    nil,
+                    false
+                )
+                show_atm_help()
+                if IsControlJustReleased(0, 38) then
+                    open_atm(nearest)
+                end
+                Wait(0)
+            else
+                Wait(250)
+            end
+        else
+            Wait(250)
+        end
+    end
+end)
+
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         set_focus(nil)

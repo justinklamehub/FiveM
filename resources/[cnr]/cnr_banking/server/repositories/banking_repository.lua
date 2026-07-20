@@ -58,8 +58,13 @@ end
 function Repository.recent_transactions(character_uuid)
     local result = exports.cnr_database:query(
         ([[SELECT %s transaction_uuid, t.transaction_number, t.transaction_type,
-        t.status, ABS(SUM(e.signed_amount_minor)) amount_minor, t.currency, t.purpose,
-        CASE WHEN SUM(e.signed_amount_minor) < 0 THEN 'DEBIT' ELSE 'CREDIT' END direction,
+        t.status,
+        CASE WHEN t.transaction_type IN ('ATM_DEPOSIT','ATM_WITHDRAWAL')
+            THEN t.amount_minor ELSE ABS(SUM(e.signed_amount_minor)) END amount_minor,
+        t.currency, t.purpose,
+        CASE WHEN t.transaction_type='ATM_DEPOSIT' THEN 'CREDIT'
+            WHEN t.transaction_type='ATM_WITHDRAWAL' THEN 'DEBIT'
+            WHEN SUM(e.signed_amount_minor) < 0 THEN 'DEBIT' ELSE 'CREDIT' END direction,
         DATE_FORMAT(t.posted_at,'%%Y-%%m-%%dT%%H:%%i:%%sZ') posted_at
         FROM cnr_financial_transactions t
         INNER JOIN cnr_financial_entries e ON e.transaction_id=t.id
@@ -76,6 +81,232 @@ function Repository.recent_transactions(character_uuid)
         return nil, result
     end
     return result.data
+end
+
+function Repository.active_atms()
+    local result = exports.cnr_database:query(([[SELECT %s atm_uuid, code, label,
+        coordinate_x x, coordinate_y y, coordinate_z z, heading,
+        interaction_radius, status, version
+        FROM cnr_atms WHERE status='ACTIVE' ORDER BY code]]):format(uuid:format('public_uuid')))
+    if not result.ok then
+        return nil, result
+    end
+    return result.data
+end
+
+function Repository.atm(atm_uuid)
+    return single(
+        ([[SELECT %s atm_uuid, code, label,
+        coordinate_x x, coordinate_y y, coordinate_z z, heading,
+        interaction_radius, status, version
+        FROM cnr_atms WHERE public_uuid=UNHEX(REPLACE(?,'-','')) LIMIT 1]]):format(
+            uuid:format('public_uuid')
+        ),
+        { atm_uuid }
+    )
+end
+
+function Repository.create_atm(context)
+    local result = exports.cnr_database:transaction({
+        {
+            query = [[INSERT INTO cnr_atms
+            (public_uuid, code, label, coordinate_x, coordinate_y, coordinate_z, heading,
+            interaction_radius, status, version, created_by_account_uuid, created_at, updated_at)
+            VALUES (UNHEX(REPLACE(?,'-','')),?,?,?,?,?,?,?,'ACTIVE',1,
+            UNHEX(REPLACE(?,'-','')),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]],
+            values = {
+                context.atm_uuid,
+                context.code,
+                context.label,
+                context.x,
+                context.y,
+                context.z,
+                context.heading,
+                context.interaction_radius,
+                context.account_uuid,
+            },
+        },
+    })
+    if not result.ok then
+        return nil, result
+    end
+    return Repository.atm(context.atm_uuid)
+end
+
+function Repository.deactivate_atm(atm_uuid, account_uuid)
+    return exports.cnr_database:transaction({
+        {
+            query = [[UPDATE cnr_atms SET status='INACTIVE', version=version+1,
+            deactivated_by_account_uuid=UNHEX(REPLACE(?,'-','')),
+            deactivated_at=UTC_TIMESTAMP(6), updated_at=UTC_TIMESTAMP(6)
+            WHERE public_uuid=UNHEX(REPLACE(?,'-','')) AND status='ACTIVE']],
+            values = { account_uuid, atm_uuid },
+        },
+    })
+end
+
+function Repository.atm_transaction(operation_uuid)
+    return single(
+        ([[SELECT %s transaction_uuid, %s operation_uuid, t.transaction_number,
+        t.transaction_type, t.amount_minor, t.currency, t.purpose,
+        LOWER(HEX(t.payload_sha256)) payload_sha256, %s atm_uuid, atm.label atm_label,
+        source.account_number source_account_number,
+        destination.account_number destination_account_number,
+        DATE_FORMAT(t.posted_at,'%%Y-%%m-%%dT%%H:%%i:%%sZ') posted_at
+        FROM cnr_financial_transactions t
+        INNER JOIN cnr_atms atm ON atm.public_uuid=t.atm_uuid
+        INNER JOIN cnr_financial_accounts source
+            ON source.public_uuid=t.source_financial_account_uuid
+        INNER JOIN cnr_financial_accounts destination
+            ON destination.public_uuid=t.destination_financial_account_uuid
+        WHERE t.transaction_type IN ('ATM_DEPOSIT','ATM_WITHDRAWAL')
+        AND t.operation_uuid=UNHEX(REPLACE(?,'-','')) LIMIT 1]]):format(
+            uuid:format('t.public_uuid'),
+            uuid:format('t.operation_uuid'),
+            uuid:format('t.atm_uuid')
+        ),
+        { operation_uuid }
+    )
+end
+
+function Repository.atm_context(character_uuid, direction)
+    local source_type = direction == 'DEPOSIT' and 'CASH_WALLET' or 'PERSONAL_CHECKING'
+    local destination_type = direction == 'DEPOSIT' and 'PERSONAL_CHECKING' or 'CASH_WALLET'
+    return single(
+        ([[SELECT source.id source_id, %s source_uuid,
+        source.account_number source_account_number, source.version source_version,
+        COALESCE((SELECT SUM(entry.signed_amount_minor) FROM cnr_financial_entries entry
+            WHERE entry.account_id=source.id),0) source_balance_minor,
+        destination.id destination_id, %s destination_uuid,
+        destination.account_number destination_account_number,
+        destination.version destination_version
+        FROM cnr_financial_accounts source
+        INNER JOIN cnr_financial_accounts destination
+            ON destination.owner_character_uuid=source.owner_character_uuid
+            AND destination.owner_type='CHARACTER'
+            AND destination.account_type=?
+            AND destination.status='ACTIVE'
+        WHERE source.owner_type='CHARACTER'
+        AND source.owner_character_uuid=UNHEX(REPLACE(?,'-',''))
+        AND source.account_type=?
+        AND source.status='ACTIVE'
+        AND source.id<>destination.id
+        LIMIT 1]]):format(
+            uuid:format('source.public_uuid'),
+            uuid:format('destination.public_uuid')
+        ),
+        { destination_type, character_uuid, source_type }
+    )
+end
+
+function Repository.atm_payload_hash(
+    character_uuid,
+    atm_uuid,
+    direction,
+    amount_minor,
+    contract_version
+)
+    return single(
+        [[SELECT LOWER(SHA2(CONCAT('ATM_CASH|',?,'|',?,'|',?,'|',?,'|',?),256))
+        payload_sha256]],
+        { character_uuid, atm_uuid, direction, amount_minor, contract_version }
+    )
+end
+
+function Repository.post_atm_transaction(context)
+    return exports.cnr_database:transaction({
+        {
+            query = [[UPDATE cnr_financial_accounts account_row
+            SET account_row.version=account_row.version+1,
+                account_row.last_operation_uuid=UNHEX(REPLACE(?,'-','')),
+                account_row.updated_at=UTC_TIMESTAMP(6)
+            WHERE (
+                account_row.id=? AND account_row.version=? AND account_row.status='ACTIVE'
+                AND COALESCE((SELECT SUM(entry.signed_amount_minor)
+                    FROM cnr_financial_entries entry
+                    WHERE entry.account_id=account_row.id),0)>=?
+            ) OR (
+                account_row.id=? AND account_row.version=? AND account_row.status='ACTIVE'
+            )]],
+            values = {
+                context.operation_uuid,
+                context.source_id,
+                context.source_version,
+                context.amount_minor,
+                context.destination_id,
+                context.destination_version,
+            },
+        },
+        {
+            query = [[INSERT INTO cnr_financial_transactions
+            (public_uuid, operation_uuid, transaction_number, transaction_type, status,
+            character_uuid, account_uuid, source_financial_account_uuid,
+            destination_financial_account_uuid, atm_uuid, session_uuid, amount_minor, currency,
+            purpose, source_module, request_id, correlation_id, contract_version, payload_sha256,
+            created_at, posted_at)
+            SELECT UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),?,?,'POSTED',
+            UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),source.public_uuid,
+            destination.public_uuid,UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),
+            ?,'USD',?,'cnr_banking',?,?,1,UNHEX(?),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
+            FROM cnr_financial_accounts source
+            INNER JOIN cnr_financial_accounts destination ON destination.id=?
+            INNER JOIN cnr_atms atm
+                ON atm.public_uuid=UNHEX(REPLACE(?,'-','')) AND atm.status='ACTIVE'
+            WHERE source.id=?
+            AND source.last_operation_uuid=UNHEX(REPLACE(?,'-',''))
+            AND destination.last_operation_uuid=UNHEX(REPLACE(?,'-',''))]],
+            values = {
+                context.transaction_uuid,
+                context.operation_uuid,
+                context.transaction_number,
+                context.transaction_type,
+                context.character_uuid,
+                context.account_uuid,
+                context.atm_uuid,
+                context.session_uuid,
+                context.amount_minor,
+                context.purpose,
+                context.request_id,
+                context.correlation_id,
+                context.payload_sha256,
+                context.destination_id,
+                context.atm_uuid,
+                context.source_id,
+                context.operation_uuid,
+                context.operation_uuid,
+            },
+        },
+        {
+            query = [[INSERT INTO cnr_financial_entries
+            (transaction_id, account_id, entry_sequence, signed_amount_minor, created_at)
+            SELECT transaction_row.id,source.id,1,?,UTC_TIMESTAMP(6)
+            FROM cnr_financial_transactions transaction_row
+            INNER JOIN cnr_financial_accounts source
+                ON source.public_uuid=transaction_row.source_financial_account_uuid
+            WHERE transaction_row.operation_uuid=UNHEX(REPLACE(?,'-',''))]],
+            values = { -context.amount_minor, context.operation_uuid },
+        },
+        {
+            query = [[INSERT INTO cnr_financial_entries
+            (transaction_id, account_id, entry_sequence, signed_amount_minor, created_at)
+            SELECT transaction_row.id,destination.id,2,?,UTC_TIMESTAMP(6)
+            FROM cnr_financial_transactions transaction_row
+            INNER JOIN cnr_financial_accounts destination
+                ON destination.public_uuid=transaction_row.destination_financial_account_uuid
+            WHERE transaction_row.operation_uuid=UNHEX(REPLACE(?,'-',''))]],
+            values = { context.amount_minor, context.operation_uuid },
+        },
+        {
+            query = [[INSERT INTO cnr_financial_entries
+            (transaction_id, account_id, entry_sequence, signed_amount_minor, created_at)
+            SELECT NULL,NULL,0,0,UTC_TIMESTAMP(6)
+            WHERE NOT EXISTS (
+                SELECT 1 FROM cnr_financial_transactions
+                WHERE operation_uuid=UNHEX(REPLACE(?,'-',''))
+            )]],
+            values = { context.operation_uuid },
+        },
+    })
 end
 
 function Repository.transfer_transaction(operation_uuid)

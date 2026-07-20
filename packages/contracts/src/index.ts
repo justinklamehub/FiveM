@@ -327,6 +327,7 @@ export interface StateIdentificationPresentation {
 export const tabletContractVersion = 1 as const;
 
 export const bankingContractVersion = 2 as const;
+export const atmContractVersion = 1 as const;
 export type FinancialAccountType = 'CASH_WALLET' | 'PERSONAL_CHECKING';
 export type FinancialAccountStatus =
   'ACTIVE' | 'RESTRICTED' | 'FROZEN' | 'BLOCKED' | 'CLOSED' | 'PENDING_CLOSURE';
@@ -354,7 +355,7 @@ export interface FinancialAccountSummary {
 export interface FinancialTransactionSummary {
   transaction_uuid: string;
   transaction_number: string;
-  transaction_type: 'STARTER_ALLOCATION' | 'BANK_TRANSFER';
+  transaction_type: 'STARTER_ALLOCATION' | 'BANK_TRANSFER' | 'ATM_DEPOSIT' | 'ATM_WITHDRAWAL';
   status: 'POSTED';
   amount_minor: number;
   direction: 'CREDIT' | 'DEBIT';
@@ -379,6 +380,60 @@ export interface BankingTransferReceipt {
   amount_minor: number;
   currency: 'USD';
   purpose: string;
+  posted_at: string;
+  snapshot: BankingSnapshot;
+}
+export interface AtmPublicLocation {
+  atm_uuid: string;
+  code: string;
+  label: string;
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  interaction_radius: number;
+  status: 'ACTIVE';
+  version: number;
+}
+export interface AtmDirectoryRequest {
+  request_id: string;
+  contract_version: typeof atmContractVersion;
+}
+export interface AtmDirectory {
+  contract_version: typeof atmContractVersion;
+  atms: readonly AtmPublicLocation[];
+}
+export interface AtmSnapshotRequest {
+  atm_uuid: string;
+  request_id: string;
+  contract_version: typeof atmContractVersion;
+}
+export interface AtmSessionSnapshot {
+  contract_version: typeof atmContractVersion;
+  atm: AtmPublicLocation;
+  banking: BankingSnapshot;
+}
+export type AtmCashDirection = 'DEPOSIT' | 'WITHDRAW';
+export interface AtmCashRequest {
+  atm_uuid: string;
+  direction: AtmCashDirection;
+  amount_minor: number;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof atmContractVersion;
+}
+export interface AtmCashReceipt {
+  repeated: boolean;
+  operation_uuid: string;
+  transaction_uuid: string;
+  transaction_number: string;
+  atm_uuid: string;
+  atm_label: string;
+  direction: AtmCashDirection;
+  source_account_number: string;
+  destination_account_number: string;
+  amount_minor: number;
+  currency: 'USD';
   posted_at: string;
   snapshot: BankingSnapshot;
 }
@@ -513,6 +568,11 @@ export type NuiMessage =
     }
   | {
       version: 1;
+      type: 'ui.atm.open';
+      payload: AtmSessionSnapshot;
+    }
+  | {
+      version: 1;
       type: 'ui.character.spawn_failed';
       payload: { correlation_id: string };
     }
@@ -598,6 +658,33 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
     return (
       Object.keys(candidate.payload).join(',') === 'contract_version' &&
       payload.contract_version === tabletContractVersion
+    );
+  }
+  if (candidate.type === 'ui.atm.open') {
+    const payload = candidate.payload as {
+      contract_version?: unknown;
+      atm?: unknown;
+      banking?: unknown;
+    };
+    if (
+      Object.keys(candidate.payload).sort().join(',') !== 'atm,banking,contract_version' ||
+      payload.contract_version !== atmContractVersion ||
+      typeof payload.atm !== 'object' ||
+      payload.atm === null ||
+      typeof payload.banking !== 'object' ||
+      payload.banking === null
+    )
+      return false;
+    const atm = payload.atm as Record<string, unknown>;
+    return (
+      typeof atm.atm_uuid === 'string' &&
+      typeof atm.code === 'string' &&
+      typeof atm.label === 'string' &&
+      typeof atm.x === 'number' &&
+      typeof atm.y === 'number' &&
+      typeof atm.z === 'number' &&
+      typeof atm.interaction_radius === 'number' &&
+      atm.status === 'ACTIVE'
     );
   }
   if (candidate.type === 'ui.request.response') {
