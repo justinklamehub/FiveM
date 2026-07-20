@@ -1,0 +1,59 @@
+name: Apply dynamic shops implementation
+
+on:
+  push:
+    branches:
+      - agent/wave-2-economic-foundations
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'Prepare dynamic shops implementation'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the existing Wave 2 branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: agent/wave-2-economic-foundations
+          fetch-depth: 0
+
+      - name: Retrieve and apply the reviewed implementation payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp repos/${{ github.repository }}/issues/3/comments > /tmp/comments.json
+          python3 <<'PY'
+          import base64
+          import json
+          import pathlib
+          import re
+
+          pages = json.loads(pathlib.Path('/tmp/comments.json').read_text(encoding='utf-8'))
+          comments = [item for page in pages for item in page]
+          found = {}
+          pattern = re.compile(
+              r'^CNR_DYNAMIC_SHOPS_PAYLOAD_V1_PART_(\d+)_OF_3\n([A-Za-z0-9+/=]+)$'
+          )
+          for item in comments:
+              match = pattern.match(item.get('body', ''))
+              if match:
+                  found[int(match.group(1))] = match.group(2)
+          if sorted(found) != [1, 2, 3]:
+              raise SystemExit('Expected all three reviewed payload parts.')
+          payload = ''.join(found[index] for index in (1, 2, 3))
+          pathlib.Path('/tmp/dynamic-shops-overlay.tar.gz').write_bytes(
+              base64.b64decode(payload, validate=True)
+          )
+          PY
+          tar -xzf /tmp/dynamic-shops-overlay.tar.gz -C .
+          git config user.name 'cnr-development-bot'
+          git config user.email 'cnr-development-bot@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Add dynamic server-authoritative shops'
+          git push origin HEAD:agent/wave-2-economic-foundations
