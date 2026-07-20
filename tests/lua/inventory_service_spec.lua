@@ -289,7 +289,8 @@ describe('inventory service authority', function()
         local captured
         local repository = {
             payload_hash = function(parts)
-                assert.are.equal(5, parts[5])
+                assert.are.equal(4, parts[5])
+                assert.are.equal(5, parts[7])
                 return { payload_sha256 = string.rep('a', 64) }
             end,
             transaction = function()
