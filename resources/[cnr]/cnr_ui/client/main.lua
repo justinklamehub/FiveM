@@ -87,6 +87,21 @@ RegisterNUICallback('inventory.documentClose', function(_, callback)
     document_previous_focus = nil
     callback({ ok = true })
 end)
+RegisterNUICallback('inventory.actionComplete', function(payload, callback)
+    local effect = type(payload) == 'table' and payload.effect or nil
+    local known_effect = effect == 'DRINK_WATER'
+        or effect == 'EAT_FOOD'
+        or effect == 'INSPECT_STATE_ID'
+        or effect == 'SHOW_STATE_ID'
+    if not known_effect then
+        callback({ ok = false })
+        return
+    end
+    if effect ~= 'INSPECT_STATE_ID' or focus_owner ~= 'inventoryDocument' then
+        set_focus(nil)
+    end
+    callback({ ok = true })
+end)
 RegisterNUICallback('uiReady', function(_, callback)
     TriggerServerEvent('cnr:ui:ready')
     callback({ ok = true })
@@ -328,7 +343,7 @@ RegisterNetEvent('cnr:inventory:document', function(presentation)
     then
         return
     end
-    document_previous_focus = focus_owner
+    document_previous_focus = presentation.mode == 'PRESENTED' and focus_owner or nil
     set_focus('inventoryDocument')
     SendNUIMessage({
         version = 1,

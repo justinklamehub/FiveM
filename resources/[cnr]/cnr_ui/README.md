@@ -55,9 +55,11 @@ spawn. F3 or `cnr_storage_open` requests the personal locker, which the server e
 configured radius. Occupied slots use direct pointer drag-and-drop with a destination highlight and
 drop animation; click-selection is not part of movement. Cross-inventory stacks open a bounded quantity
 selector after their direct drop, and the UI applies the server-validated placement only after confirmation.
-Double-click or right-click opens only actions published by the server definition. Consumables play the
-server-issued animation after one-unit persistence, while State ID inspection/presentation uses a bounded
-English document card. Reviewed
+Double-click or right-click opens only actions published by the server definition. Every confirmed item
+action closes the inventory and releases its focus before gameplay resumes. Consumables play the
+server-issued animation after one-unit persistence. State ID inspection hands focus directly to a compact,
+left-docked English document card without reopening or retaining the inventory; closing the card returns to
+gameplay. State ID presentation uses the same bounded card for the server-selected nearby recipient. Reviewed
 transparent PNGs are resolved from an explicit allowlist for the three starter image keys. Unknown keys
 or failed image loads retain deterministic two-letter fallback tiles.
 

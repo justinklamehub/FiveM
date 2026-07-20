@@ -83,7 +83,7 @@ The first personal locker is created idempotently from server configuration. Cro
 
 ## Item actions
 
-Water and food definitions publish only `USE` capability. Their private server handlers resolve to a one-unit debit and a server-issued drink or eat effect. State ID definitions publish `INSPECT` and `SHOW`; the unique item remains in inventory. Inspection presents the source-bound identity locally. Presentation selects the nearest player inside the configured radius from server-observed entity coordinates and sends only the holder name, date of birth, document number, and issue date. Every successful action is an immutable `USE_ITEM` transaction, and failed proximity or authority checks disclose nothing.
+Water and food definitions publish only `USE` capability. Their private server handlers resolve to a one-unit debit and a server-issued drink or eat effect. State ID definitions publish `INSPECT` and `SHOW`; the unique item remains in inventory. Inspection presents the source-bound identity locally. Presentation selects the nearest player inside the configured radius from server-observed entity coordinates and sends only the holder name, date of birth, document number, and issue date. After server confirmation, every item action closes the inventory. Consumables release NUI focus, while inspection transfers focus to a compact left-docked State ID card and releases it only when the player closes that card. Every successful action is an immutable `USE_ITEM` transaction, and failed proximity or authority checks leave the inventory open and disclose nothing.
 
 ## Audit and recovery
 

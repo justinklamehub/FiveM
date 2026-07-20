@@ -7,6 +7,7 @@ import {
   registrationContractVersion,
   type CurrentRuleset,
   type InventoryOpenView,
+  type InventoryUseEffect,
   type PlayerLifecycleSnapshot,
   type RegistrationOutcome,
   type Result,
@@ -221,6 +222,13 @@ export function App() {
     void postNui<{ ok: boolean }>('inventory.documentClose', {}).catch(() => undefined);
   };
 
+  const completeInventoryItemAction = useCallback((effect: InventoryUseEffect) => {
+    setInventoryOpen(false);
+    setVisible(false);
+    setFocus(initialFocusState);
+    void postNui<{ ok: boolean }>('inventory.actionComplete', { effect }).catch(() => undefined);
+  }, []);
+
   if (bankingOpen) {
     return (
       <BankingPanel
@@ -238,6 +246,7 @@ export function App() {
       <>
         <InventoryPanel
           view={inventoryView}
+          onItemAction={completeInventoryItemAction}
           onClose={() => {
             setInventoryOpen(false);
             setVisible(false);

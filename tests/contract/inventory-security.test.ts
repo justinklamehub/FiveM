@@ -11,6 +11,9 @@ const repository = fs.readFileSync(
   'utf8',
 );
 const main = fs.readFileSync('resources/[cnr]/cnr_inventory/server/main.lua', 'utf8');
+const uiClient = fs.readFileSync('resources/[cnr]/cnr_ui/client/main.lua', 'utf8');
+const uiApp = fs.readFileSync('packages/ui/src/App.tsx', 'utf8');
+const identification = fs.readFileSync('packages/ui/src/StateIdentificationCard.tsx', 'utf8');
 
 describe('inventory security boundary', () => {
   it('accepts destination-slot intent without accepting inventory authority', () => {
@@ -117,5 +120,19 @@ describe('inventory security boundary', () => {
     expect(main).toContain("stopped == 'cnr_characters'");
     expect(main).toContain("stopped == 'cnr_items'");
     expect(main).toContain("if status.status ~= 'ready' then");
+  });
+
+  it('closes inventory after confirmed item actions without stealing inspected-ID focus', () => {
+    expect(uiApp).toContain('onItemAction={completeInventoryItemAction}');
+    expect(uiApp).toContain("postNui<{ ok: boolean }>('inventory.actionComplete', { effect })");
+    expect(uiClient).toContain("RegisterNUICallback('inventory.actionComplete'");
+    expect(uiClient).toContain(
+      "effect ~= 'INSPECT_STATE_ID' or focus_owner ~= 'inventoryDocument'",
+    );
+    expect(uiClient).toContain(
+      "document_previous_focus = presentation.mode == 'PRESENTED' and focus_owner or nil",
+    );
+    expect(identification).toContain('identity-card__edge');
+    expect(identification).toContain('Department of Motor Vehicles');
   });
 });

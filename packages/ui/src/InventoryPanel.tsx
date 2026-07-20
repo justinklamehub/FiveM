@@ -17,6 +17,7 @@ import {
   type InventoryTransferOutcome,
   type InventoryTransferRequest,
   type InventoryUseIntent,
+  type InventoryUseEffect,
   type InventoryUseOutcome,
   type InventoryUseRequest,
   type InventoryWorkspaceSnapshot,
@@ -248,9 +249,11 @@ export function applyConfirmedInventoryUse(
 export function InventoryPanel({
   view,
   onClose,
+  onItemAction,
 }: {
   view: InventoryOpenView;
   onClose: () => void;
+  onItemAction: (effect: InventoryUseEffect) => void;
 }) {
   const [workspace, setWorkspace] = useState<InventoryViewState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -420,37 +423,41 @@ export function InventoryPanel({
     }
   }, []);
 
-  const performUse = useCallback(async (payload: InventoryUseRequest) => {
-    setBusy(true);
-    setOperationError(null);
-    setRetryOperation({ event: 'inventory.use', payload });
-    try {
-      const result = await postNui<Result<InventoryUseOutcome>>('inventory.use', payload);
-      if (!result.ok) {
-        setOperationError(
-          `The item action was rejected (${result.error.code}). Reference: ${result.error.correlation_id}`,
+  const performUse = useCallback(
+    async (payload: InventoryUseRequest) => {
+      setBusy(true);
+      setOperationError(null);
+      setRetryOperation({ event: 'inventory.use', payload });
+      try {
+        const result = await postNui<Result<InventoryUseOutcome>>('inventory.use', payload);
+        if (!result.ok) {
+          setOperationError(
+            `The item action was rejected (${result.error.code}). Reference: ${result.error.correlation_id}`,
+          );
+          return;
+        }
+        if (
+          result.data.inventory_uuid !== payload.inventory_uuid ||
+          result.data.source_slot !== payload.source_slot
+        )
+          throw new Error('The confirmed item action does not match the request.');
+        setWorkspace((current) =>
+          current
+            ? updateInventory(current, payload.inventory_uuid, (inventory) =>
+                applyConfirmedInventoryUse(inventory, result.data),
+              )
+            : current,
         );
-        return;
+        setRetryOperation(null);
+        onItemAction(result.data.effect);
+      } catch {
+        setOperationError('The item action could not be completed. Retry or reopen the inventory.');
+      } finally {
+        setBusy(false);
       }
-      if (
-        result.data.inventory_uuid !== payload.inventory_uuid ||
-        result.data.source_slot !== payload.source_slot
-      )
-        throw new Error('The confirmed item action does not match the request.');
-      setWorkspace((current) =>
-        current
-          ? updateInventory(current, payload.inventory_uuid, (inventory) =>
-              applyConfirmedInventoryUse(inventory, result.data),
-            )
-          : current,
-      );
-      setRetryOperation(null);
-    } catch {
-      setOperationError('The item action could not be completed. Retry or reopen the inventory.');
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+    },
+    [onItemAction],
+  );
 
   const requestUse = (intent: InventoryUseIntent) => {
     if (!pendingItemActions || busy) return;

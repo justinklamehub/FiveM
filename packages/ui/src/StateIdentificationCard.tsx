@@ -11,23 +11,33 @@ export function StateIdentificationCard({ presentation, onClose }: StateIdentifi
   return (
     <main className="nui-stage identity-stage" aria-label="State identification">
       <section className="identity-card" role="dialog" aria-modal="true">
+        <span className="identity-card__edge" aria-hidden="true">
+          SAN ANDREAS
+        </span>
+        <span className="identity-card__watermark" aria-hidden="true">
+          SA
+        </span>
         <header className="identity-card__header">
           <div className="identity-card__seal">SA</div>
           <div>
-            <span>State of San Andreas</span>
+            <span className="identity-card__authority">State of San Andreas</span>
             <h1>Identification Card</h1>
+            <small>Department of Motor Vehicles</small>
           </div>
-          <span className="status-pill">
-            {presentation.mode === 'PRESENTED' ? 'Presented ID' : 'Your ID'}
+          <span className="identity-card__status">
+            {presentation.mode === 'PRESENTED' ? 'Presented ID' : 'Valid ID'}
           </span>
         </header>
         <div className="identity-card__body">
           <div className="identity-card__portrait" aria-hidden="true">
-            {document.first_name.charAt(0)}
-            {document.last_name.charAt(0)}
+            <span>
+              {document.first_name.charAt(0)}
+              {document.last_name.charAt(0)}
+            </span>
+            <small>Photo</small>
           </div>
           <dl>
-            <div>
+            <div className="identity-card__name">
               <dt>Full Name</dt>
               <dd>
                 {document.first_name} {document.last_name}
@@ -38,7 +48,7 @@ export function StateIdentificationCard({ presentation, onClose }: StateIdentifi
               <dd>{document.date_of_birth}</dd>
             </div>
             <div>
-              <dt>Document Number</dt>
+              <dt>ID Number</dt>
               <dd>{document.document_number}</dd>
             </div>
             <div>
@@ -48,7 +58,10 @@ export function StateIdentificationCard({ presentation, onClose }: StateIdentifi
           </dl>
         </div>
         <footer>
-          <span>Server-verified document</span>
+          <div>
+            <strong>Server Verified</strong>
+            <span>Official identity record</span>
+          </div>
           <button type="button" onClick={onClose}>
             Close
           </button>
