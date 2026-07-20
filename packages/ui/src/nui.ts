@@ -22,6 +22,7 @@ const bridgedEvents = new Set([
   'inventory.transfer',
   'inventory.use',
   'banking.snapshot',
+  'banking.transfer',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -100,6 +101,47 @@ const mockInventorySlots = new Map([
   ['city_tablet', 4],
 ]);
 let mockInventoryVersion = 3;
+let mockCheckingBalance = 25000;
+const mockBankingTransfers = new Map<string, { fingerprint: string; receipt: unknown }>();
+const mockBankingTransactions: Record<string, unknown>[] = [
+  {
+    transaction_uuid: '0190b7a0-7000-7000-8000-000000000020',
+    transaction_number: 'TX-0190B7A0700070008000000000000020',
+    transaction_type: 'STARTER_ALLOCATION',
+    status: 'POSTED',
+    amount_minor: 30000,
+    direction: 'CREDIT',
+    currency: 'USD',
+    purpose: 'Initial character funds',
+    posted_at: '2026-07-20T12:00:00Z',
+  },
+];
+const mockBankingSnapshot = () => ({
+  currency: 'USD',
+  starter_provisioned: true,
+  repeated: true,
+  accounts: [
+    {
+      account_uuid: '0190b7a0-7000-7000-8000-000000000010',
+      account_number: 'CASH-800000000010',
+      account_type: 'CASH_WALLET',
+      currency: 'USD',
+      status: 'ACTIVE',
+      balance_minor: 5000,
+      version: 1,
+    },
+    {
+      account_uuid: '0190b7a0-7000-7000-8000-000000000011',
+      account_number: 'SA-800000000011',
+      account_type: 'PERSONAL_CHECKING',
+      currency: 'USD',
+      status: 'ACTIVE',
+      balance_minor: mockCheckingBalance,
+      version: 1 + mockBankingTransfers.size,
+    },
+  ],
+  recent_transactions: mockBankingTransactions,
+});
 function browserMock(event: string, body: unknown): unknown {
   const request = body as {
     locale?: 'de' | 'en';
@@ -110,6 +152,9 @@ function browserMock(event: string, body: unknown): unknown {
     target_slot?: number;
     quantity?: number;
     intent?: 'USE' | 'INSPECT' | 'SHOW';
+    recipient_account_number?: string;
+    amount_minor?: number;
+    purpose?: string;
   };
   const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
   if (event === 'lifecycleRefresh') return { ok: true };
@@ -122,45 +167,72 @@ function browserMock(event: string, body: unknown): unknown {
   if (event === 'banking.snapshot')
     return {
       ok: true,
-      data: {
-        currency: 'USD',
-        starter_provisioned: true,
-        repeated: true,
-        accounts: [
-          {
-            account_uuid: '0190b7a0-7000-7000-8000-000000000010',
-            account_number: 'CASH-800000000010',
-            account_type: 'CASH_WALLET',
-            currency: 'USD',
-            status: 'ACTIVE',
-            balance_minor: 5000,
-            version: 1,
-          },
-          {
-            account_uuid: '0190b7a0-7000-7000-8000-000000000011',
-            account_number: 'SA-800000000011',
-            account_type: 'PERSONAL_CHECKING',
-            currency: 'USD',
-            status: 'ACTIVE',
-            balance_minor: 25000,
-            version: 1,
-          },
-        ],
-        recent_transactions: [
-          {
-            transaction_uuid: '0190b7a0-7000-7000-8000-000000000020',
-            transaction_number: 'TX-0190B7A0700070008000000000000020',
-            transaction_type: 'STARTER_ALLOCATION',
-            status: 'POSTED',
-            amount_minor: 30000,
-            currency: 'USD',
-            purpose: 'Initial character funds',
-            posted_at: '2026-07-20T12:00:00Z',
-          },
-        ],
-      },
+      data: mockBankingSnapshot(),
       correlation_id: 'mock-banking',
     };
+  if (event === 'banking.transfer') {
+    const operationUuid = request.operation_uuid ?? '';
+    const fingerprint = JSON.stringify([
+      request.recipient_account_number,
+      request.amount_minor,
+      request.purpose,
+    ]);
+    const replay = mockBankingTransfers.get(operationUuid);
+    if (replay)
+      return replay.fingerprint === fingerprint
+        ? {
+            ok: true,
+            data: {
+              ...(replay.receipt as object),
+              repeated: true,
+              snapshot: mockBankingSnapshot(),
+            },
+            correlation_id: 'mock-transfer-replay',
+          }
+        : {
+            ok: false,
+            error: {
+              code: 'CONFLICT',
+              message_key: 'banking.error.operation_conflict',
+              safe_details: {},
+              correlation_id: 'mock-transfer-conflict',
+            },
+          };
+    if (!request.amount_minor || request.amount_minor > mockCheckingBalance)
+      return {
+        ok: false,
+        error: {
+          code: 'PRECONDITION_FAILED',
+          message_key: 'banking.error.insufficient_funds',
+          safe_details: {},
+          correlation_id: 'mock-transfer-funds',
+        },
+      };
+    mockCheckingBalance -= request.amount_minor;
+    const transactionUuid = crypto.randomUUID();
+    const transaction = {
+      transaction_uuid: transactionUuid,
+      transaction_number: `TX-${transactionUuid.replaceAll('-', '').toUpperCase()}`,
+      transaction_type: 'BANK_TRANSFER',
+      status: 'POSTED',
+      amount_minor: request.amount_minor,
+      direction: 'DEBIT',
+      currency: 'USD',
+      purpose: request.purpose ?? 'Transfer',
+      posted_at: new Date().toISOString(),
+    };
+    mockBankingTransactions.unshift(transaction);
+    const receipt = {
+      repeated: false,
+      operation_uuid: operationUuid,
+      ...transaction,
+      source_account_number: 'SA-800000000011',
+      recipient_account_number: request.recipient_account_number,
+      snapshot: mockBankingSnapshot(),
+    };
+    mockBankingTransfers.set(operationUuid, { fingerprint, receipt });
+    return { ok: true, data: receipt, correlation_id: 'mock-transfer-posted' };
+  }
   if (event === 'inventory.snapshot')
     return {
       ok: true,

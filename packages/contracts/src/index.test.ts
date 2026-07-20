@@ -26,6 +26,7 @@ import {
   type InventoryTransferRequest,
   type InventoryUseRequest,
   type BankingSnapshotRequest,
+  type BankingTransferRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -299,6 +300,38 @@ describe('core contracts', () => {
         payload: { contract_version: tabletContractVersion, account_uuid: 'client-claimed' },
       }),
     ).toBe(false);
+  });
+
+  it('limits transfer intent to a recipient, amount, purpose, and correlation fields', () => {
+    const request: BankingTransferRequest = {
+      recipient_account_number: 'SA-800000000012',
+      amount_minor: 1250,
+      purpose: 'Shared fuel cost',
+      request_id: 'banking-transfer-1',
+      operation_uuid: '0190b7a0-7000-7000-8000-000000000099',
+      contract_version: bankingContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual([
+      'amount_minor',
+      'contract_version',
+      'operation_uuid',
+      'purpose',
+      'recipient_account_number',
+      'request_id',
+    ]);
+    expect(Object.keys(request)).not.toEqual(
+      expect.arrayContaining([
+        'source_account_uuid',
+        'source_account_number',
+        'account_uuid',
+        'character_uuid',
+        'session_uuid',
+        'balance_minor',
+        'currency',
+        'status',
+        'ledger_entries',
+      ]),
+    );
   });
 
   it('keeps technical permission contracts role-agnostic', () => {

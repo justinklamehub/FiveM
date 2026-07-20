@@ -91,9 +91,12 @@ Apply `20260716001000_inventory_item_use.sql` after the personal-storage migrati
 
 Apply `20260716001100_banking_ledger_foundation.sql` next and set the minimum schema to
 `20260716001100`. Then apply `20260716001200_tablet_device_shell.sql` and set the minimum schema to
-`20260716001200`. Start `cnr_banking` after `cnr_characters` and before `cnr_ui`. Starter cash and
-checking amounts are migration-backed server settings. The Tablet Banking app requests only a versioned snapshot; account
-ownership, account types, funding amounts, balances, ledger entries, and starter operation IDs are
+`20260716001200`. Apply `20260716001300_banking_transfers.sql` and set the minimum schema to
+`20260716001300`. Start `cnr_banking` after `cnr_characters` and before `cnr_ui`. Starter cash,
+checking amounts, and the maximum transfer amount are migration-backed server settings. The Tablet
+Banking app may request a versioned snapshot or submit a public recipient checking number, integer
+minor-unit amount, bounded purpose, request ID, operation UUID, and contract version. Account
+ownership, sender account, account types, balances, ledger entries, currency, statuses, and results are
 always server-derived.
 
 For txAdmin, edit the active recipe `server.cfg` rather than the generated example and remove or comment out `ensure basic-gamemode`. A running stock gamemode can re-enable map spawnpoints before character selection is complete. `cnr_ui` also disables stock auto-spawn continuously while lifecycle authority is locked, keeps the real player ped hidden, and uses a separate non-networked ped for appearance preview. The real player is released only after the server accepts the matching controlled-spawn acknowledgement.
@@ -121,7 +124,7 @@ Run `pnpm --filter @cnr/ui dev` to serve them. `loadscreen.html` is a separate n
 The server chooses the controlled central fallback spawn. Clients cannot submit coordinates, routing buckets, session IDs, or spawn state.
 
 ```cfg
-set cnr_schema_minimum "20260716001200"
+set cnr_schema_minimum "20260716001300"
 set cnr_spawn_default_x "215.76"
 set cnr_spawn_default_y "-810.12"
 set cnr_spawn_default_z "30.73"
@@ -144,6 +147,10 @@ ensure cnr_ui
 
 After a controlled spawn, press F2 or run `cnr_inventory_open` in the client F8 console. The English full-page personal inventory must display all 24 slots without scrolling and show exactly two Water Bottles, two Sandwiches, the existing State Identification Card, and one City Tablet after provisioning. Reopening or reconnecting must not duplicate them. Direct pointer drops move single items immediately and open an English quantity selector for larger cross-inventory stacks. Double-click or right-click a Water Bottle or Sandwich and confirm one unit is consumed with the matching client animation and the inventory closes after server confirmation. Inspect the State ID and confirm the inventory is replaced by the compact left-docked card; closing it must release NUI focus. Use the City Tablet and confirm the inventory closes and its English application home opens with Banking enabled. Use `Show to Nearest Player` with a second player inside and outside the configured presentation radius. At the configured parking locker, press F3 or run `cnr_storage_open`. The server must open the two-panel `Item Transfer` workspace only within the configured radius; confirmed drops update immediately and persist after reconnect.
 
-Open Banking from the City Tablet after the controlled spawn. The English read-only app must show one
-Cash Wallet, one Personal Checking account, and the single starter allocation. F4 must not open Banking.
-Reconnect and restart `cnr_banking`; account rows, starter history, and balances must remain unchanged.
+Open Banking from the City Tablet after the controlled spawn. The English app must show one Cash
+Wallet, one Personal Checking account, and the single starter allocation. F4 must not open Banking.
+With a second FULL player and active character, copy that character's public `SA-` checking number,
+review and confirm a small transfer, and verify the sender debit and recipient credit appear without a
+client-selected source account. Retry the same operation after an interrupted response and confirm it
+does not post twice. Reconnect and restart `cnr_banking`; account rows, history, and balances must remain
+unchanged.

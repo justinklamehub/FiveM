@@ -19,6 +19,7 @@ describe('City Tablet browser surface', () => {
       'Settings',
     ]);
     expect(tabletApps.filter((app) => app.enabled).map((app) => app.id)).toEqual(['banking']);
+    expect(tabletApps.map((app) => app.tone)).toEqual(['gold', 'blue', 'teal', 'graphite']);
   });
 
   it('opens from the server-shaped Tablet item without consuming it', async () => {

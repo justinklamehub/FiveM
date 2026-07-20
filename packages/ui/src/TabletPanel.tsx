@@ -10,6 +10,7 @@ interface TabletAppTile {
   title: string;
   description: string;
   symbol: string;
+  tone: 'gold' | 'blue' | 'teal' | 'graphite';
   enabled: boolean;
 }
 
@@ -19,6 +20,7 @@ export const tabletApps: readonly TabletAppTile[] = [
     title: 'Banking',
     description: 'Accounts and recent activity',
     symbol: '$',
+    tone: 'gold',
     enabled: true,
   },
   {
@@ -26,6 +28,7 @@ export const tabletApps: readonly TabletAppTile[] = [
     title: 'Documents',
     description: 'Digital identity and permits',
     symbol: 'ID',
+    tone: 'blue',
     enabled: false,
   },
   {
@@ -33,13 +36,15 @@ export const tabletApps: readonly TabletAppTile[] = [
     title: 'City Services',
     description: 'Requests and public services',
     symbol: 'SA',
+    tone: 'teal',
     enabled: false,
   },
   {
     id: 'settings',
     title: 'Settings',
     description: 'Device preferences',
-    symbol: '⚙',
+    symbol: 'SET',
+    tone: 'graphite',
     enabled: false,
   },
 ];
@@ -77,7 +82,7 @@ export function TabletPanel({
           </header>
 
           {activeApp === 'banking' ? (
-            <div className="tablet-app-surface">
+            <div className="tablet-app-surface" data-app="banking">
               <BankingPanel embedded onClose={() => setActiveApp('home')} />
             </div>
           ) : (
@@ -85,8 +90,8 @@ export function TabletPanel({
               <div className="tablet-home__heading">
                 <div>
                   <span>San Andreas Civic Network</span>
-                  <h1>Good day, Citizen.</h1>
-                  <p>Select an authorized application.</p>
+                  <h1>City Tablet</h1>
+                  <p>Authorized applications for your active character.</p>
                 </div>
                 <div className="tablet-home__security">
                   <strong>Protected Session</strong>
@@ -97,21 +102,43 @@ export function TabletPanel({
                 {tabletApps.map((app) => (
                   <button
                     type="button"
-                    className="tablet-app-tile"
+                    className="tablet-app-icon"
                     key={app.id}
                     disabled={!app.enabled}
                     onClick={() => app.id === 'banking' && setActiveApp('banking')}
+                    aria-label={app.enabled ? `Open ${app.title}` : `${app.title} — coming soon`}
+                    title={app.description}
                   >
-                    <span className="tablet-app-tile__icon" aria-hidden="true">
+                    <span
+                      className={`tablet-app-icon__glyph tablet-app-icon__glyph--${app.tone}`}
+                      aria-hidden="true"
+                    >
                       {app.symbol}
+                      {!app.enabled && <span className="tablet-app-icon__lock">LOCKED</span>}
                     </span>
                     <strong>{app.title}</strong>
-                    <small>{app.description}</small>
-                    <span className="tablet-app-tile__state">
-                      {app.enabled ? 'Open App' : 'Coming Soon'}
-                    </span>
+                    {!app.enabled && <small>Coming Soon</small>}
                   </button>
                 ))}
+              </div>
+              <div className="tablet-dock" aria-label="Tablet dock">
+                <button
+                  type="button"
+                  onClick={() => setActiveApp('banking')}
+                  aria-label="Open Banking"
+                >
+                  <span
+                    className="tablet-app-icon__glyph tablet-app-icon__glyph--gold"
+                    aria-hidden="true"
+                  >
+                    $
+                  </span>
+                  <strong>Banking</strong>
+                </button>
+                <div className="tablet-dock__status">
+                  <span className="tablet-dock__status-dot" aria-hidden="true" />
+                  Secure connection
+                </div>
               </div>
             </div>
           )}

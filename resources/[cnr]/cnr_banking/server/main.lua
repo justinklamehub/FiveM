@@ -1,4 +1,4 @@
--- Exposes rate-limited banking reads for a source-bound spawned character.
+-- Exposes rate-limited banking reads and transfers for a source-bound spawned character.
 local Service = require('server.services.banking_service')
 local resource_name = GetCurrentResourceName()
 local status = {
@@ -77,6 +77,18 @@ RegisterNetEvent('cnr:banking:request', function(action, payload)
         )
     elseif action == 'snapshot' then
         result = Service.snapshot(player_source, payload, correlation_id)
+    elseif action == 'transfer' then
+        local transfer_limit = exports.cnr_core:consume_rate_limit(
+            'banking-transfer:' .. tostring(player_source),
+            5,
+            10000,
+            correlation_id
+        )
+        if transfer_limit.ok then
+            result = Service.transfer(player_source, payload, correlation_id)
+        else
+            result = transfer_limit
+        end
     else
         result = exports.cnr_core:create_error_result(
             'VALIDATION_ERROR',
@@ -133,6 +145,6 @@ exports('snapshot_for_source', function(player_source, request_id, correlation_i
     end
     return Service.snapshot(player_source, {
         request_id = request_id,
-        contract_version = 1,
+        contract_version = 2,
     }, correlation_id)
 end)

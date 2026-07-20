@@ -1,4 +1,4 @@
--- Resolves source authority and exposes only server-derived banking snapshots.
+-- Resolves source authority and posts server-derived double-entry transfers.
 local Policy = require('shared.banking_policy')
 local Repository = require('server.repositories.banking_repository')
 local Service = {}
@@ -145,6 +145,7 @@ local function build_snapshot(context, repeated, correlation_id)
             transaction_type = row.transaction_type,
             status = row.status,
             amount_minor = tonumber(row.amount_minor),
+            direction = row.direction,
             currency = row.currency,
             purpose = row.purpose,
             posted_at = row.posted_at,
@@ -156,6 +157,26 @@ local function build_snapshot(context, repeated, correlation_id)
         repeated = repeated,
         accounts = accounts,
         recent_transactions = transactions,
+    }, correlation_id)
+end
+
+local function transfer_receipt(context, transaction, repeated, correlation_id)
+    local snapshot = build_snapshot(context, true, correlation_id)
+    if not snapshot.ok then
+        return snapshot
+    end
+    return success({
+        repeated = repeated,
+        operation_uuid = transaction.operation_uuid,
+        transaction_uuid = transaction.transaction_uuid,
+        transaction_number = transaction.transaction_number,
+        source_account_number = transaction.source_account_number,
+        recipient_account_number = transaction.recipient_account_number,
+        amount_minor = tonumber(transaction.amount_minor),
+        currency = transaction.currency,
+        purpose = transaction.purpose,
+        posted_at = transaction.posted_at,
+        snapshot = snapshot.data,
     }, correlation_id)
 end
 
@@ -196,6 +217,134 @@ function Service.provision_for_source(player_source, correlation_id)
         transaction_uuid = transaction.transaction_uuid,
         repeated = repeated,
     }, correlation_id)
+end
+
+function Service.transfer(player_source, payload, correlation_id)
+    local validated, validation_error = Policy.validate_transfer(payload)
+    if not validated then
+        return failure(
+            'VALIDATION_ERROR',
+            'banking.error.invalid_transfer',
+            { field = validation_error },
+            correlation_id
+        )
+    end
+    local context, context_error = source_context(player_source, correlation_id)
+    if not context then
+        return context_error
+    end
+    local _, provision_error = ensure_starter(context, validated.request_id, correlation_id)
+    if provision_error then
+        return provision_error
+    end
+
+    local hash, hash_error = Repository.transfer_payload_hash(
+        context.character_uuid,
+        validated.recipient_account_number,
+        validated.amount_minor,
+        validated.purpose,
+        validated.contract_version
+    )
+    if hash_error then
+        return hash_error
+    end
+    if not hash or type(hash.payload_sha256) ~= 'string' then
+        return failure('INTERNAL_ERROR', 'banking.error.hash_failed', {}, correlation_id)
+    end
+
+    local existing, existing_error = Repository.transfer_transaction(validated.operation_uuid)
+    if existing_error then
+        return existing_error
+    end
+    if existing then
+        if existing.payload_sha256 ~= hash.payload_sha256 then
+            return failure('CONFLICT', 'banking.error.operation_conflict', {}, correlation_id)
+        end
+        return transfer_receipt(context, existing, true, correlation_id)
+    end
+
+    local transfer_context, transfer_context_error =
+        Repository.transfer_context(context.character_uuid, validated.recipient_account_number)
+    if transfer_context_error then
+        return transfer_context_error
+    end
+    if not transfer_context then
+        return failure(
+            'PRECONDITION_FAILED',
+            'banking.error.recipient_unavailable',
+            {},
+            correlation_id
+        )
+    end
+    local settings, settings_error = Repository.settings()
+    if settings_error then
+        return settings_error
+    end
+    if
+        not settings.maximum_transfer_minor
+        or validated.amount_minor > settings.maximum_transfer_minor
+    then
+        return failure('VALIDATION_ERROR', 'banking.error.transfer_limit', {}, correlation_id)
+    end
+    if tonumber(transfer_context.source_balance_minor) < validated.amount_minor then
+        return failure(
+            'PRECONDITION_FAILED',
+            'banking.error.insufficient_funds',
+            {},
+            correlation_id
+        )
+    end
+
+    local transaction_uuid = exports.cnr_core:create_uuid_v7()
+    local committed = Repository.post_transfer({
+        source_id = tonumber(transfer_context.source_id),
+        source_version = tonumber(transfer_context.source_version),
+        destination_id = tonumber(transfer_context.destination_id),
+        destination_version = tonumber(transfer_context.destination_version),
+        character_uuid = context.character_uuid,
+        account_uuid = context.account_uuid,
+        session_uuid = context.session_uuid,
+        transaction_uuid = transaction_uuid,
+        operation_uuid = validated.operation_uuid,
+        transaction_number = 'TX-' .. compact_uuid(transaction_uuid),
+        amount_minor = validated.amount_minor,
+        purpose = validated.purpose,
+        request_id = validated.request_id,
+        correlation_id = correlation_id,
+        payload_sha256 = hash.payload_sha256,
+    })
+    local posted, posted_error = Repository.transfer_transaction(validated.operation_uuid)
+    if posted_error then
+        return posted_error
+    end
+    if not posted then
+        if not committed.ok then
+            return committed
+        end
+        local refreshed =
+            Repository.transfer_context(context.character_uuid, validated.recipient_account_number)
+        if refreshed and tonumber(refreshed.source_balance_minor) < validated.amount_minor then
+            return failure(
+                'PRECONDITION_FAILED',
+                'banking.error.insufficient_funds',
+                {},
+                correlation_id
+            )
+        end
+        return failure('PRECONDITION_FAILED', 'banking.error.concurrent_change', {}, correlation_id)
+    end
+    if posted.payload_sha256 ~= hash.payload_sha256 then
+        return failure('CONFLICT', 'banking.error.operation_conflict', {}, correlation_id)
+    end
+    exports.cnr_logs:audit('cnr_banking', 'banking.transfer_posted', {
+        character_uuid = context.character_uuid,
+        transaction_uuid = posted.transaction_uuid,
+        operation_uuid = validated.operation_uuid,
+        amount_minor = validated.amount_minor,
+        currency = 'USD',
+        correlation_id = correlation_id,
+    })
+    return transfer_receipt(context, posted, false, correlation_id)
 end
 
 return Service

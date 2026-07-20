@@ -279,7 +279,7 @@ RegisterNetEvent('cnr:inventory:response', function(action, request_id, result)
 end)
 
 local pending_banking = {}
-RegisterNUICallback('banking.snapshot', function(payload, callback)
+local function banking_request(action, payload, callback)
     local request_id = payload and payload.request_id
     if type(request_id) ~= 'string' or request_id == '' or pending_banking[request_id] then
         callback({
@@ -291,19 +291,24 @@ RegisterNUICallback('banking.snapshot', function(payload, callback)
         })
         return
     end
-    pending_banking[request_id] = true
+    pending_banking[request_id] = action
     expire_pending(pending_banking, request_id)
-    TriggerServerEvent('cnr:banking:request', 'snapshot', payload)
+    TriggerServerEvent('cnr:banking:request', action, payload)
     callback({ ok = true, queued = true, request_id = request_id })
-end)
+end
+for _, action in ipairs({ 'snapshot', 'transfer' }) do
+    RegisterNUICallback('banking.' .. action, function(payload, callback)
+        banking_request(action, payload, callback)
+    end)
+end
 RegisterNetEvent('cnr:banking:response', function(action, request_id, result)
-    if action == 'snapshot' and pending_banking[request_id] then
+    if pending_banking[request_id] == action then
         pending_banking[request_id] = nil
         SendNUIMessage({
             version = 1,
             type = 'ui.request.response',
             payload = {
-                event = 'banking.snapshot',
+                event = 'banking.' .. action,
                 request_id = request_id,
                 result = result,
             },

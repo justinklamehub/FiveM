@@ -25,8 +25,24 @@ describe('banking authority boundary', () => {
     expect(repository).toContain('{ -total, context.operation_uuid }');
   });
 
-  it('never accepts a client-supplied amount, account, owner, or operation UUID', () => {
+  it('accepts transfer intent only after the policy strips sender and ledger authority', () => {
     expect(service).toContain('Policy.validate_snapshot(payload)');
+    expect(service).toContain('Policy.validate_transfer(payload)');
     expect(service).not.toMatch(/payload\.(amount|balance|account|character|session|operation)/);
+    expect(service).toContain('context.character_uuid');
+    expect(service).toContain('context.account_uuid');
+    expect(service).toContain('context.session_uuid');
+  });
+
+  it('posts debit and credit entries together behind account version guards', () => {
+    expect(repository).toContain('account_row.last_operation_uuid=UNHEX(REPLACE');
+    expect(repository).toContain('account_row.version=account_row.version+1');
+    expect(repository).toContain('source.last_operation_uuid=UNHEX(REPLACE');
+    expect(repository).toContain('destination.last_operation_uuid=UNHEX(REPLACE');
+    expect(repository).toContain('{ -context.amount_minor, context.operation_uuid }');
+    expect(repository).toContain('{ context.amount_minor, context.operation_uuid }');
+    expect(repository).toContain("transaction_type='BANK_TRANSFER'");
+    expect(repository).toContain('SELECT NULL,NULL,0,0,UTC_TIMESTAMP(6)');
+    expect(repository).toContain('WHERE NOT EXISTS (');
   });
 });

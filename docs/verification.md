@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the Wave 2 item/inventory, Tablet, and banking-foundation slices. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. A live Wave 2 pass has also confirmed starter provisioning, F2/F3 inventory opening, direct same- and cross-inventory drag/drop, immediate confirmed UI updates, persistent locker transfer, item use, and the read-only Banking surface. The character-bound Tablet handoff requires the short live check below.
+The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the Wave 2 item/inventory, Tablet, ledger, and banking-transfer slices. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. A live Wave 2 pass has also confirmed starter provisioning, F2/F3 inventory opening, direct same- and cross-inventory drag/drop, immediate confirmed UI updates, persistent locker transfer, item use, the character-bound Tablet handoff, and the original read-only Banking snapshot. The new transparent icon launcher and banking-transfer mutation require the focused live checks below.
 
 Run from a fresh checkout:
 
@@ -23,10 +23,10 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716001200_tablet_device_shell.sql` as applied.
+- dbmate reports every ordered migration through `20260716001300_banking_transfers.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core, Wave 1, item, and inventory policy tests.
-- no client money mutations, player transfers, vehicles, character jobs, rewards, oil, or crime gameplay exists; banking is currently a read-only ledger foundation.
+- no client-owned money mutation, cash deposit/withdrawal, cards, vehicles, character jobs, rewards, oil, or crime gameplay exists; only server-authoritative Personal Checking transfers are enabled.
 
 For a destructive local migration rehearsal only:
 
@@ -139,15 +139,19 @@ pnpm db:migrate
 12. Drag a stack larger than one between F3 panels and confirm the English quantity dialog clamps between one and the source quantity. Move a partial amount and then the remainder; confirm each direct drop updates both panels without a snapshot reload and the stored quantities survive reconnect.
 13. Double-click or right-click a Water Bottle and Sandwich in F2. Confirm the server consumes exactly one unit, persists one `USE_ITEM` transaction, returns the stored outcome on an identical operation UUID, rejects changed reuse, closes the inventory after success, and plays only the server-issued drink or eat animation. Confirm a rejected action leaves the inventory open with its correlation reference.
 14. Inspect the State ID and confirm the inventory closes while a compact landscape card appears at the left edge. Confirm the English card contains only the server-resolved holder name, date of birth, document number, and issue date, and that closing it releases focus. With two clients, show it inside the configured radius and confirm the source inventory closes and only the nearest player receives the card. Repeat outside the radius and confirm no transaction, disclosure, or forced inventory close occurs.
-15. Use the City Tablet from F2 and confirm the inventory closes immediately after server success, the reusable English Tablet home receives focus, Banking is the only enabled app, and the Tablet item remains in its slot. Reuse the same operation UUID and confirm the stored zero-consumption result; reconnect and confirm the device was not duplicated. Confirm F4 has no Banking binding.
+15. Use the City Tablet from F2 and confirm the inventory closes immediately after server success, the world remains visible around the physical device, the reusable English icon launcher receives focus, Banking is the only enabled app, and the Tablet item remains in its slot. Confirm the dock opens Banking, Back to Apps returns to the launcher, and reduced-motion mode removes app transitions. Reuse the same operation UUID and confirm the stored zero-consumption result; reconnect and confirm the device was not duplicated. Confirm F4 has no Banking binding.
 
 ## Wave 2 banking foundation
 
-1. Migrate through `20260716001200`, start `cnr_banking` after `cnr_characters` and before `cnr_ui`, and confirm it reports `ready`.
+1. Migrate through `20260716001300`, start `cnr_banking` after `cnr_characters` and before `cnr_ui`, and confirm it reports `ready`.
 2. Complete a controlled spawn, use the City Tablet from F2, open Banking, and confirm the English app shows exactly one Cash Wallet, one Personal Checking account, and one posted starter allocation.
 3. Confirm the wallet and checking balances equal the migration-backed starter shares and that the associated three ledger entries sum to zero.
 4. Return to the Tablet home and reopen Banking, reconnect, and restart `cnr_banking`; confirm no duplicate account, transaction, or entry is created and all displayed balances remain unchanged.
-5. Confirm the NUI request includes only `request_id` and `contract_version`. Add a balance, account UUID, account type, character UUID, session UUID, operation UUID, or funding amount and confirm rejection without mutation.
+5. Confirm the snapshot request includes only `request_id` and `contract_version`. Confirm a transfer includes only recipient checking number, amount in integer minor units, purpose, request ID, operation UUID, and contract version. Add a sender account, balance, currency, account UUID/type/status, character UUID, session UUID, ledger entries, or result and confirm rejection without mutation.
 6. Connect with a LIMITED session or without a spawned active character and confirm the snapshot fails closed with a correlation reference and no account disclosure.
 7. Stop `cnr_characters` and `cnr_database` separately and confirm banking becomes degraded and snapshot reads fail closed. Restart each dependency and confirm recovery without reconnecting or duplicate funding.
-8. Open `http://localhost:5173/?view=tablet` and confirm the browser mock renders the reusable device home and disabled future apps. Open Banking and confirm both account cards, integer-to-currency formatting, posted starter activity, English loading/error states, Back to Apps, and Close actions. `?view=banking` may be used to start the same Tablet directly inside Banking for browser-only verification.
+8. Open `http://localhost:5173/?view=tablet` and confirm the FiveM world/background remains visible around the physical device, the generic mobile-style icon launcher renders Banking plus locked future apps, and the dock opens Banking with a smooth transition. Confirm both account cards, integer-to-currency formatting, signed activity, English loading/error states, Back to Apps, and Close actions. `?view=banking` may be used to start the same Tablet directly inside Banking for browser-only verification.
+9. With two FULL sessions and active characters, send a small amount to the second character's public Personal Checking number. Confirm the sender checking balance decreases, the recipient checking balance increases, and the two ledger entries sum to zero. Neither client may choose the sender account or currency.
+10. Repeat the same operation UUID and identical intent and confirm the stored receipt without a second debit. Change recipient, amount, purpose, source character, or any extra field and confirm `CONFLICT` or validation failure without movement.
+11. Attempt a self-transfer, unknown/frozen recipient, zero/negative/over-limit amount, insufficient balance, LIMITED session, inactive session, and missing active character. Confirm every attempt fails without a partial transaction or account disclosure.
+12. Interrupt the client response after confirmation, select the same retry action, and confirm the preserved operation UUID safely resolves the stored result. Restart `cnr_banking` and reconnect both players; balances and signed histories must remain unchanged.

@@ -3,7 +3,7 @@ fx_version('cerulean')
 game('gta5')
 
 author("Cops'N'Robbers RP")
-description('Character cash, checking accounts, and double-entry starter funding.')
+description('Character cash, checking accounts, starter funding, and secure bank transfers.')
 version('0.1.0')
 
 dependencies({

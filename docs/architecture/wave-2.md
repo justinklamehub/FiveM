@@ -26,10 +26,11 @@ The first slice implements:
 - exactly-once starter funding from a controlled system source through an atomic three-entry ledger;
 - balances calculated from immutable signed entries rather than client-owned or directly mutable fields;
 - one unique, non-tradeable, character-bound City Tablet with idempotent provisioning;
-- a reusable English Tablet shell with Banking as its first enabled app;
-- a read-only Banking app with account balances and recent posted activity.
+- a reusable transparent-stage English Tablet shell with an icon launcher and Banking as its first enabled app;
+- a Banking app with account balances, signed activity, and confirmed checking transfers;
+- replay-safe character-to-character transfers with server-derived senders and atomic debit/credit entries.
 
-Player transfers, deposits, withdrawals, cards, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
+Cash deposits, withdrawals, cards, recurring payments, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
 
 ## Ownership boundaries
 
@@ -106,8 +107,16 @@ single `STARTER_ALLOCATION`. Its entries debit the `SYSTEM_SOURCE` by the comple
 the wallet and checking account by their configured shares. The transaction and account uniqueness
 constraints make recovery safe after reconnects, concurrent reads, or resource restarts. Every balance
 shown in the Tablet Banking app is calculated as the sum of signed immutable entries. There is no
-direct Banking key binding. This slice exposes no payment or
-transfer mutation to the client.
+direct Banking key binding.
+
+Banking contract version 2 adds checking transfers. The client may send only a public recipient
+checking number, positive integer minor-unit amount, bounded purpose, request ID, operation UUID, and
+contract version. The server derives the source checking account from the active FULL session and
+spawned character. It rejects self-transfers, unavailable recipients, insufficient funds, stale account
+versions, and client-supplied sender or ledger fields. One guarded transaction marks both account
+versions with the operation UUID, inserts the immutable transfer, and posts equal debit and credit
+entries. The same operation UUID and payload returns the stored receipt and refreshed snapshot; changed
+reuse returns `CONFLICT`. Both sender and recipient histories are derived from their signed entries.
 
 ## Branch strategy
 

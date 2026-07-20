@@ -326,12 +326,20 @@ export interface StateIdentificationPresentation {
 
 export const tabletContractVersion = 1 as const;
 
-export const bankingContractVersion = 1 as const;
+export const bankingContractVersion = 2 as const;
 export type FinancialAccountType = 'CASH_WALLET' | 'PERSONAL_CHECKING';
 export type FinancialAccountStatus =
   'ACTIVE' | 'RESTRICTED' | 'FROZEN' | 'BLOCKED' | 'CLOSED' | 'PENDING_CLOSURE';
 export interface BankingSnapshotRequest {
   request_id: string;
+  contract_version: typeof bankingContractVersion;
+}
+export interface BankingTransferRequest {
+  recipient_account_number: string;
+  amount_minor: number;
+  purpose: string;
+  request_id: string;
+  operation_uuid: string;
   contract_version: typeof bankingContractVersion;
 }
 export interface FinancialAccountSummary {
@@ -346,9 +354,10 @@ export interface FinancialAccountSummary {
 export interface FinancialTransactionSummary {
   transaction_uuid: string;
   transaction_number: string;
-  transaction_type: 'STARTER_ALLOCATION';
+  transaction_type: 'STARTER_ALLOCATION' | 'BANK_TRANSFER';
   status: 'POSTED';
   amount_minor: number;
+  direction: 'CREDIT' | 'DEBIT';
   currency: 'USD';
   purpose: string;
   posted_at: string;
@@ -359,6 +368,19 @@ export interface BankingSnapshot {
   repeated: boolean;
   accounts: readonly FinancialAccountSummary[];
   recent_transactions: readonly FinancialTransactionSummary[];
+}
+export interface BankingTransferReceipt {
+  repeated: boolean;
+  operation_uuid: string;
+  transaction_uuid: string;
+  transaction_number: string;
+  source_account_number: string;
+  recipient_account_number: string;
+  amount_minor: number;
+  currency: 'USD';
+  purpose: string;
+  posted_at: string;
+  snapshot: BankingSnapshot;
 }
 
 export const playerLifecycleContractVersion = 1 as const;
