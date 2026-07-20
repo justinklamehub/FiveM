@@ -9,7 +9,7 @@ on:
 
 permissions:
   contents: write
-  issues: write
+  issues: read
 
 jobs:
   apply:
@@ -17,69 +17,35 @@ jobs:
       github.event.pull_request.number == 3 &&
       github.event.pull_request.head.ref == 'agent/wave-2-economic-foundations'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Check out the existing Wave 2 branch
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: agent/wave-2-economic-foundations
-          fetch-depth: 0
-
       - name: Retrieve and apply the reviewed implementation payload
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          stage='initialization'
-          report_failure() {
-            status=$?
-            gh api repos/${{ github.repository }}/issues/3/comments \
-              -f body="Dynamic shops publisher failed during ${stage} with exit code ${status}." >/dev/null || true
-            exit "${status}"
-          }
-          trap report_failure ERR
+          git clone --quiet --branch agent/wave-2-economic-foundations --single-branch \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" repository
+          cd repository
 
           if [[ -f database/migrations/20260716001500_dynamic_shops_item_purchases.sql ]]; then
             echo 'The dynamic shops implementation is already present.'
             exit 0
           fi
 
-          stage='payload retrieval'
-          gh api --paginate --slurp repos/${{ github.repository }}/issues/3/comments > /tmp/comments.json
-          python3 <<'PY'
-          import base64
-          import json
-          import pathlib
-          import re
-
-          pages = json.loads(pathlib.Path('/tmp/comments.json').read_text(encoding='utf-8'))
-          comments = [item for page in pages for item in page]
-          found = {}
-          pattern = re.compile(
-              r'^CNR_DYNAMIC_SHOPS_PAYLOAD_V1_PART_(\d+)_OF_3\n([A-Za-z0-9+/=]+)$'
-          )
-          for item in comments:
-              match = pattern.match(item.get('body', ''))
-              if match:
-                  found[int(match.group(1))] = match.group(2)
-          if sorted(found) != [1, 2, 3]:
-              raise SystemExit('Expected all three reviewed payload parts.')
-          payload = ''.join(found[index] for index in (1, 2, 3))
-          pathlib.Path('/tmp/dynamic-shops-overlay.tar.gz').write_bytes(
-              base64.b64decode(payload, validate=True)
-          )
-          PY
-
-          stage='payload extraction'
+          : > /tmp/dynamic-shops-overlay.b64
+          for comment_id in 5024201513 5024231379 5024289059; do
+            gh api "repos/${{ github.repository }}/issues/comments/${comment_id}" --jq .body \
+              | tail -n +2 >> /tmp/dynamic-shops-overlay.b64
+          done
+          base64 --decode /tmp/dynamic-shops-overlay.b64 > /tmp/dynamic-shops-overlay.tar.gz
+          gzip --test /tmp/dynamic-shops-overlay.tar.gz
           tar -xzf /tmp/dynamic-shops-overlay.tar.gz -C .
-          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
 
-          stage='commit creation'
+          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
           git config user.name 'cnr-development-bot'
           git config user.email 'cnr-development-bot@users.noreply.github.com'
           git add -A
           git diff --cached --check
           git commit -m 'Add dynamic server-authoritative shops'
-
-          stage='branch push'
           git push origin HEAD:agent/wave-2-economic-foundations
