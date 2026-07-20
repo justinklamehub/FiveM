@@ -22,8 +22,12 @@ The first slice implements:
 - server-derived one-unit food and drink consumption with client animations;
 - non-consumable State ID inspection and nearest-player presentation with server distance checks;
 - browser mocks, contracts, MariaDB tests, Lua policy tests, and audit events.
+- one server-created cash wallet and personal checking account per spawned character;
+- exactly-once starter funding from a controlled system source through an atomic three-entry ledger;
+- balances calculated from immutable signed entries rather than client-owned or directly mutable fields;
+- an English read-only F4 banking view with account balances and recent posted activity.
 
-Banking, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
+Player transfers, deposits, withdrawals, cards, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
 
 ## Ownership boundaries
 
@@ -86,6 +90,19 @@ Water and food definitions publish only `USE` capability. Their private server h
 Starter provisioning and completed transfers include request/correlation context and stable object references. Logs exclude platform identifiers, secrets, item-instance metadata, and document contents.
 
 Both resources publish readiness. Inventory mutations fail closed if the catalogue, character authority, session authority, core, or database is unavailable.
+
+## Banking foundation
+
+`cnr_banking` is the only resource allowed to create financial accounts or ledger entries. It resolves
+the FULL session and spawned character from the active FiveM source. The client snapshot contains only
+a request ID and contract version.
+
+The first controlled spawn creates one `CASH_WALLET` and one `PERSONAL_CHECKING` account and posts a
+single `STARTER_ALLOCATION`. Its entries debit the `SYSTEM_SOURCE` by the complete amount and credit
+the wallet and checking account by their configured shares. The transaction and account uniqueness
+constraints make recovery safe after reconnects, concurrent reads, or resource restarts. Every balance
+shown by F4 is calculated as the sum of signed immutable entries. This slice exposes no payment or
+transfer mutation to the client.
 
 ## Branch strategy
 

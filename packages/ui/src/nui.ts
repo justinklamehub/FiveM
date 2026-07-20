@@ -21,6 +21,7 @@ const bridgedEvents = new Set([
   'inventory.reposition',
   'inventory.transfer',
   'inventory.use',
+  'banking.snapshot',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -116,6 +117,48 @@ function browserMock(event: string, body: unknown): unknown {
       ok: true,
       data: { ...mockRuleset, locale: 'en' },
       correlation_id: 'mock-ruleset',
+    };
+  if (event === 'banking.snapshot')
+    return {
+      ok: true,
+      data: {
+        currency: 'USD',
+        starter_provisioned: true,
+        repeated: true,
+        accounts: [
+          {
+            account_uuid: '0190b7a0-7000-7000-8000-000000000010',
+            account_number: 'CASH-800000000010',
+            account_type: 'CASH_WALLET',
+            currency: 'USD',
+            status: 'ACTIVE',
+            balance_minor: 5000,
+            version: 1,
+          },
+          {
+            account_uuid: '0190b7a0-7000-7000-8000-000000000011',
+            account_number: 'SA-800000000011',
+            account_type: 'PERSONAL_CHECKING',
+            currency: 'USD',
+            status: 'ACTIVE',
+            balance_minor: 25000,
+            version: 1,
+          },
+        ],
+        recent_transactions: [
+          {
+            transaction_uuid: '0190b7a0-7000-7000-8000-000000000020',
+            transaction_number: 'TX-0190B7A0700070008000000000000020',
+            transaction_type: 'STARTER_ALLOCATION',
+            status: 'POSTED',
+            amount_minor: 30000,
+            currency: 'USD',
+            purpose: 'Initial character funds',
+            posted_at: '2026-07-20T12:00:00Z',
+          },
+        ],
+      },
+      correlation_id: 'mock-banking',
     };
   if (event === 'inventory.snapshot')
     return {

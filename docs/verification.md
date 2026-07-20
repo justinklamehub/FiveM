@@ -1,6 +1,6 @@
 # Project verification
 
-The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the first Wave 2 item/inventory slice. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. A live Wave 2 pass has also confirmed starter provisioning, F2/F3 inventory opening, direct same- and cross-inventory drag/drop, immediate confirmed UI updates, and persistent locker transfer. The newly packaged PNG artwork still requires the short visual check below.
+The automated pipeline covers the Wave 0 foundation, all six Wave 1 slices, and the Wave 2 item/inventory and banking-foundation slices. Live operator passes have confirmed one English Wave 1 path from connection through registration, character creation, visible appearance customization, persistence, the packaged CNR loadscreen, automatic character-selection handoff, controlled entry, a successful reconnect with the stored appearance and spawn location, the hybrid-policy LIMITED-access barrier, and fail-closed recovery after stopping and restarting `cnr_characters`. A live Wave 2 pass has also confirmed starter provisioning, F2/F3 inventory opening, direct same- and cross-inventory drag/drop, immediate confirmed UI updates, and persistent locker transfer. The F4 banking foundation still requires the short live check below.
 
 Run from a fresh checkout:
 
@@ -23,10 +23,10 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716001000_inventory_item_use.sql` as applied.
+- dbmate reports every ordered migration through `20260716001100_banking_ledger_foundation.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core, Wave 1, item, and inventory policy tests.
-- no banking, vehicles, character jobs, rewards, oil, or crime gameplay exists; the implemented inventory is an economic foundation only.
+- no client money mutations, player transfers, vehicles, character jobs, rewards, oil, or crime gameplay exists; banking is currently a read-only ledger foundation.
 
 For a destructive local migration rehearsal only:
 
@@ -139,3 +139,14 @@ pnpm db:migrate
 12. Drag a stack larger than one between F3 panels and confirm the English quantity dialog clamps between one and the source quantity. Move a partial amount and then the remainder; confirm each direct drop updates both panels without a snapshot reload and the stored quantities survive reconnect.
 13. Double-click or right-click a Water Bottle and Sandwich in F2. Confirm the server consumes exactly one unit, persists one `USE_ITEM` transaction, returns the stored outcome on an identical operation UUID, rejects changed reuse, and the client plays only the server-issued drink or eat animation.
 14. Inspect the State ID and confirm the English card contains only the server-resolved holder name, date of birth, document number, and issue date. With two clients, show it inside the configured radius and confirm only the nearest player receives it. Repeat outside the radius and confirm no transaction or disclosure occurs.
+
+## Wave 2 banking foundation
+
+1. Migrate through `20260716001100`, start `cnr_banking` after `cnr_characters` and before `cnr_ui`, and confirm it reports `ready`.
+2. Complete a controlled spawn, press F4, and confirm the English view shows exactly one Cash Wallet, one Personal Checking account, and one posted starter allocation.
+3. Confirm the wallet and checking balances equal the migration-backed starter shares and that the associated three ledger entries sum to zero.
+4. Close and reopen F4, reconnect, and restart `cnr_banking`; confirm no duplicate account, transaction, or entry is created and all displayed balances remain unchanged.
+5. Confirm the NUI request includes only `request_id` and `contract_version`. Add a balance, account UUID, account type, character UUID, session UUID, operation UUID, or funding amount and confirm rejection without mutation.
+6. Connect with a LIMITED session or without a spawned active character and confirm the snapshot fails closed with a correlation reference and no account disclosure.
+7. Stop `cnr_characters` and `cnr_database` separately and confirm banking becomes degraded and snapshot reads fail closed. Restart each dependency and confirm recovery without reconnecting or duplicate funding.
+8. Open `http://localhost:5173/?view=banking` and confirm the browser mock renders both account cards, integer-to-currency formatting, posted starter activity, English loading/error states, and a working Close action.

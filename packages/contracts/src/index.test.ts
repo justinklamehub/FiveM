@@ -15,6 +15,7 @@ import {
   characterAppearanceContractVersion,
   characterSelectionContractVersion,
   inventoryContractVersion,
+  bankingContractVersion,
   type SaveCharacterAppearance,
   type SelectCharacter,
   type CreateCharacterDraft,
@@ -23,6 +24,7 @@ import {
   type InventoryRepositionRequest,
   type InventoryTransferRequest,
   type InventoryUseRequest,
+  type BankingSnapshotRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -263,6 +265,39 @@ describe('core contracts', () => {
         },
       }),
     ).toBe(true);
+  });
+
+  it('keeps banking reads free of balance, ownership, account, and funding authority', () => {
+    const request: BankingSnapshotRequest = {
+      request_id: 'banking-read-1',
+      contract_version: bankingContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual(['contract_version', 'request_id']);
+    expect(Object.keys(request)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'character_uuid',
+        'session_uuid',
+        'balance_minor',
+        'account_type',
+        'starter_cash_minor',
+        'starter_checking_minor',
+      ]),
+    );
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.banking.open',
+        payload: { contract_version: bankingContractVersion },
+      }),
+    ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.banking.open',
+        payload: { contract_version: bankingContractVersion, balance_minor: 999999 },
+      }),
+    ).toBe(false);
   });
 
   it('keeps technical permission contracts role-agnostic', () => {

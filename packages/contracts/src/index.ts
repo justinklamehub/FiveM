@@ -323,6 +323,41 @@ export interface StateIdentificationPresentation {
   document: StateIdentificationView;
 }
 
+export const bankingContractVersion = 1 as const;
+export type FinancialAccountType = 'CASH_WALLET' | 'PERSONAL_CHECKING';
+export type FinancialAccountStatus =
+  'ACTIVE' | 'RESTRICTED' | 'FROZEN' | 'BLOCKED' | 'CLOSED' | 'PENDING_CLOSURE';
+export interface BankingSnapshotRequest {
+  request_id: string;
+  contract_version: typeof bankingContractVersion;
+}
+export interface FinancialAccountSummary {
+  account_uuid: string;
+  account_number: string;
+  account_type: FinancialAccountType;
+  currency: 'USD';
+  status: FinancialAccountStatus;
+  balance_minor: number;
+  version: number;
+}
+export interface FinancialTransactionSummary {
+  transaction_uuid: string;
+  transaction_number: string;
+  transaction_type: 'STARTER_ALLOCATION';
+  status: 'POSTED';
+  amount_minor: number;
+  currency: 'USD';
+  purpose: string;
+  posted_at: string;
+}
+export interface BankingSnapshot {
+  currency: 'USD';
+  starter_provisioned: true;
+  repeated: boolean;
+  accounts: readonly FinancialAccountSummary[];
+  recent_transactions: readonly FinancialTransactionSummary[];
+}
+
 export const playerLifecycleContractVersion = 1 as const;
 export const playerLifecyclePhases = [
   'CONNECTING',
@@ -448,6 +483,11 @@ export type NuiMessage =
     }
   | {
       version: 1;
+      type: 'ui.banking.open';
+      payload: { contract_version: typeof bankingContractVersion };
+    }
+  | {
+      version: 1;
       type: 'ui.character.spawn_failed';
       payload: { correlation_id: string };
     }
@@ -526,6 +566,13 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
       typeof document.last_name === 'string' &&
       typeof document.date_of_birth === 'string' &&
       typeof document.issued_at === 'string'
+    );
+  }
+  if (candidate.type === 'ui.banking.open') {
+    const payload = candidate.payload as { contract_version?: unknown };
+    return (
+      Object.keys(candidate.payload).join(',') === 'contract_version' &&
+      payload.contract_version === bankingContractVersion
     );
   }
   if (candidate.type === 'ui.request.response') {

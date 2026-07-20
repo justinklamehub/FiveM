@@ -15,6 +15,7 @@ describe('FiveM manifest contract', () => {
     'cnr_sessions',
     'cnr_items',
     'cnr_inventory',
+    'cnr_banking',
   ];
   it.each(resources)('%s uses the approved manifest runtime', (resource) => {
     const manifest = fs.readFileSync(`resources/[cnr]/${resource}/fxmanifest.lua`, 'utf8');
@@ -33,6 +34,7 @@ describe('FiveM manifest contract', () => {
       'cnr_registration',
       'cnr_sessions',
       'cnr_characters',
+      'cnr_banking',
     ]) {
       expect(manifest).not.toMatch(new RegExp(`['"]${dependency}['"]`));
     }

@@ -260,6 +260,39 @@ RegisterNetEvent('cnr:inventory:response', function(action, request_id, result)
     end
 end)
 
+local pending_banking = {}
+RegisterNUICallback('banking.snapshot', function(payload, callback)
+    local request_id = payload and payload.request_id
+    if type(request_id) ~= 'string' or request_id == '' or pending_banking[request_id] then
+        callback({
+            ok = false,
+            error = {
+                code = 'VALIDATION_ERROR',
+                message_key = 'banking.error.invalid_request',
+            },
+        })
+        return
+    end
+    pending_banking[request_id] = true
+    expire_pending(pending_banking, request_id)
+    TriggerServerEvent('cnr:banking:request', 'snapshot', payload)
+    callback({ ok = true, queued = true, request_id = request_id })
+end)
+RegisterNetEvent('cnr:banking:response', function(action, request_id, result)
+    if action == 'snapshot' and pending_banking[request_id] then
+        pending_banking[request_id] = nil
+        SendNUIMessage({
+            version = 1,
+            type = 'ui.request.response',
+            payload = {
+                event = 'banking.snapshot',
+                request_id = request_id,
+                result = result,
+            },
+        })
+    end
+end)
+
 local function play_inventory_animation(dictionary, animation)
     CreateThread(function()
         RequestAnimDict(dictionary)
@@ -688,6 +721,18 @@ RegisterCommand('cnr_storage_open', function()
     })
 end, false)
 RegisterKeyMapping('cnr_storage_open', 'Open nearby personal locker', 'keyboard', 'F3')
+RegisterCommand('cnr_banking_open', function()
+    if lifecycle_locked then
+        return
+    end
+    set_focus('banking')
+    SendNUIMessage({
+        version = 1,
+        type = 'ui.banking.open',
+        payload = { contract_version = 1 },
+    })
+end, false)
+RegisterKeyMapping('cnr_banking_open', 'Open personal banking', 'keyboard', 'F4')
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         set_focus(nil)

@@ -19,6 +19,7 @@ import { InventoryPanel } from './InventoryPanel';
 import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase } from './lifecycle';
 import { isBrowserMock, postNui } from './nui';
 import { StateIdentificationCard } from './StateIdentificationCard';
+import { BankingPanel } from './BankingPanel';
 
 const newId = () => crypto.randomUUID();
 
@@ -34,6 +35,10 @@ export function App() {
         ? 'storage'
         : 'personal',
     [],
+  );
+  const browserBanking = useMemo(
+    () => mock && new URLSearchParams(currentBrowserSearch()).get('view') === 'banking',
+    [mock],
   );
   const browserIdentification = useMemo<StateIdentificationPresentation | null>(() => {
     if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'document')
@@ -65,6 +70,7 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [inventoryOpen, setInventoryOpen] = useState(browserInventory);
+  const [bankingOpen, setBankingOpen] = useState(browserBanking);
   const [inventoryView, setInventoryView] = useState<InventoryOpenView>(browserInventoryView);
   const [identification, setIdentification] = useState<StateIdentificationPresentation | null>(
     browserIdentification,
@@ -176,12 +182,19 @@ export function App() {
         setVisible(false);
       } else if (event.data.type === 'ui.lifecycle.open') {
         setInventoryOpen(false);
+        setBankingOpen(false);
         applySnapshot(event.data.payload);
       } else if (event.data.type === 'ui.inventory.open') {
+        setBankingOpen(false);
         setInventoryView(event.data.payload.view);
         setInventoryOpen(true);
         setVisible(true);
         setFocus((current) => claimFocus(current, 'inventory'));
+      } else if (event.data.type === 'ui.banking.open') {
+        setInventoryOpen(false);
+        setBankingOpen(true);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'banking'));
       } else if (event.data.type === 'ui.inventory.document') {
         setIdentification(event.data.payload);
       } else if (event.data.type === 'ui.character.spawn_failed') {
@@ -207,6 +220,18 @@ export function App() {
     setIdentification(null);
     void postNui<{ ok: boolean }>('inventory.documentClose', {}).catch(() => undefined);
   };
+
+  if (bankingOpen) {
+    return (
+      <BankingPanel
+        onClose={() => {
+          setBankingOpen(false);
+          setVisible(false);
+          setFocus(initialFocusState);
+        }}
+      />
+    );
+  }
 
   if (inventoryOpen) {
     return (
