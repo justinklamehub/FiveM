@@ -1,4 +1,4 @@
-name: Verify dynamic shops payload fragments
+name: Export dynamic shops payload fragments
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   issues: read
 
 jobs:
-  verify:
+  export:
     if: >-
       github.event.pull_request.number == 3 &&
       github.event.pull_request.head.ref == 'agent/wave-2-economic-foundations'
@@ -19,17 +19,22 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Report fragment lengths and hashes
+      - name: Export comment fragments
         shell: bash
         run: |
           set -euo pipefail
-          comment_ids=(5024201513 5024231379 5024389278 5024408513 5024289059)
-          for comment_id in "${comment_ids[@]}"; do
-            file="/tmp/${comment_id}.txt"
-            gh api "repos/${{ github.repository }}/issues/comments/${comment_id}" --jq .body \
-              | tail -n +2 | tr -d '\n\r' > "${file}"
-            printf '%s %s %s\n' \
-              "${comment_id}" \
-              "$(wc -c < "${file}" | tr -d ' ')" \
-              "$(sha256sum "${file}" | awk '{print $1}')"
+          mkdir -p /tmp/dynamic-shops-fragments
+          comment_ids=(5024201513 5024231379 5024389278)
+          names=(part-0 part-1 q0)
+          for index in 0 1 2; do
+            gh api "repos/${{ github.repository }}/issues/comments/${comment_ids[$index]}" --jq .body \
+              | tail -n +2 | tr -d '\n\r' \
+              > "/tmp/dynamic-shops-fragments/${names[$index]}"
           done
+      - name: Upload verified fragments
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-shops-verified-fragments
+          path: /tmp/dynamic-shops-fragments
+          if-no-files-found: error
+          retention-days: 1
