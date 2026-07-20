@@ -9,7 +9,7 @@ on:
 
 permissions:
   contents: write
-  issues: read
+  issues: write
 
 jobs:
   apply:
@@ -30,10 +30,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          stage='initialization'
+          report_failure() {
+            status=$?
+            gh api repos/${{ github.repository }}/issues/3/comments \
+              -f body="Dynamic shops publisher failed during ${stage} with exit code ${status}." >/dev/null || true
+            exit "${status}"
+          }
+          trap report_failure ERR
+
           if [[ -f database/migrations/20260716001500_dynamic_shops_item_purchases.sql ]]; then
             echo 'The dynamic shops implementation is already present.'
             exit 0
           fi
+
+          stage='payload retrieval'
           gh api --paginate --slurp repos/${{ github.repository }}/issues/3/comments > /tmp/comments.json
           python3 <<'PY'
           import base64
@@ -58,10 +69,17 @@ jobs:
               base64.b64decode(payload, validate=True)
           )
           PY
+
+          stage='payload extraction'
           tar -xzf /tmp/dynamic-shops-overlay.tar.gz -C .
+          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
+
+          stage='commit creation'
           git config user.name 'cnr-development-bot'
           git config user.email 'cnr-development-bot@users.noreply.github.com'
           git add -A
           git diff --cached --check
           git commit -m 'Add dynamic server-authoritative shops'
+
+          stage='branch push'
           git push origin HEAD:agent/wave-2-economic-foundations
