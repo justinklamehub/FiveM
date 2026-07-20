@@ -33,11 +33,25 @@ jobs:
             exit 0
           fi
 
+          comment_ids=(5024201513 5024231379 5024289059)
+          expected_lengths=(19000 19000 18588)
+          expected_hashes=(
+            3d49518af554e5fe837562955a43dcfb34854c79eade01bafb6d3830a980b4cf
+            de3e1431061ed194909cf5e0bf549a126a0268cb9ef8e592c3a5e667036efc48
+            fe3663ccbf0155609d315bfc405c0ea6117bffb8630499030f288672547d662e
+          )
           : > /tmp/dynamic-shops-overlay.b64
-          for comment_id in 5024201513 5024231379 5024289059; do
-            gh api "repos/${{ github.repository }}/issues/comments/${comment_id}" --jq .body \
-              | tail -n +2 >> /tmp/dynamic-shops-overlay.b64
+          for index in 0 1 2; do
+            gh api "repos/${{ github.repository }}/issues/comments/${comment_ids[$index]}" --jq .body \
+              | tail -n +2 | tr -d '\n\r' > "/tmp/payload-part-${index}.b64"
+            actual_length=$(wc -c < "/tmp/payload-part-${index}.b64")
+            actual_hash=$(sha256sum "/tmp/payload-part-${index}.b64" | cut -d' ' -f1)
+            echo "Payload part $((index + 1)): length=${actual_length}, sha256=${actual_hash}"
+            test "${actual_length}" = "${expected_lengths[$index]}"
+            test "${actual_hash}" = "${expected_hashes[$index]}"
+            cat "/tmp/payload-part-${index}.b64" >> /tmp/dynamic-shops-overlay.b64
           done
+
           base64 --decode /tmp/dynamic-shops-overlay.b64 > /tmp/dynamic-shops-overlay.tar.gz
           gzip --test /tmp/dynamic-shops-overlay.tar.gz
           tar -xzf /tmp/dynamic-shops-overlay.tar.gz -C .
