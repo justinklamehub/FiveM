@@ -1,4 +1,4 @@
-name: Apply dynamic shops implementation
+name: Verify dynamic shops payload fragments
 
 on:
   pull_request:
@@ -8,11 +8,10 @@ on:
       - synchronize
 
 permissions:
-  contents: write
   issues: read
 
 jobs:
-  apply:
+  verify:
     if: >-
       github.event.pull_request.number == 3 &&
       github.event.pull_request.head.ref == 'agent/wave-2-economic-foundations'
@@ -20,47 +19,17 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Retrieve and apply the reviewed implementation payload
+      - name: Report fragment lengths and hashes
         shell: bash
         run: |
           set -euo pipefail
-          git clone --quiet --branch agent/wave-2-economic-foundations --single-branch \
-            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" repository
-          cd repository
-
-          if [[ -f database/migrations/20260716001500_dynamic_shops_item_purchases.sql ]]; then
-            echo 'The dynamic shops implementation is already present.'
-            exit 0
-          fi
-
-          comment_ids=(5024201513 5024231379 5024389278 5024408513)
-          expected_lengths=(19000 19000 9294 9294)
-          expected_hashes=(
-            3d49518af554e5fe837562955a43dcfb34854c79eade01bafb6d3830a980b4cf
-            de3e1431061ed194909cf5e0bf549a126a0268cb9ef8e592c3a5e667036efc48
-            b6ca36c9ed880ff92f539f01cf7dc64ec69953095c13415fedc4435b8be8d988
-            93ff76e304136b8d121f67220252a4d397f1d040260f6c92c65d1c092bfa46c7
-          )
-          : > /tmp/dynamic-shops-overlay.b64
-          for index in 0 1 2 3; do
-            gh api "repos/${{ github.repository }}/issues/comments/${comment_ids[$index]}" --jq .body \
-              | tail -n +2 | tr -d '\n\r' > "/tmp/payload-part-${index}.b64"
-            actual_length=$(wc -c < "/tmp/payload-part-${index}.b64")
-            actual_hash=$(sha256sum "/tmp/payload-part-${index}.b64" | cut -d' ' -f1)
-            echo "Payload part $((index + 1)): length=${actual_length}, sha256=${actual_hash}"
-            test "${actual_length}" = "${expected_lengths[$index]}"
-            test "${actual_hash}" = "${expected_hashes[$index]}"
-            cat "/tmp/payload-part-${index}.b64" >> /tmp/dynamic-shops-overlay.b64
+          comment_ids=(5024201513 5024231379 5024389278 5024408513 5024289059)
+          for comment_id in "${comment_ids[@]}"; do
+            file="/tmp/${comment_id}.txt"
+            gh api "repos/${{ github.repository }}/issues/comments/${comment_id}" --jq .body \
+              | tail -n +2 | tr -d '\n\r' > "${file}"
+            printf '%s %s %s\n' \
+              "${comment_id}" \
+              "$(wc -c < "${file}" | tr -d ' ')" \
+              "$(sha256sum "${file}" | awk '{print $1}')"
           done
-
-          base64 --decode /tmp/dynamic-shops-overlay.b64 > /tmp/dynamic-shops-overlay.tar.gz
-          gzip --test /tmp/dynamic-shops-overlay.tar.gz
-          tar -xzf /tmp/dynamic-shops-overlay.tar.gz -C .
-
-          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
-          git config user.name 'cnr-development-bot'
-          git config user.email 'cnr-development-bot@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'Add dynamic server-authoritative shops'
-          git push origin HEAD:agent/wave-2-economic-foundations
