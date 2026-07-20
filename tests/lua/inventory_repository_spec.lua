@@ -43,7 +43,7 @@ local function context(mode)
         },
         request_id = 'inventory-reposition-repository-1',
         correlation_id = 'inventory-reposition-correlation-1',
-        contract_version = 4,
+        contract_version = 5,
         payload_sha256 = string.rep('a', 64),
         plan = { mode = mode, source_slot = 1, target_slot = 4 },
     }
@@ -116,7 +116,7 @@ local function transfer_context(mode)
         quantity = 1,
         request_id = 'inventory-transfer-repository-1',
         correlation_id = 'inventory-transfer-correlation-1',
-        contract_version = 4,
+        contract_version = 5,
         payload_sha256 = string.rep('b', 64),
         plan = { mode = mode, target_slot = 1 },
     }
@@ -146,6 +146,58 @@ describe('inventory repository transfer transaction', function()
             if mode == 'STACK' then
                 assert.is_truthy(operation.query:find('ti.slot_number=?', 1, true))
             end
+        end)
+    end
+end)
+
+local function use_context(action, consumed, with_instance)
+    return {
+        operation_uuid = '0190b7a0-6200-7000-8000-000000000031',
+        account_uuid = '0190b7a0-6200-7000-8000-000000000032',
+        session_uuid = '0190b7a0-6200-7000-8000-000000000033',
+        character_uuid = '0190b7a0-6200-7000-8000-000000000034',
+        inventory = {
+            id = 1,
+            inventory_uuid = '0190b7a0-6200-7000-8000-000000000035',
+            version = 3,
+        },
+        source_entry = {
+            id = 10,
+            entry_uuid = '0190b7a0-6200-7000-8000-000000000036',
+            definition_id = 2,
+            item_instance_id = with_instance and 12 or nil,
+            slot_number = 1,
+            version = 4,
+            quantity = consumed == 1 and 2 or 1,
+            definition = {
+                use_handler = with_instance and 'state_id_document' or 'consume_water',
+            },
+        },
+        request_id = 'inventory-use-repository-1',
+        correlation_id = 'inventory-use-correlation-1',
+        contract_version = 5,
+        payload_sha256 = string.rep('c', 64),
+        plan = { action = action, quantity_consumed = consumed },
+    }
+end
+
+describe('inventory repository item-use transaction', function()
+    for _, scenario in ipairs({
+        { action = 'DRINK', consumed = 1, with_instance = false },
+        { action = 'INSPECT_ID', consumed = 0, with_instance = true },
+    }) do
+        it('matches guarded SQL placeholders for ' .. scenario.action, function()
+            local captured = {}
+            local repository = load_repository(captured)
+            local result = repository.use_item(
+                use_context(scenario.action, scenario.consumed, scenario.with_instance)
+            )
+            assert.is_true(result.ok)
+            local operation = captured.queries[3]
+            assert.are.equal(placeholder_count(operation.query), #operation.values)
+            assert.is_truthy(operation.query:find("'USE_ITEM'", 1, true))
+            assert.is_truthy(operation.query:find('d.use_handler=?', 1, true))
+            assert.are.equal(scenario.consumed == 1 and 5 or 3, #captured.queries)
         end)
     end
 end)

@@ -13,6 +13,8 @@ import { postNui } from './nui';
 import {
   applyConfirmedInventoryReposition,
   applyConfirmedInventoryTransfer,
+  applyConfirmedInventoryUse,
+  clampTransferQuantity,
   inventoryIconFallback,
   inventoryIconSource,
   inventorySlotNumbers,
@@ -29,6 +31,42 @@ describe('inventory browser mock', () => {
     expect(inventoryIconSource('sandwich')).toBe('./assets/items/sandwich.png');
     expect(inventoryIconSource('state_id')).toBe('./assets/items/state_id.png');
     expect(inventoryIconSource('future_item')).toBeNull();
+  });
+
+  it('clamps a selected transfer quantity to one complete source stack', () => {
+    expect(clampTransferQuantity(2, 5)).toBe(2);
+    expect(clampTransferQuantity(0, 5)).toBe(1);
+    expect(clampTransferQuantity(12, 5)).toBe(5);
+    expect(clampTransferQuantity(2.9, 5)).toBe(2);
+    expect(clampTransferQuantity(Number.NaN, 5)).toBe(1);
+  });
+
+  it('applies one server-confirmed consumable use without refreshing the snapshot', async () => {
+    const snapshot = await postNui<Result<PersonalInventorySnapshot>>('inventory.snapshot', {
+      request_id: 'inventory-use-snapshot',
+      contract_version: inventoryContractVersion,
+    });
+    expect(snapshot.ok).toBe(true);
+    if (!snapshot.ok) return;
+    const water = snapshot.data.entries.find((entry) => entry.definition.code === 'water_bottle');
+    expect(water).toBeDefined();
+    if (!water) return;
+    const outcome = {
+      repeated: false,
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000090',
+      inventory_uuid: snapshot.data.inventory_uuid,
+      source_slot: water.slot_number,
+      quantity_consumed: 1 as const,
+      inventory_version: snapshot.data.version + 1,
+      effect: 'DRINK_WATER' as const,
+    };
+    const updated = applyConfirmedInventoryUse(snapshot.data, outcome);
+    expect(updated.entries.find((entry) => entry.entry_uuid === water.entry_uuid)?.quantity).toBe(
+      water.quantity - 1,
+    );
+    expect(updated.current_weight_grams).toBe(
+      snapshot.data.current_weight_grams - water.definition.unit_weight_grams,
+    );
   });
 
   it('returns the server-shaped starter inventory without authoritative request fields', async () => {

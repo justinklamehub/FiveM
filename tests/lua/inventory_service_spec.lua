@@ -37,6 +37,9 @@ local function load_service(repository, session, character_result, player_coordi
     environment.GetEntityCoords = function()
         return player_coordinates or { x = 215.76, y = -810.12, z = 30.73 }
     end
+    environment.GetPlayers = function()
+        return {}
+    end
     environment.exports = {
         cnr_sessions = {
             get_session_for_source = function()
@@ -87,7 +90,7 @@ local function inventory_row(inventory_uuid, inventory_type)
     }
 end
 
-local read = { request_id = 'inventory-read-1', contract_version = 4 }
+local read = { request_id = 'inventory-read-1', contract_version = 5 }
 local transfer = {
     source_inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
     target_inventory_uuid = '0190b7a0-6000-7000-8000-000000000011',
@@ -96,7 +99,7 @@ local transfer = {
     quantity = 1,
     request_id = 'inventory-transfer-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-    contract_version = 4,
+    contract_version = 5,
 }
 local reposition = {
     inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
@@ -104,7 +107,15 @@ local reposition = {
     target_slot = 4,
     request_id = 'inventory-reposition-1',
     operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
-    contract_version = 4,
+    contract_version = 5,
+}
+local use_item = {
+    inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
+    source_slot = 1,
+    intent = 'USE',
+    request_id = 'inventory-use-1',
+    operation_uuid = '0190b7a0-6000-7000-8000-000000000014',
+    contract_version = 5,
 }
 
 describe('inventory service authority', function()
@@ -278,7 +289,7 @@ describe('inventory service authority', function()
         local captured
         local repository = {
             payload_hash = function(parts)
-                assert.are.equal(4, parts[5])
+                assert.are.equal(5, parts[5])
                 return { payload_sha256 = string.rep('a', 64) }
             end,
             transaction = function()
@@ -422,5 +433,100 @@ describe('inventory service authority', function()
         assert.are.equal(4, result.data.target_slot)
         assert.are.equal('CREATE_STACK', result.data.mode)
         assert.are.equal(3, result.data.target_version)
+    end)
+
+    it('consumes exactly one server-defined item and records the selected slot', function()
+        local captured
+        local repository = {
+            payload_hash = function(parts)
+                assert.are.equal('USE_ITEM', parts[1])
+                assert.are.equal('USE', parts[4])
+                return { payload_sha256 = string.rep('a', 64) }
+            end,
+            transaction = function()
+                return nil
+            end,
+            find_owned = function()
+                return inventory_row(use_item.inventory_uuid, 'CHARACTER')
+            end,
+            entries = function()
+                return {
+                    {
+                        id = 10,
+                        entry_uuid = '0190b7a0-6000-7000-8000-000000000020',
+                        slot_number = 1,
+                        quantity = 2,
+                        version = 1,
+                        definition_id = 3,
+                        has_instance = false,
+                        definition_uuid = '0190b7a0-6000-7000-8000-000000000021',
+                        code = 'water_bottle',
+                        category = 'CONSUMABLE',
+                        label = 'Water Bottle',
+                        description = 'A sealed bottle.',
+                        icon_key = 'water_bottle',
+                        use_handler = 'consume_water',
+                        is_stackable = true,
+                        is_unique = false,
+                        max_stack = 10,
+                        unit_weight_grams = 500,
+                        definition_version = 1,
+                    },
+                }
+            end,
+            use_item = function(context)
+                captured = context
+                return { ok = true }
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).use_item(12, use_item, 'correlation-use')
+        assert.is_true(result.ok)
+        assert.are.equal(1, result.data.quantity_consumed)
+        assert.are.equal('DRINK_WATER', result.data.effect)
+        assert.are.equal('DRINK', captured.plan.action)
+    end)
+
+    it('rejects a reused item-use operation with changed intent', function()
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = string.rep('b', 64) }
+            end,
+            transaction = function()
+                return {
+                    action = 'USE_ITEM',
+                    account_uuid = 'account-1',
+                    character_uuid = 'character-1',
+                    payload_sha256 = string.rep('a', 64),
+                }
+            end,
+            find_owned = function()
+                return inventory_row(use_item.inventory_uuid, 'CHARACTER')
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).use_item(12, use_item, 'correlation-use-conflict')
+        assert.is_false(result.ok)
+        assert.are.equal('CONFLICT', result.error.code)
     end)
 end)

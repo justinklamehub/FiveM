@@ -238,6 +238,11 @@ function Service.active_character_for_source(player_source, correlation_id)
         character_uuid = binding.character_uuid,
         binding_uuid = binding.binding_uuid,
         state_document_uuid = document.document_uuid,
+        state_document_number = document.document_number,
+        state_document_issued_at = document.issued_at,
+        first_name = binding.first_name,
+        last_name = binding.last_name,
+        date_of_birth = binding.date_of_birth,
     }, correlation_id)
 end
 

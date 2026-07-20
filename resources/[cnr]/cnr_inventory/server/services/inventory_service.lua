@@ -42,6 +42,11 @@ local function source_context(player_source, correlation_id)
         character_uuid = character.data.character_uuid,
         binding_uuid = character.data.binding_uuid,
         state_document_uuid = character.data.state_document_uuid,
+        state_document_number = character.data.state_document_number,
+        state_document_issued_at = character.data.state_document_issued_at,
+        first_name = character.data.first_name,
+        last_name = character.data.last_name,
+        date_of_birth = character.data.date_of_birth,
     }
 end
 
@@ -102,6 +107,16 @@ local function database_boolean(value)
     return value == true or value == 1 or value == '1'
 end
 
+local function item_actions(use_handler)
+    if use_handler == 'consume_water' or use_handler == 'consume_food' then
+        return { 'USE' }
+    end
+    if use_handler == 'state_id_document' then
+        return { 'INSPECT', 'SHOW' }
+    end
+    return {}
+end
+
 local function entry_values(row)
     return {
         id = tonumber(row.id),
@@ -124,6 +139,8 @@ local function entry_values(row)
             max_stack = tonumber(row.max_stack),
             unit_weight_grams = tonumber(row.unit_weight_grams),
             version = tonumber(row.definition_version),
+            use_handler = row.use_handler,
+            actions = item_actions(row.use_handler),
         },
     }
 end
@@ -147,7 +164,20 @@ local function public_snapshot(inventory, entries, starter_provisioned)
             entry_uuid = entry.entry_uuid,
             slot_number = entry.slot_number,
             quantity = entry.quantity,
-            definition = entry.definition,
+            definition = {
+                definition_uuid = entry.definition.definition_uuid,
+                code = entry.definition.code,
+                category = entry.definition.category,
+                label = entry.definition.label,
+                description = entry.definition.description,
+                icon_key = entry.definition.icon_key,
+                is_stackable = entry.definition.is_stackable,
+                is_unique = entry.definition.is_unique,
+                max_stack = entry.definition.max_stack,
+                unit_weight_grams = entry.definition.unit_weight_grams,
+                version = entry.definition.version,
+                actions = entry.definition.actions,
+            },
             total_weight_grams = entry.quantity * entry.definition.unit_weight_grams,
         }
     end
@@ -160,6 +190,70 @@ local function public_snapshot(inventory, entries, starter_provisioned)
         version = inventory.version,
         starter_provisioned = starter_provisioned,
         entries = public_entries,
+    }
+end
+
+local function nearest_player(player_source, radius)
+    local source_ped = GetPlayerPed(player_source)
+    if type(source_ped) ~= 'number' or source_ped <= 0 then
+        return nil
+    end
+    local source_coordinates = GetEntityCoords(source_ped)
+    if not source_coordinates then
+        return nil
+    end
+    local source_x = tonumber(source_coordinates.x)
+    local source_y = tonumber(source_coordinates.y)
+    local source_z = tonumber(source_coordinates.z)
+    if not source_x or not source_y or not source_z then
+        return nil
+    end
+    local nearest
+    local nearest_distance = radius * radius
+    for _, candidate in ipairs(GetPlayers()) do
+        local candidate_source = tonumber(candidate)
+        if candidate_source and candidate_source ~= player_source then
+            local candidate_ped = GetPlayerPed(candidate_source)
+            if type(candidate_ped) == 'number' and candidate_ped > 0 then
+                local coordinates = GetEntityCoords(candidate_ped)
+                if coordinates then
+                    local target_x = tonumber(coordinates.x)
+                    local target_y = tonumber(coordinates.y)
+                    local target_z = tonumber(coordinates.z)
+                    if target_x and target_y and target_z then
+                        local x = source_x - target_x
+                        local y = source_y - target_y
+                        local z = source_z - target_z
+                        local distance = x * x + y * y + z * z
+                        if distance <= nearest_distance then
+                            nearest = candidate_source
+                            nearest_distance = distance
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function document_view(context)
+    if
+        type(context.state_document_number) ~= 'string'
+        or type(context.state_document_issued_at) ~= 'string'
+        or type(context.first_name) ~= 'string'
+        or type(context.last_name) ~= 'string'
+        or type(context.date_of_birth) ~= 'string'
+    then
+        return nil
+    end
+    return {
+        document_type = 'STATE_ID',
+        document_number = context.state_document_number,
+        first_name = context.first_name,
+        last_name = context.last_name,
+        date_of_birth = context.date_of_birth,
+        issued_at = context.state_document_issued_at,
     }
 end
 
@@ -405,6 +499,36 @@ local function repeated_reposition(operation, context, hash, correlation_id)
         source_slot = tonumber(operation.source_slot),
         target_slot = tonumber(operation.target_slot),
         mode = operation.reposition_mode,
+    }, correlation_id)
+end
+
+local function repeated_use(operation, context, hash, payload, correlation_id)
+    if not operation then
+        return nil
+    end
+    if
+        operation.action ~= 'USE_ITEM'
+        or operation.account_uuid ~= context.account_uuid
+        or operation.character_uuid ~= context.character_uuid
+        or operation.payload_sha256 ~= hash
+    then
+        return failure('CONFLICT', 'inventory.error.operation_conflict', {}, correlation_id)
+    end
+    local effects = {
+        DRINK = 'DRINK_WATER',
+        EAT = 'EAT_FOOD',
+        INSPECT_ID = 'INSPECT_STATE_ID',
+        SHOW_ID = 'SHOW_STATE_ID',
+    }
+    local consumed = operation.item_action == 'DRINK' or operation.item_action == 'EAT'
+    return success({
+        repeated = true,
+        operation_uuid = operation.operation_uuid,
+        inventory_uuid = payload.inventory_uuid,
+        source_slot = tonumber(operation.source_slot),
+        quantity_consumed = consumed and 1 or 0,
+        inventory_version = tonumber(operation.result_target_version),
+        effect = effects[operation.item_action],
     }, correlation_id)
 end
 
@@ -664,6 +788,147 @@ function Service.transfer(player_source, payload, correlation_id)
         source_version = source_inventory.version + 1,
         target_version = target_inventory.version + 1,
     }, correlation_id)
+end
+
+function Service.use_item(player_source, payload, correlation_id)
+    local validated, validation_code = Policy.validate_use(payload)
+    if not validated then
+        return failure(validation_code, 'inventory.error.invalid_request', {}, correlation_id)
+    end
+    local context, context_error = source_context(player_source, correlation_id)
+    if not context then
+        return context_error
+    end
+    local hash, hash_error = Repository.payload_hash({
+        'USE_ITEM',
+        validated.inventory_uuid,
+        validated.source_slot,
+        validated.intent,
+        validated.contract_version,
+    })
+    if hash_error then
+        return hash_error
+    end
+    local operation, operation_error = Repository.transaction(validated.operation_uuid)
+    if operation_error then
+        return operation_error
+    end
+    local inventory_row, inventory_error =
+        Repository.find_owned(context.character_uuid, validated.inventory_uuid)
+    if inventory_error then
+        return inventory_error
+    end
+    if not inventory_row then
+        return failure('NOT_FOUND', 'inventory.error.inventory_not_found', {}, correlation_id)
+    end
+    local inventory = inventory_values(inventory_row)
+    if inventory.inventory_type ~= 'CHARACTER' or inventory.status ~= 'ACTIVE' then
+        return failure('PRECONDITION_FAILED', 'inventory.error.use_rejected', {}, correlation_id)
+    end
+    local repeated =
+        repeated_use(operation, context, hash.payload_sha256, validated, correlation_id)
+    if repeated then
+        return repeated
+    end
+    local entries, entries_error = entries_for(inventory)
+    if not entries then
+        return entries_error
+    end
+    local source_entry
+    for _, entry in ipairs(entries) do
+        if entry.slot_number == validated.source_slot then
+            source_entry = entry
+            break
+        end
+    end
+    if not source_entry then
+        return failure('NOT_FOUND', 'inventory.error.item_not_found', {}, correlation_id)
+    end
+    local plan, plan_error = Policy.use_plan(source_entry, validated.intent)
+    if not plan then
+        return failure(plan_error, 'inventory.error.use_rejected', {}, correlation_id)
+    end
+    local presentation
+    if plan.action == 'INSPECT_ID' or plan.action == 'SHOW_ID' then
+        local document = document_view(context)
+        if not document then
+            return failure(
+                'PRECONDITION_FAILED',
+                'inventory.error.document_unavailable',
+                {},
+                correlation_id
+            )
+        end
+        local recipient_source = player_source
+        local mode = 'INSPECTED'
+        if plan.action == 'SHOW_ID' then
+            recipient_source = nearest_player(
+                player_source,
+                convar_number('cnr_inventory_document_show_radius', 3.0)
+            )
+            mode = 'PRESENTED'
+            if not recipient_source then
+                return failure(
+                    'PRECONDITION_FAILED',
+                    'inventory.error.nearby_player_required',
+                    {},
+                    correlation_id
+                )
+            end
+        end
+        presentation = {
+            recipient_source = recipient_source,
+            contract_version = 5,
+            mode = mode,
+            document = document,
+        }
+    end
+    local committed = Repository.use_item({
+        operation_uuid = validated.operation_uuid,
+        account_uuid = context.account_uuid,
+        session_uuid = context.session_uuid,
+        character_uuid = context.character_uuid,
+        inventory = inventory,
+        source_entry = source_entry,
+        request_id = validated.request_id,
+        correlation_id = correlation_id,
+        contract_version = validated.contract_version,
+        payload_sha256 = hash.payload_sha256,
+        plan = plan,
+    })
+    if not committed.ok then
+        local concurrent = Repository.transaction(validated.operation_uuid)
+        local recovered =
+            repeated_use(concurrent, context, hash.payload_sha256, validated, correlation_id)
+        return recovered or committed
+    end
+    local operation_name = plan.quantity_consumed == 1 and 'inventory.item_consumed'
+        or plan.action == 'SHOW_ID' and 'inventory.document_shown'
+        or 'inventory.document_inspected'
+    exports.cnr_logs:audit('cnr_inventory', operation_name, {
+        character_uuid = context.character_uuid,
+        inventory_uuid = inventory.inventory_uuid,
+        item_code = source_entry.definition.code,
+        item_action = plan.action,
+        source_slot = validated.source_slot,
+        operation_uuid = validated.operation_uuid,
+        request_id = validated.request_id,
+        correlation_id = correlation_id,
+    })
+    local result = success({
+        repeated = false,
+        operation_uuid = validated.operation_uuid,
+        inventory_uuid = validated.inventory_uuid,
+        source_slot = validated.source_slot,
+        quantity_consumed = plan.quantity_consumed,
+        inventory_version = inventory.version + plan.quantity_consumed,
+        effect = plan.effect,
+    }, correlation_id)
+    result.internal = {
+        effect = plan.effect,
+        presentation = presentation,
+    }
+    return result
 end
 
 return Service

@@ -1,6 +1,7 @@
 /** Renders the interactive server-authoritative Wave 1 player lifecycle. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  inventoryContractVersion,
   isNuiMessage,
   playerLifecycleContractVersion,
   registrationContractVersion,
@@ -9,6 +10,7 @@ import {
   type PlayerLifecycleSnapshot,
   type RegistrationOutcome,
   type Result,
+  type StateIdentificationPresentation,
 } from '@cnr/contracts';
 import { CharacterLifecycle } from './CharacterLifecycle';
 import { claimFocus, initialFocusState } from './focus';
@@ -16,6 +18,7 @@ import { translate } from './i18n';
 import { InventoryPanel } from './InventoryPanel';
 import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase } from './lifecycle';
 import { isBrowserMock, postNui } from './nui';
+import { StateIdentificationCard } from './StateIdentificationCard';
 
 const newId = () => crypto.randomUUID();
 
@@ -32,6 +35,22 @@ export function App() {
         : 'personal',
     [],
   );
+  const browserIdentification = useMemo<StateIdentificationPresentation | null>(() => {
+    if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'document')
+      return null;
+    return {
+      contract_version: inventoryContractVersion,
+      mode: 'PRESENTED',
+      document: {
+        document_type: 'STATE_ID',
+        document_number: 'SA-000000000001',
+        first_name: 'Alex',
+        last_name: 'Morgan',
+        date_of_birth: '1995-05-20',
+        issued_at: '2026-07-16',
+      },
+    };
+  }, [mock]);
   const operationUuid = useRef(newId());
   const browserReadySent = useRef(false);
   const [snapshot, setSnapshot] = useState<PlayerLifecycleSnapshot | null>(() =>
@@ -47,6 +66,9 @@ export function App() {
   const [message, setMessage] = useState<string | null>(null);
   const [inventoryOpen, setInventoryOpen] = useState(browserInventory);
   const [inventoryView, setInventoryView] = useState<InventoryOpenView>(browserInventoryView);
+  const [identification, setIdentification] = useState<StateIdentificationPresentation | null>(
+    browserIdentification,
+  );
 
   const loadRuleset = useCallback(async () => {
     setLoading(true);
@@ -160,6 +182,8 @@ export function App() {
         setInventoryOpen(true);
         setVisible(true);
         setFocus((current) => claimFocus(current, 'inventory'));
+      } else if (event.data.type === 'ui.inventory.document') {
+        setIdentification(event.data.payload);
       } else if (event.data.type === 'ui.character.spawn_failed') {
         applySnapshot({
           contract_version: playerLifecycleContractVersion,
@@ -179,18 +203,30 @@ export function App() {
     return () => window.removeEventListener('message', listener);
   }, [applySnapshot, mock]);
 
+  const closeIdentification = () => {
+    setIdentification(null);
+    void postNui<{ ok: boolean }>('inventory.documentClose', {}).catch(() => undefined);
+  };
+
   if (inventoryOpen) {
     return (
-      <InventoryPanel
-        view={inventoryView}
-        onClose={() => {
-          setInventoryOpen(false);
-          setVisible(false);
-          setFocus(initialFocusState);
-        }}
-      />
+      <>
+        <InventoryPanel
+          view={inventoryView}
+          onClose={() => {
+            setInventoryOpen(false);
+            setVisible(false);
+            setFocus(initialFocusState);
+          }}
+        />
+        {identification && (
+          <StateIdentificationCard presentation={identification} onClose={closeIdentification} />
+        )}
+      </>
     );
   }
+  if (identification)
+    return <StateIdentificationCard presentation={identification} onClose={closeIdentification} />;
   if (!visible) return null;
   const view = snapshot ? lifecycleViewForPhase(snapshot.phase) : 'loading';
   if (refreshing || view === 'loading') {

@@ -20,6 +20,7 @@ const bridgedEvents = new Set([
   'inventory.workspace',
   'inventory.reposition',
   'inventory.transfer',
+  'inventory.use',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -106,6 +107,7 @@ function browserMock(event: string, body: unknown): unknown {
     source_slot?: number;
     target_slot?: number;
     quantity?: number;
+    intent?: 'USE' | 'INSPECT' | 'SHOW';
   };
   const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
   if (event === 'lifecycleRefresh') return { ok: true };
@@ -143,6 +145,7 @@ function browserMock(event: string, body: unknown): unknown {
               max_stack: 10,
               unit_weight_grams: 500,
               version: 1,
+              actions: ['USE'],
             },
             total_weight_grams: 1000,
           },
@@ -162,6 +165,7 @@ function browserMock(event: string, body: unknown): unknown {
               max_stack: 10,
               unit_weight_grams: 250,
               version: 1,
+              actions: ['USE'],
             },
             total_weight_grams: 500,
           },
@@ -181,6 +185,7 @@ function browserMock(event: string, body: unknown): unknown {
               max_stack: 1,
               unit_weight_grams: 20,
               version: 1,
+              actions: ['INSPECT', 'SHOW'],
             },
             total_weight_grams: 20,
           },
@@ -280,6 +285,45 @@ function browserMock(event: string, body: unknown): unknown {
         target_version: 2,
       },
       correlation_id: 'mock-inventory-transfer',
+    };
+  }
+  if (event === 'inventory.use') {
+    if (
+      typeof request.source_slot !== 'number' ||
+      typeof request.intent !== 'string' ||
+      typeof request.operation_uuid !== 'string'
+    )
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message_key: 'inventory.error.invalid_request',
+          safe_details: {},
+          correlation_id: 'mock-inventory-use-error',
+        },
+      };
+    const effect =
+      request.intent === 'INSPECT'
+        ? 'INSPECT_STATE_ID'
+        : request.intent === 'SHOW'
+          ? 'SHOW_STATE_ID'
+          : request.source_slot === (mockInventorySlots.get('water_bottle') ?? 1)
+            ? 'DRINK_WATER'
+            : 'EAT_FOOD';
+    const consumed = request.intent === 'USE' ? 1 : 0;
+    mockInventoryVersion += consumed;
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+        source_slot: request.source_slot,
+        quantity_consumed: consumed,
+        inventory_version: mockInventoryVersion,
+        effect,
+      },
+      correlation_id: 'mock-inventory-use',
     };
   }
   if (event === 'registrationStatus')

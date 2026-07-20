@@ -22,6 +22,7 @@ import {
   type InventorySnapshotRequest,
   type InventoryRepositionRequest,
   type InventoryTransferRequest,
+  type InventoryUseRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -215,6 +216,53 @@ describe('core contracts', () => {
         'inventory_version',
       ]),
     );
+
+    const use: InventoryUseRequest = {
+      inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      source_slot: 1,
+      intent: 'USE',
+      request_id: 'inventory-use-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000014',
+      contract_version: inventoryContractVersion,
+    };
+    expect(Object.keys(use).sort()).toEqual([
+      'contract_version',
+      'intent',
+      'inventory_uuid',
+      'operation_uuid',
+      'request_id',
+      'source_slot',
+    ]);
+    expect(Object.keys(use)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'definition_uuid',
+        'item_instance_uuid',
+        'effect',
+        'quantity',
+        'target_source',
+      ]),
+    );
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.document',
+        payload: {
+          contract_version: inventoryContractVersion,
+          mode: 'PRESENTED',
+          document: {
+            document_type: 'STATE_ID',
+            document_number: 'SA-000000000001',
+            first_name: 'Alex',
+            last_name: 'Morgan',
+            date_of_birth: '1995-05-20',
+            issued_at: '2026-07-16',
+          },
+        },
+      }),
+    ).toBe(true);
   });
 
   it('keeps technical permission contracts role-agnostic', () => {

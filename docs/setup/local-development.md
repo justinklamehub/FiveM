@@ -87,7 +87,7 @@ Apply `20260716000500_character_lifecycle.sql` before ensuring `cnr_characters`.
 
 Apply `20260716000600_character_selection_appearance.sql` before starting the current Wave 1 resources and set the minimum schema to `20260716000600`. The stock `spawnmanager` resource must start before `cnr_ui`; do not start the default `basic-gamemode` in the CNR production recipe because CNR owns spawn authorization.
 
-Apply `20260716000900_personal_storage_workspace.sql` after the inventory-interaction migration and set the minimum schema to `20260716000900`. Start `cnr_items` after `cnr_characters`, then `cnr_inventory`, and keep `cnr_ui` last. Personal inventory defaults are 24 slots and 30 kilograms; the personal locker defaults to 48 slots and 100 kilograms. Capacity and locker coordinates are server convars and are never accepted from NUI requests. Reposition requests may express source and target slots within one source-owned inventory. Cross-inventory requests express only the two server-presented inventory UUIDs, source slot, and quantity; the server verifies locker proximity and chooses target placement.
+Apply `20260716001000_inventory_item_use.sql` after the personal-storage migration and set the minimum schema to `20260716001000`. Start `cnr_items` after `cnr_characters`, then `cnr_inventory`, and keep `cnr_ui` last. Personal inventory defaults are 24 slots and 30 kilograms; the personal locker defaults to 48 slots and 100 kilograms. Capacity, locker coordinates, and the State ID presentation radius are server convars and are never accepted from NUI requests. Reposition requests may express source and target slots within one source-owned inventory. Cross-inventory requests express only the two server-presented inventory UUIDs, source slot, destination slot, and quantity; the server verifies locker proximity and chooses mutation semantics. Item actions contain only the server-presented inventory UUID, source slot, and `USE`, `INSPECT`, or `SHOW` intent; the definition handler determines the effect and consumed quantity.
 
 For txAdmin, edit the active recipe `server.cfg` rather than the generated example and remove or comment out `ensure basic-gamemode`. A running stock gamemode can re-enable map spawnpoints before character selection is complete. `cnr_ui` also disables stock auto-spawn continuously while lifecycle authority is locked, keeps the real player ped hidden, and uses a separate non-networked ped for appearance preview. The real player is released only after the server accepts the matching controlled-spawn acknowledgement.
 
@@ -112,7 +112,7 @@ Run `pnpm --filter @cnr/ui dev` to serve them. `loadscreen.html` is a separate n
 The server chooses the controlled central fallback spawn. Clients cannot submit coordinates, routing buckets, session IDs, or spawn state.
 
 ```cfg
-set cnr_schema_minimum "20260716000900"
+set cnr_schema_minimum "20260716001000"
 set cnr_spawn_default_x "215.76"
 set cnr_spawn_default_y "-810.12"
 set cnr_spawn_default_z "30.73"
@@ -123,6 +123,7 @@ set cnr_inventory_locker_x "215.76"
 set cnr_inventory_locker_y "-810.12"
 set cnr_inventory_locker_z "30.73"
 set cnr_inventory_locker_radius "4.0"
+set cnr_inventory_document_show_radius "3.0"
 
 ensure spawnmanager
 ensure cnr_characters
@@ -131,4 +132,4 @@ ensure cnr_inventory
 ensure cnr_ui
 ```
 
-After a controlled spawn, press F2 or run `cnr_inventory_open` in the client F8 console. The English full-page personal inventory must display all 24 slots without scrolling and show exactly two Water Bottles, two Sandwiches, and the existing State Identification Card on first provisioning. Reopening or reconnecting must not duplicate them. At the configured parking locker, press F3 or run `cnr_storage_open`. The server must open the two-panel `Item Transfer` workspace only within the configured radius; direct pointer drops move complete stacks into the validated destination slot and persist after reconnect.
+After a controlled spawn, press F2 or run `cnr_inventory_open` in the client F8 console. The English full-page personal inventory must display all 24 slots without scrolling and show exactly two Water Bottles, two Sandwiches, and the existing State Identification Card on first provisioning. Reopening or reconnecting must not duplicate them. Direct pointer drops move single items immediately and open an English quantity selector for larger cross-inventory stacks. Double-click or right-click a Water Bottle or Sandwich and confirm one unit is consumed with the matching client animation. Inspect the State ID and use `Show to Nearest Player` with a second player inside and outside the configured presentation radius. At the configured parking locker, press F3 or run `cnr_storage_open`. The server must open the two-panel `Item Transfer` workspace only within the configured radius; confirmed drops update immediately and persist after reconnect.

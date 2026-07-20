@@ -20,7 +20,7 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 
 `uiReady` and `lifecycleRefresh` (browser-to-Lua NUI callbacks), `cnr:ui:ready` and
 `cnr:ui:refresh` (client-to-server events), `cnr:ui:lifecycle` (server-to-client snapshot),
-registration NUI callbacks, character lifecycle callbacks, inventory snapshot/reposition/transfer callbacks, and controlled-spawn events. The server
+registration NUI callbacks, character lifecycle callbacks, inventory snapshot/reposition/transfer/use callbacks, State ID presentation, and controlled-spawn events. The server
 derives the view from the source-owned session; the client cannot select its access state, lifecycle
 phase, or onboarding destination.
 
@@ -47,12 +47,16 @@ Browser scenario query values are `registration`, `access`, `creation`, `selecti
 `spawn`, and `error`. They never bypass runtime server validation because the mock transport exists
 only when the FiveM NUI API is absent.
 
-Use `?view=inventory` for the English personal-inventory mock and `?view=storage` for the two-panel
-locker workspace. In FiveM, F2 or `cnr_inventory_open` opens the character inventory after controlled
+Use `?view=inventory` for the English personal-inventory mock, `?view=storage` for the two-panel
+locker workspace, and `?view=document` for the State ID presentation. In FiveM, F2 or
+`cnr_inventory_open` opens the character inventory after controlled
 spawn. F3 or `cnr_storage_open` requests the personal locker, which the server exposes only within the
 configured radius. Occupied slots use direct pointer drag-and-drop with a destination highlight and
-drop animation; click-selection is not part of the interaction. Cross-inventory drops send the intended
-destination slot, while the UI applies the server-validated placement only after confirmation. Reviewed
+drop animation; click-selection is not part of movement. Cross-inventory stacks open a bounded quantity
+selector after their direct drop, and the UI applies the server-validated placement only after confirmation.
+Double-click or right-click opens only actions published by the server definition. Consumables play the
+server-issued animation after one-unit persistence, while State ID inspection/presentation uses a bounded
+English document card. Reviewed
 transparent PNGs are resolved from an explicit allowlist for the three starter image keys. Unknown keys
 or failed image loads retain deterministic two-letter fallback tiles.
 

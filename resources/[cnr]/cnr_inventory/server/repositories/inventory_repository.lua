@@ -96,7 +96,7 @@ function Repository.entries(inventory_id)
     local result = exports.cnr_database:query(
         ([[SELECT ii.id, %s entry_uuid, ii.slot_number, ii.quantity, ii.version,
         d.id definition_id, %s definition_uuid, d.code, d.category, d.label, d.description,
-        d.icon_key,
+        d.icon_key, d.use_handler,
         d.is_stackable, d.is_unique, d.max_stack, d.unit_weight_grams, d.version definition_version,
         inst.id item_instance_id, CASE WHEN inst.id IS NULL THEN 0 ELSE 1 END has_instance
         FROM cnr_inventory_items ii
@@ -129,7 +129,7 @@ function Repository.transaction(operation_uuid)
     return single(
         ([[SELECT %s operation_uuid, action, %s account_uuid, %s session_uuid,
         %s character_uuid, %s target_entry_uuid, LOWER(HEX(payload_sha256)) payload_sha256,
-        source_slot, target_slot, transfer_mode, quantity,
+        source_slot, target_slot, transfer_mode, item_action, quantity,
         CASE WHEN target_entry_uuid IS NULL THEN 'MOVE' ELSE 'SWAP' END reposition_mode,
         result_source_version, result_target_version, result_status
         FROM cnr_item_transactions WHERE operation_uuid=UNHEX(REPLACE(?,'-','')) LIMIT 1]]):format(
@@ -141,6 +141,121 @@ function Repository.transaction(operation_uuid)
         ),
         { operation_uuid }
     )
+end
+
+local function use_guard(context)
+    local instance_guard = 'AND ii.item_instance_id IS NULL '
+    local instance_values = {}
+    if context.source_entry.item_instance_id then
+        instance_guard = 'AND ii.item_instance_id=? '
+        instance_values[1] = context.source_entry.item_instance_id
+    end
+    local result_version_delta = context.plan.quantity_consumed == 1 and 1 or 0
+    local sql = ([[COALESCE((SELECT i.version+%d FROM cnr_inventories i
+    INNER JOIN cnr_inventory_items ii ON ii.inventory_id=i.id
+    INNER JOIN cnr_item_definitions d ON d.id=ii.definition_id
+    WHERE i.id=? AND i.public_uuid=UNHEX(REPLACE(?,'-','')) AND i.version=?
+    AND i.inventory_type='CHARACTER' AND i.status='ACTIVE'
+    AND i.owner_character_uuid=UNHEX(REPLACE(?,'-',''))
+    AND ii.id=? AND ii.slot_number=? AND ii.version=? AND ii.quantity=?
+    AND ii.definition_id=? %s AND d.use_handler=? AND d.status='ACTIVE'
+    LIMIT 1),0)]]):format(result_version_delta, instance_guard)
+    local values = {
+        context.inventory.id,
+        context.inventory.inventory_uuid,
+        context.inventory.version,
+        context.character_uuid,
+        context.source_entry.id,
+        context.source_entry.slot_number,
+        context.source_entry.version,
+        context.source_entry.quantity,
+        context.source_entry.definition_id,
+    }
+    for _, value in ipairs(instance_values) do
+        values[#values + 1] = value
+    end
+    values[#values + 1] = context.source_entry.definition.use_handler
+    return sql, values
+end
+
+function Repository.use_item(context)
+    local guard_sql, guard_values = use_guard(context)
+    local instance_sql = 'NULL'
+    local values = {
+        context.operation_uuid,
+        context.account_uuid,
+        context.session_uuid,
+        context.character_uuid,
+        context.inventory.id,
+        context.inventory.id,
+        context.source_entry.entry_uuid,
+        context.source_entry.definition_id,
+    }
+    if context.source_entry.item_instance_id then
+        instance_sql = '?'
+        values[#values + 1] = context.source_entry.item_instance_id
+    end
+    values[#values + 1] = context.source_entry.slot_number
+    values[#values + 1] = context.plan.action
+    values[#values + 1] = context.request_id
+    values[#values + 1] = context.correlation_id
+    values[#values + 1] = context.contract_version
+    values[#values + 1] = context.payload_sha256
+    for _, value in ipairs(guard_values) do
+        values[#values + 1] = value
+    end
+    for _, value in ipairs(guard_values) do
+        values[#values + 1] = value
+    end
+
+    local queries = {
+        {
+            query = [[SELECT id FROM cnr_inventories WHERE id=? FOR UPDATE]],
+            values = { context.inventory.id },
+        },
+        {
+            query = [[SELECT id FROM cnr_inventory_items WHERE inventory_id=?
+            ORDER BY id FOR UPDATE]],
+            values = { context.inventory.id },
+        },
+        {
+            query = ([[INSERT INTO cnr_item_transactions
+            (operation_uuid, action, account_uuid, session_uuid, character_uuid,
+            source_inventory_id, target_inventory_id, source_entry_uuid, target_entry_uuid,
+            definition_id, item_instance_id, source_slot, target_slot, transfer_mode, item_action,
+            quantity, request_id, correlation_id, contract_version, payload_sha256,
+            result_source_version, result_target_version, result_status, created_at, completed_at)
+            VALUES (UNHEX(REPLACE(?,'-','')),'USE_ITEM',UNHEX(REPLACE(?,'-','')),
+            UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),?,?,UNHEX(REPLACE(?,'-','')),
+            NULL,?,%s,?,NULL,NULL,?,1,?,?,?,UNHEX(?),%s,%s,'COMPLETED',
+            UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))]]):format(
+                instance_sql,
+                guard_sql,
+                guard_sql
+            ),
+            values = values,
+        },
+    }
+    if context.plan.quantity_consumed == 1 then
+        if context.source_entry.quantity == 1 then
+            queries[#queries + 1] = {
+                query = [[DELETE FROM cnr_inventory_items WHERE id=?]],
+                values = { context.source_entry.id },
+            }
+        else
+            queries[#queries + 1] = {
+                query = [[UPDATE cnr_inventory_items SET quantity=quantity-1, version=version+1,
+                updated_at=UTC_TIMESTAMP(6) WHERE id=?]],
+                values = { context.source_entry.id },
+            }
+        end
+        queries[#queries + 1] = {
+            query = [[UPDATE cnr_inventories SET version=version+1, updated_at=UTC_TIMESTAMP(6)
+            WHERE id=?]],
+            values = { context.inventory.id },
+        }
+    end
+    return exports.cnr_database:transaction(queries)
 end
 
 function Repository.payload_hash(parts)

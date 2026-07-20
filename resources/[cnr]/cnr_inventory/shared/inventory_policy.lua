@@ -28,7 +28,7 @@ function Policy.validate_read(payload)
         return nil, 'VALIDATION_ERROR'
     end
     if
-        payload.contract_version ~= 4
+        payload.contract_version ~= 5
         or type(payload.request_id) ~= 'string'
         or #payload.request_id < 1
         or #payload.request_id > 64
@@ -58,7 +58,7 @@ function Policy.validate_transfer(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 4 then
+    if payload.contract_version ~= 5 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -102,7 +102,7 @@ function Policy.validate_reposition(payload)
     then
         return nil, 'VALIDATION_ERROR'
     end
-    if payload.contract_version ~= 4 then
+    if payload.contract_version ~= 5 then
         return nil, 'PRECONDITION_FAILED'
     end
     if
@@ -122,6 +122,72 @@ function Policy.validate_reposition(payload)
         return nil, 'VALIDATION_ERROR'
     end
     return payload
+end
+
+---@param payload unknown
+---@return table?, string?
+function Policy.validate_use(payload)
+    if type(payload) ~= 'table' then
+        return nil, 'VALIDATION_ERROR'
+    end
+    if
+        not strict_keys(payload, {
+            inventory_uuid = true,
+            source_slot = true,
+            intent = true,
+            request_id = true,
+            operation_uuid = true,
+            contract_version = true,
+        })
+    then
+        return nil, 'VALIDATION_ERROR'
+    end
+    if payload.contract_version ~= 5 then
+        return nil, 'PRECONDITION_FAILED'
+    end
+    if
+        not is_uuid(payload.inventory_uuid)
+        or not is_uuid(payload.operation_uuid)
+        or type(payload.request_id) ~= 'string'
+        or #payload.request_id < 1
+        or #payload.request_id > 64
+        or type(payload.source_slot) ~= 'number'
+        or payload.source_slot % 1 ~= 0
+        or payload.source_slot < 1
+        or (payload.intent ~= 'USE' and payload.intent ~= 'INSPECT' and payload.intent ~= 'SHOW')
+    then
+        return nil, 'VALIDATION_ERROR'
+    end
+    return payload
+end
+
+---@param source_entry table?
+---@param intent string
+---@return table?, string?
+function Policy.use_plan(source_entry, intent)
+    local definition = source_entry and source_entry.definition
+    local handler = definition and definition.use_handler
+    if not source_entry or not definition or tonumber(source_entry.quantity) < 1 then
+        return nil, 'PRECONDITION_FAILED'
+    end
+    if intent == 'USE' and handler == 'consume_water' and not source_entry.has_instance then
+        return { action = 'DRINK', effect = 'DRINK_WATER', quantity_consumed = 1 }
+    end
+    if intent == 'USE' and handler == 'consume_food' and not source_entry.has_instance then
+        return { action = 'EAT', effect = 'EAT_FOOD', quantity_consumed = 1 }
+    end
+    if
+        handler == 'state_id_document'
+        and source_entry.has_instance
+        and (intent == 'INSPECT' or intent == 'SHOW')
+    then
+        return {
+            action = intent == 'INSPECT' and 'INSPECT_ID' or 'SHOW_ID',
+            effect = intent == 'INSPECT' and 'INSPECT_STATE_ID' or 'SHOW_STATE_ID',
+            quantity_consumed = 0,
+        }
+    end
+    return nil, 'PRECONDITION_FAILED'
 end
 
 ---@param source_type string

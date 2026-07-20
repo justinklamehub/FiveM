@@ -54,6 +54,31 @@ describe('inventory security boundary', () => {
     expect(service).toContain('Repository.find_owned(context.character_uuid');
   });
 
+  it('accepts item intent without accepting effect, quantity, identity, or target authority', () => {
+    const useStart = policy.indexOf('function Policy.validate_use');
+    const useSection = policy.slice(
+      policy.indexOf('inventory_uuid = true', useStart),
+      policy.indexOf('})', policy.indexOf('inventory_uuid = true', useStart)),
+    );
+    expect(useSection).toContain('intent = true');
+    for (const forbidden of [
+      'account_uuid',
+      'session_uuid',
+      'character_uuid',
+      'definition_uuid',
+      'item_instance_uuid',
+      'quantity',
+      'effect',
+      'target_source',
+      'document_number',
+    ]) {
+      expect(useSection).not.toContain(`${forbidden} = true`);
+    }
+    expect(service).toContain('Policy.use_plan(source_entry, validated.intent)');
+    expect(service).toContain("inventory.inventory_type ~= 'CHARACTER'");
+    expect(repository).toContain("d.use_handler=? AND d.status='ACTIVE'");
+  });
+
   it('resolves FULL session and spawned character authority from the FiveM source', () => {
     expect(service).toContain('get_session_for_source(player_source)');
     expect(service).toContain('active_character_for_source');
@@ -82,6 +107,8 @@ describe('inventory security boundary', () => {
     expect(repository).toContain('temporary_slot');
     expect(repository).toContain('transfer_mode');
     expect(repository).toContain('context.plan.target_slot');
+    expect(repository).toContain("'USE_ITEM'");
+    expect(repository).toContain('context.plan.quantity_consumed');
   });
 
   it('fails closed and recovers when source-authority dependencies restart', () => {

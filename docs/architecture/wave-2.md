@@ -17,10 +17,13 @@ The first slice implements:
 - one server-created `PERSONAL_STORAGE` locker per character with configurable slots and weight;
 - a proximity-gated two-panel locker workspace with atomic cross-inventory drag/drop;
 - replayable, server-validated destination slots and transfer modes for confirmed in-place UI updates;
+- partial stack quantities selected after a direct cross-inventory drop;
 - stable server-owned image keys, reviewed transparent starter-item PNGs, and deterministic UI fallbacks for unknown keys or failed loads;
+- server-derived one-unit food and drink consumption with client animations;
+- non-consumable State ID inspection and nearest-player presentation with server distance checks;
 - browser mocks, contracts, MariaDB tests, Lua policy tests, and audit events.
 
-Banking, reservations, use effects, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
+Banking, persistent hunger/thirst attributes, reservations, backpacks, shared/faction storage, vehicles, ground drops, equipment, and gameplay rewards remain later Wave 2 slices.
 
 ## Ownership boundaries
 
@@ -36,7 +39,7 @@ Item definitions expose only a stable `icon_key`. The browser resolves known key
 
 ## Client contract
 
-The personal-locker workspace uses inventory contract version 4.
+The personal-locker workspace and item actions use inventory contract version 5.
 
 A snapshot request contains only:
 
@@ -50,7 +53,9 @@ A transfer request may additionally contain only:
 - positive integer quantity;
 - `operation_uuid`.
 
-The client cannot submit account, session, character, definition, item instance, metadata, weight, capacity, inventory version, distance, transfer mode, or result state. Both same-inventory and cross-inventory requests may express source and destination slots as user intent. The server resolves the entries, validates ownership, compatibility, capacity, and versions, then chooses move, swap, stack, create-stack, or unique-instance semantics. The storage workspace is returned only while the server-observed player ped is within the configured locker radius, and every storage reposition or transfer repeats that proximity check.
+An item-action request may contain only the server-presented character inventory UUID, source slot, one `USE`, `INSPECT`, or `SHOW` intent, request ID, operation UUID, and contract version. The server resolves the item definition handler, consumed quantity, effect, document fields, and nearest presentation target. The client cannot provide any of those results.
+
+The client cannot submit account, session, character, definition, item instance, metadata, weight, capacity, inventory version, distance, transfer mode, effect, consumed quantity, document content, presentation target, or result state. Both same-inventory and cross-inventory requests may express source and destination slots as user intent. The server resolves the entries, validates ownership, compatibility, capacity, and versions, then chooses move, swap, stack, create-stack, or unique-instance semantics. The storage workspace is returned only while the server-observed player ped is within the configured locker radius, and every storage reposition or transfer repeats that proximity check.
 
 ## Starter provisioning
 
@@ -71,6 +76,10 @@ Repeating the same operation UUID and semantic payload returns the stored result
 Personal repositioning uses the same rule. Empty destinations move the source entry; occupied destinations swap the locked entries through a transaction-local temporary slot. The browser never mutates its snapshot optimistically; it applies only the confirmed server outcome to the open view.
 
 The first personal locker is created idempotently from server configuration. Cross-inventory transfers are restricted to one `CHARACTER` and one `PERSONAL_STORAGE` inventory owned by the active character. The transaction stores the requested and validated source/destination slots, target entry, quantity, server-selected mode, and both result versions. The NUI applies those details only after server confirmation, so successful moves do not require a second snapshot while retries remain idempotent.
+
+## Item actions
+
+Water and food definitions publish only `USE` capability. Their private server handlers resolve to a one-unit debit and a server-issued drink or eat effect. State ID definitions publish `INSPECT` and `SHOW`; the unique item remains in inventory. Inspection presents the source-bound identity locally. Presentation selects the nearest player inside the configured radius from server-observed entity coordinates and sends only the holder name, date of birth, document number, and issue date. Every successful action is an immutable `USE_ITEM` transaction, and failed proximity or authority checks disclose nothing.
 
 ## Audit and recovery
 

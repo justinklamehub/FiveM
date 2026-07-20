@@ -23,7 +23,7 @@ lua-language-server --check=. --checklevel=Error
 Expected results:
 
 - MariaDB health is `healthy`.
-- dbmate reports every ordered migration through `20260716000900_personal_storage_workspace.sql` as applied.
+- dbmate reports every ordered migration through `20260716001000_inventory_item_use.sql` as applied.
 - formatting, manifest validation, secret scan, lint, type checking, Vitest, and NUI build pass.
 - Busted passes all pure Lua core, Wave 1, item, and inventory policy tests.
 - no banking, vehicles, character jobs, rewards, oil, or crime gameplay exists; the implemented inventory is an economic foundation only.
@@ -125,7 +125,7 @@ pnpm db:migrate
 
 ## Wave 2 items and personal inventory
 
-1. Migrate through `20260716000900`, start `cnr_items` and `cnr_inventory` before `cnr_ui`, and confirm both resources report `ready`.
+1. Migrate through `20260716001000`, start `cnr_items` and `cnr_inventory` before `cnr_ui`, and confirm both resources report `ready`.
 2. Complete a controlled spawn, press F2, and confirm the English 24-slot grid shows two Water Bottles, two Sandwiches, and the existing State Identification Card with their distinct transparent PNG icons. Confirm an unknown or failed image key falls back to deterministic initials without breaking the slot.
 3. Close and reopen the inventory, reconnect, and restart `cnr_inventory`; confirm one inventory, one referenced State ID instance, three entries, and one starter transaction remain.
 4. Confirm the snapshot request contains only `request_id` and `contract_version`. Confirm transfer accepts only server-issued source/target inventory UUIDs, source/destination slots, quantity, request ID, operation UUID, and contract version. Submit unexpected account, session, character, definition, instance, metadata, weight, capacity, version, transfer-mode, or result fields and confirm rejection without mutation.
@@ -136,3 +136,6 @@ pnpm db:migrate
 9. Drag an occupied slot directly onto an empty slot and another occupied slot. Confirm the pointer-following ghost, highlighted destination, and drop animation appear without click-selection. Confirm the server performs an atomic move or swap, increments versions, persists the layout after reconnect, returns the stored result for an identical operation UUID, and rejects changed reuse without mutation.
 10. Open `http://localhost:5173/?view=inventory` and confirm the F2 browser mock renders all 24 slots together without an internal scrollbar, including the three packaged PNG icons, image-key fallbacks, English loading/error states, slot capacity, and weight capacity.
 11. Open `http://localhost:5173/?view=storage`, drag full stackable entries and the State ID onto explicit destination slots in both directions, and confirm stack compatibility, unique-instance movement, weight/slot limits, both inventory versions, and immediate confirmed UI updates without a snapshot reload. Reconnect and confirm the persisted placement.
+12. Drag a stack larger than one between F3 panels and confirm the English quantity dialog clamps between one and the source quantity. Move a partial amount and then the remainder; confirm each direct drop updates both panels without a snapshot reload and the stored quantities survive reconnect.
+13. Double-click or right-click a Water Bottle and Sandwich in F2. Confirm the server consumes exactly one unit, persists one `USE_ITEM` transaction, returns the stored outcome on an identical operation UUID, rejects changed reuse, and the client plays only the server-issued drink or eat animation.
+14. Inspect the State ID and confirm the English card contains only the server-resolved holder name, date of birth, document number, and issue date. With two clients, show it inside the configured radius and confirm only the nearest player receives it. Repeat outside the radius and confirm no transaction or disclosure occurs.

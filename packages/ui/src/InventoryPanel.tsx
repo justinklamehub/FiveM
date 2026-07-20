@@ -16,6 +16,9 @@ import {
   type InventorySnapshot,
   type InventoryTransferOutcome,
   type InventoryTransferRequest,
+  type InventoryUseIntent,
+  type InventoryUseOutcome,
+  type InventoryUseRequest,
   type InventoryWorkspaceSnapshot,
   type PersonalInventorySnapshot,
   type Result,
@@ -40,6 +43,8 @@ export const inventoryIconFallback = (iconKey: string) =>
     .toUpperCase();
 export const inventorySlotNumbers = (capacity: number) =>
   Array.from({ length: capacity }, (_, index) => index + 1);
+export const clampTransferQuantity = (value: number, maximum: number) =>
+  Math.min(Math.max(Math.trunc(Number.isFinite(value) ? value : 1), 1), maximum);
 
 function InventoryIcon({ iconKey, className }: { iconKey: string; className: string }) {
   const source = inventoryIconSource(iconKey);
@@ -86,9 +91,21 @@ interface DragVisual {
   phase: 'dragging' | 'dropping';
 }
 
+interface PendingQuantityTransfer {
+  source: SlotReference;
+  target: SlotReference;
+  entry: InventoryEntry;
+}
+
+interface PendingItemActions {
+  inventory_uuid: string;
+  entry: InventoryEntry;
+}
+
 type RetryOperation =
   | { event: 'inventory.reposition'; payload: InventoryRepositionRequest }
-  | { event: 'inventory.transfer'; payload: InventoryTransferRequest };
+  | { event: 'inventory.transfer'; payload: InventoryTransferRequest }
+  | { event: 'inventory.use'; payload: InventoryUseRequest };
 
 export function applyConfirmedInventoryReposition(
   snapshot: InventorySnapshot,
@@ -199,6 +216,35 @@ export function applyConfirmedInventoryTransfer(
   };
 }
 
+export function applyConfirmedInventoryUse(
+  snapshot: InventorySnapshot,
+  outcome: InventoryUseOutcome,
+): InventorySnapshot {
+  if (snapshot.inventory_uuid !== outcome.inventory_uuid)
+    throw new Error('The confirmed use inventory does not match the snapshot.');
+  const sourceEntry = snapshot.entries.find((entry) => entry.slot_number === outcome.source_slot);
+  if (!sourceEntry) throw new Error('The confirmed use source is not present in the snapshot.');
+  if (outcome.quantity_consumed === 0) return { ...snapshot, version: outcome.inventory_version };
+  const consumedWeight = sourceEntry.definition.unit_weight_grams;
+  const entries = snapshot.entries.flatMap((entry) => {
+    if (entry.entry_uuid !== sourceEntry.entry_uuid) return [entry];
+    if (entry.quantity === 1) return [];
+    return [
+      {
+        ...entry,
+        quantity: entry.quantity - 1,
+        total_weight_grams: entry.total_weight_grams - consumedWeight,
+      },
+    ];
+  });
+  return {
+    ...snapshot,
+    entries,
+    current_weight_grams: snapshot.current_weight_grams - consumedWeight,
+    version: outcome.inventory_version,
+  };
+}
+
 export function InventoryPanel({
   view,
   onClose,
@@ -214,12 +260,18 @@ export function InventoryPanel({
   const [dragVisual, setDragVisual] = useState<DragVisual | null>(null);
   const [dropTarget, setDropTarget] = useState<SlotReference | null>(null);
   const [retryOperation, setRetryOperation] = useState<RetryOperation | null>(null);
+  const [pendingQuantityTransfer, setPendingQuantityTransfer] =
+    useState<PendingQuantityTransfer | null>(null);
+  const [pendingItemActions, setPendingItemActions] = useState<PendingItemActions | null>(null);
+  const [transferQuantity, setTransferQuantity] = useState(1);
   const dragSession = useRef<DragSession | null>(null);
   const dropAnimationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setSnapshotError(null);
+    setPendingQuantityTransfer(null);
+    setPendingItemActions(null);
     try {
       if (view === 'storage') {
         const result = await postNui<Result<InventoryWorkspaceSnapshot>>('inventory.workspace', {
@@ -258,6 +310,18 @@ export function InventoryPanel({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!pendingQuantityTransfer && !pendingItemActions) return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busy) {
+        setPendingQuantityTransfer(null);
+        setPendingItemActions(null);
+      }
+    };
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, [busy, pendingItemActions, pendingQuantityTransfer]);
 
   const inventories = useMemo(
     () =>
@@ -356,6 +420,52 @@ export function InventoryPanel({
     }
   }, []);
 
+  const performUse = useCallback(async (payload: InventoryUseRequest) => {
+    setBusy(true);
+    setOperationError(null);
+    setRetryOperation({ event: 'inventory.use', payload });
+    try {
+      const result = await postNui<Result<InventoryUseOutcome>>('inventory.use', payload);
+      if (!result.ok) {
+        setOperationError(
+          `The item action was rejected (${result.error.code}). Reference: ${result.error.correlation_id}`,
+        );
+        return;
+      }
+      if (
+        result.data.inventory_uuid !== payload.inventory_uuid ||
+        result.data.source_slot !== payload.source_slot
+      )
+        throw new Error('The confirmed item action does not match the request.');
+      setWorkspace((current) =>
+        current
+          ? updateInventory(current, payload.inventory_uuid, (inventory) =>
+              applyConfirmedInventoryUse(inventory, result.data),
+            )
+          : current,
+      );
+      setRetryOperation(null);
+    } catch {
+      setOperationError('The item action could not be completed. Retry or reopen the inventory.');
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const requestUse = (intent: InventoryUseIntent) => {
+    if (!pendingItemActions || busy) return;
+    const payload: InventoryUseRequest = {
+      inventory_uuid: pendingItemActions.inventory_uuid,
+      source_slot: pendingItemActions.entry.slot_number,
+      intent,
+      request_id: newId(),
+      operation_uuid: newId(),
+      contract_version: inventoryContractVersion,
+    };
+    setPendingItemActions(null);
+    void performUse(payload);
+  };
+
   const requestMove = useCallback(
     (source: SlotReference, target: SlotReference) => {
       if (!workspace || busy) return;
@@ -379,6 +489,11 @@ export function InventoryPanel({
         return;
       }
       if (!workspace.storage) return;
+      if (sourceEntry.quantity > 1) {
+        setTransferQuantity(sourceEntry.quantity);
+        setPendingQuantityTransfer({ source, target, entry: sourceEntry });
+        return;
+      }
       void performTransfer({
         source_inventory_uuid: source.inventory_uuid,
         target_inventory_uuid: target.inventory_uuid,
@@ -392,6 +507,26 @@ export function InventoryPanel({
     },
     [busy, inventories, performReposition, performTransfer, workspace],
   );
+
+  const confirmQuantityTransfer = () => {
+    if (!pendingQuantityTransfer || busy) return;
+    const quantity = clampTransferQuantity(
+      transferQuantity,
+      pendingQuantityTransfer.entry.quantity,
+    );
+    const { source, target } = pendingQuantityTransfer;
+    setPendingQuantityTransfer(null);
+    void performTransfer({
+      source_inventory_uuid: source.inventory_uuid,
+      target_inventory_uuid: target.inventory_uuid,
+      source_slot: source.slot,
+      target_slot: target.slot,
+      quantity,
+      request_id: newId(),
+      operation_uuid: newId(),
+      contract_version: inventoryContractVersion,
+    });
+  };
 
   const slotAt = (x: number, y: number) => {
     const element = document
@@ -489,6 +624,8 @@ export function InventoryPanel({
   };
 
   const close = () => {
+    setPendingQuantityTransfer(null);
+    setPendingItemActions(null);
     void postNui<{ ok: boolean }>('close', {}).catch(() => ({ ok: false }));
     onClose();
   };
@@ -535,6 +672,15 @@ export function InventoryPanel({
                 }
                 title={entry?.definition.description ?? `Empty slot ${String(slot)}`}
                 onClick={(event) => event.preventDefault()}
+                onDoubleClick={() => {
+                  if (inventory.inventory_type === 'CHARACTER' && entry?.definition.actions.length)
+                    setPendingItemActions({ inventory_uuid: inventory.inventory_uuid, entry });
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  if (inventory.inventory_type === 'CHARACTER' && entry?.definition.actions.length)
+                    setPendingItemActions({ inventory_uuid: inventory.inventory_uuid, entry });
+                }}
                 onPointerDown={(event) => entry && startPointerDrag(event, reference, entry)}
                 onPointerMove={movePointerDrag}
                 onPointerUp={finishPointerDrag}
@@ -575,8 +721,8 @@ export function InventoryPanel({
             <h1>{view === 'storage' ? 'Item Transfer' : 'Personal Inventory'}</h1>
             <p>
               {view === 'storage'
-                ? 'Drag complete stacks directly between Inventory and Container slots.'
-                : 'Drag an item directly onto its destination slot.'}
+                ? 'Drag items directly between Inventory and Container slots. Stack quantities are selected after drop.'
+                : 'Drag items between slots. Double-click or right-click an item to use it.'}
             </p>
           </div>
         </div>
@@ -593,7 +739,11 @@ export function InventoryPanel({
               <div className="inventory-workspace">{inventories.map(renderInventory)}</div>
               <div className="inventory-selection" aria-live="polite">
                 {busy && <span>Confirming inventory operation…</span>}
-                {!busy && <span>Hold an item and drag it directly onto a destination slot.</span>}
+                {!busy && (
+                  <span>
+                    Drag to move. Double-click or right-click an item for available actions.
+                  </span>
+                )}
               </div>
             </>
           )}
@@ -619,7 +769,9 @@ export function InventoryPanel({
                 onClick={() => {
                   if (retryOperation.event === 'inventory.reposition')
                     void performReposition({ ...retryOperation.payload, request_id: newId() });
-                  else void performTransfer({ ...retryOperation.payload, request_id: newId() });
+                  else if (retryOperation.event === 'inventory.transfer')
+                    void performTransfer({ ...retryOperation.payload, request_id: newId() });
+                  else void performUse({ ...retryOperation.payload, request_id: newId() });
                 }}
               >
                 Retry Operation
@@ -631,6 +783,142 @@ export function InventoryPanel({
           </div>
         </div>
       </section>
+      {pendingQuantityTransfer && (
+        <div className="inventory-dialog-backdrop">
+          <section
+            className="inventory-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-quantity-title"
+          >
+            <div className="inventory-dialog__item">
+              <InventoryIcon
+                className="inventory-item-icon"
+                iconKey={pendingQuantityTransfer.entry.definition.icon_key}
+              />
+              <div>
+                <span>Transfer Stack</span>
+                <h2 id="inventory-quantity-title">
+                  {pendingQuantityTransfer.entry.definition.label}
+                </h2>
+                <p>Choose how many items to move into the destination slot.</p>
+              </div>
+            </div>
+            <div className="inventory-quantity-stepper">
+              <button
+                type="button"
+                className="secondary-button"
+                aria-label="Decrease transfer quantity"
+                disabled={busy || transferQuantity <= 1}
+                onClick={() => setTransferQuantity((quantity) => Math.max(1, quantity - 1))}
+              >
+                −
+              </button>
+              <label>
+                <span>Quantity</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={pendingQuantityTransfer.entry.quantity}
+                  step={1}
+                  value={transferQuantity}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setTransferQuantity(
+                      clampTransferQuantity(
+                        event.currentTarget.valueAsNumber,
+                        pendingQuantityTransfer.entry.quantity,
+                      ),
+                    )
+                  }
+                />
+                <small>of {pendingQuantityTransfer.entry.quantity}</small>
+              </label>
+              <button
+                type="button"
+                className="secondary-button"
+                aria-label="Increase transfer quantity"
+                disabled={busy || transferQuantity >= pendingQuantityTransfer.entry.quantity}
+                onClick={() =>
+                  setTransferQuantity((quantity) =>
+                    Math.min(pendingQuantityTransfer.entry.quantity, quantity + 1),
+                  )
+                }
+              >
+                +
+              </button>
+            </div>
+            <div className="inventory-dialog__actions">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => setTransferQuantity(pendingQuantityTransfer.entry.quantity)}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => setPendingQuantityTransfer(null)}
+              >
+                Cancel
+              </button>
+              <button type="button" disabled={busy} onClick={confirmQuantityTransfer}>
+                Transfer
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {pendingItemActions && (
+        <div className="inventory-dialog-backdrop">
+          <section
+            className="inventory-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-actions-title"
+          >
+            <div className="inventory-dialog__item">
+              <InventoryIcon
+                className="inventory-item-icon"
+                iconKey={pendingItemActions.entry.definition.icon_key}
+              />
+              <div>
+                <span>Item Actions</span>
+                <h2 id="inventory-actions-title">{pendingItemActions.entry.definition.label}</h2>
+                <p>{pendingItemActions.entry.definition.description}</p>
+              </div>
+            </div>
+            <div className="inventory-item-actions">
+              {pendingItemActions.entry.definition.actions.includes('USE') && (
+                <button type="button" disabled={busy} onClick={() => requestUse('USE')}>
+                  Use Item
+                </button>
+              )}
+              {pendingItemActions.entry.definition.actions.includes('INSPECT') && (
+                <button type="button" disabled={busy} onClick={() => requestUse('INSPECT')}>
+                  Inspect ID
+                </button>
+              )}
+              {pendingItemActions.entry.definition.actions.includes('SHOW') && (
+                <button type="button" disabled={busy} onClick={() => requestUse('SHOW')}>
+                  Show to Nearest Player
+                </button>
+              )}
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => setPendingItemActions(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       {dragVisual && (
         <div
           className={`inventory-drag-ghost inventory-drag-ghost--${dragVisual.phase}`}

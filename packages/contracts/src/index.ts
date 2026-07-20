@@ -206,9 +206,12 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
-export const inventoryContractVersion = 4 as const;
+export const inventoryContractVersion = 5 as const;
 export type InventoryType = 'CHARACTER' | 'PERSONAL_STORAGE';
 export type InventoryOpenView = 'personal' | 'storage';
+export type InventoryItemAction = 'USE' | 'INSPECT' | 'SHOW';
+export type InventoryUseIntent = InventoryItemAction;
+export type InventoryUseEffect = 'DRINK_WATER' | 'EAT_FOOD' | 'INSPECT_STATE_ID' | 'SHOW_STATE_ID';
 export interface InventoryItemDefinition {
   definition_uuid: string;
   code: string;
@@ -221,6 +224,7 @@ export interface InventoryItemDefinition {
   max_stack: number;
   unit_weight_grams: number;
   version: number;
+  actions: readonly InventoryItemAction[];
 }
 export interface InventoryEntry {
   entry_uuid: string;
@@ -287,6 +291,36 @@ export interface InventoryRepositionOutcome {
   source_slot: number;
   target_slot: number;
   mode: 'MOVE' | 'SWAP';
+}
+export interface InventoryUseRequest {
+  inventory_uuid: string;
+  source_slot: number;
+  intent: InventoryUseIntent;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryUseOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  inventory_uuid: string;
+  source_slot: number;
+  quantity_consumed: 0 | 1;
+  inventory_version: number;
+  effect: InventoryUseEffect;
+}
+export interface StateIdentificationView {
+  document_type: 'STATE_ID';
+  document_number: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  issued_at: string;
+}
+export interface StateIdentificationPresentation {
+  contract_version: typeof inventoryContractVersion;
+  mode: 'INSPECTED' | 'PRESENTED';
+  document: StateIdentificationView;
 }
 
 export const playerLifecycleContractVersion = 1 as const;
@@ -409,6 +443,11 @@ export type NuiMessage =
     }
   | {
       version: 1;
+      type: 'ui.inventory.document';
+      payload: StateIdentificationPresentation;
+    }
+  | {
+      version: 1;
       type: 'ui.character.spawn_failed';
       payload: { correlation_id: string };
     }
@@ -461,6 +500,32 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
       Object.keys(candidate.payload).sort().join(',') === 'contract_version,view' &&
       payload.contract_version === inventoryContractVersion &&
       (payload.view === 'personal' || payload.view === 'storage')
+    );
+  }
+  if (candidate.type === 'ui.inventory.document') {
+    const payload = candidate.payload as {
+      contract_version?: unknown;
+      mode?: unknown;
+      document?: unknown;
+    };
+    if (
+      Object.keys(candidate.payload).sort().join(',') !== 'contract_version,document,mode' ||
+      payload.contract_version !== inventoryContractVersion ||
+      (payload.mode !== 'INSPECTED' && payload.mode !== 'PRESENTED') ||
+      typeof payload.document !== 'object' ||
+      payload.document === null
+    )
+      return false;
+    const document = payload.document as Record<string, unknown>;
+    return (
+      Object.keys(document).sort().join(',') ===
+        'date_of_birth,document_number,document_type,first_name,issued_at,last_name' &&
+      document.document_type === 'STATE_ID' &&
+      typeof document.document_number === 'string' &&
+      typeof document.first_name === 'string' &&
+      typeof document.last_name === 'string' &&
+      typeof document.date_of_birth === 'string' &&
+      typeof document.issued_at === 'string'
     );
   }
   if (candidate.type === 'ui.request.response') {

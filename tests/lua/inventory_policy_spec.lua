@@ -10,7 +10,7 @@ local function transfer_payload()
         quantity = 1,
         request_id = 'inventory-transfer-1',
         operation_uuid = '0190b7a0-6000-7000-8000-000000000012',
-        contract_version = 4,
+        contract_version = 5,
     }
 end
 
@@ -21,7 +21,18 @@ local function reposition_payload()
         target_slot = 4,
         request_id = 'inventory-reposition-1',
         operation_uuid = '0190b7a0-6000-7000-8000-000000000013',
-        contract_version = 4,
+        contract_version = 5,
+    }
+end
+
+local function use_payload()
+    return {
+        inventory_uuid = '0190b7a0-6000-7000-8000-000000000010',
+        source_slot = 1,
+        intent = 'USE',
+        request_id = 'inventory-use-1',
+        operation_uuid = '0190b7a0-6000-7000-8000-000000000014',
+        contract_version = 5,
     }
 end
 
@@ -138,5 +149,34 @@ describe('inventory policy', function()
         assert.are.equal(25, swap.temporary_slot)
         context.target_slot = 25
         assert.are.equal('PRECONDITION_FAILED', select(2, Policy.reposition_plan(context)))
+    end)
+
+    it('accepts only narrow item intent and derives effects from server definitions', function()
+        assert.is_table(Policy.validate_use(use_payload()))
+        local invalid = use_payload()
+        invalid.effect = 'DRINK_WATER'
+        assert.are.equal('VALIDATION_ERROR', select(2, Policy.validate_use(invalid)))
+        invalid = use_payload()
+        invalid.intent = 'DELETE'
+        assert.are.equal('VALIDATION_ERROR', select(2, Policy.validate_use(invalid)))
+
+        local water = {
+            quantity = 2,
+            has_instance = false,
+            definition = { use_handler = 'consume_water' },
+        }
+        local drink = Policy.use_plan(water, 'USE')
+        assert.are.equal('DRINK', drink.action)
+        assert.are.equal('DRINK_WATER', drink.effect)
+        assert.are.equal(1, drink.quantity_consumed)
+
+        local document = {
+            quantity = 1,
+            has_instance = true,
+            definition = { use_handler = 'state_id_document' },
+        }
+        assert.are.equal('INSPECT_ID', Policy.use_plan(document, 'INSPECT').action)
+        assert.are.equal('SHOW_ID', Policy.use_plan(document, 'SHOW').action)
+        assert.are.equal('PRECONDITION_FAILED', select(2, Policy.use_plan(document, 'USE')))
     end)
 end)

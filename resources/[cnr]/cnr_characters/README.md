@@ -16,7 +16,7 @@ Does not create money, inventory, roleplay jobs, property spawn choices, clothin
 
 - `get_status`
 - `lifecycle_snapshot(player_source, correlation_id)` for server-side orchestration; it derives only a lifecycle phase from the source-owned FULL session and never accepts account, session, character, or spawn authority from a client.
-- `active_character_for_source(player_source, correlation_id)` for trusted server resources; it returns only the source-bound spawned character, active binding, and State ID references.
+- `active_character_for_source(player_source, correlation_id)` for trusted server resources; it returns only the source-bound spawned character, active binding, and bounded State ID identity fields required by server-side inventory presentation.
 
 ## Local events
 

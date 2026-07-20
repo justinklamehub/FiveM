@@ -1,5 +1,6 @@
 -- Owns FiveM NUI focus and forwards versioned shell messages to the browser.
 local focus_owner = nil
+local document_previous_focus = nil
 local lifecycle_locked = true
 local lifecycle_phase = 'AWAITING_AUTHORITY'
 local preview_camera = nil
@@ -79,6 +80,11 @@ RegisterNUICallback('close', function(_, callback)
         return
     end
     set_focus(nil)
+    callback({ ok = true })
+end)
+RegisterNUICallback('inventory.documentClose', function(_, callback)
+    set_focus(document_previous_focus)
+    document_previous_focus = nil
     callback({ ok = true })
 end)
 RegisterNUICallback('uiReady', function(_, callback)
@@ -233,7 +239,7 @@ local function inventory_request(action, payload, callback)
     TriggerServerEvent('cnr:inventory:request', action, payload)
     callback({ ok = true, queued = true, request_id = request_id })
 end
-for _, callback_name in ipairs({ 'snapshot', 'workspace', 'reposition', 'transfer' }) do
+for _, callback_name in ipairs({ 'snapshot', 'workspace', 'reposition', 'transfer', 'use' }) do
     RegisterNUICallback('inventory.' .. callback_name, function(payload, callback)
         inventory_request(callback_name, payload, callback)
     end)
@@ -252,6 +258,50 @@ RegisterNetEvent('cnr:inventory:response', function(action, request_id, result)
             },
         })
     end
+end)
+
+local function play_inventory_animation(dictionary, animation)
+    CreateThread(function()
+        RequestAnimDict(dictionary)
+        local deadline = GetGameTimer() + 5000
+        while not HasAnimDictLoaded(dictionary) and GetGameTimer() < deadline do
+            Wait(0)
+        end
+        if not HasAnimDictLoaded(dictionary) then
+            return
+        end
+        local ped = PlayerPedId()
+        if ped ~= 0 and not IsEntityDead(ped) then
+            TaskPlayAnim(ped, dictionary, animation, 4.0, -4.0, 3000, 49, 0.0, false, false, false)
+        end
+        RemoveAnimDict(dictionary)
+    end)
+end
+
+RegisterNetEvent('cnr:inventory:item_effect', function(effect)
+    if effect == 'DRINK_WATER' then
+        play_inventory_animation('mp_player_intdrink', 'loop_bottle')
+    elseif effect == 'EAT_FOOD' then
+        play_inventory_animation('mp_player_inteat@burger', 'mp_player_int_eat_burger')
+    end
+end)
+
+RegisterNetEvent('cnr:inventory:document', function(presentation)
+    if
+        type(presentation) ~= 'table'
+        or presentation.contract_version ~= 5
+        or (presentation.mode ~= 'INSPECTED' and presentation.mode ~= 'PRESENTED')
+        or type(presentation.document) ~= 'table'
+    then
+        return
+    end
+    document_previous_focus = focus_owner
+    set_focus('inventoryDocument')
+    SendNUIMessage({
+        version = 1,
+        type = 'ui.inventory.document',
+        payload = presentation,
+    })
 end)
 
 local function hold_player(hidden)
@@ -622,7 +672,7 @@ RegisterCommand('cnr_inventory_open', function()
     SendNUIMessage({
         version = 1,
         type = 'ui.inventory.open',
-        payload = { contract_version = 4, view = 'personal' },
+        payload = { contract_version = 5, view = 'personal' },
     })
 end, false)
 RegisterKeyMapping('cnr_inventory_open', 'Open personal inventory', 'keyboard', 'F2')
@@ -634,7 +684,7 @@ RegisterCommand('cnr_storage_open', function()
     SendNUIMessage({
         version = 1,
         type = 'ui.inventory.open',
-        payload = { contract_version = 4, view = 'storage' },
+        payload = { contract_version = 5, view = 'storage' },
     })
 end, false)
 RegisterKeyMapping('cnr_storage_open', 'Open nearby personal locker', 'keyboard', 'F3')

@@ -86,6 +86,15 @@ RegisterNetEvent('cnr:inventory:request', function(action, payload)
         result = Service.reposition(player_source, payload, correlation_id)
     elseif action == 'transfer' then
         result = Service.transfer(player_source, payload, correlation_id)
+    elseif action == 'use' then
+        local use_limit = exports.cnr_core:consume_rate_limit(
+            'inventory-use:' .. tostring(player_source),
+            8,
+            10000,
+            correlation_id
+        )
+        result = use_limit.ok and Service.use_item(player_source, payload, correlation_id)
+            or use_limit
     else
         result = exports.cnr_core:create_error_result(
             'VALIDATION_ERROR',
@@ -100,6 +109,19 @@ RegisterNetEvent('cnr:inventory:request', function(action, payload)
             code = result.error and result.error.code or 'INTERNAL_ERROR',
             correlation_id = correlation_id,
         })
+    end
+    local internal = result.internal
+    result.internal = nil
+    if result.ok and internal then
+        if internal.effect == 'DRINK_WATER' or internal.effect == 'EAT_FOOD' then
+            TriggerClientEvent('cnr:inventory:item_effect', player_source, internal.effect)
+        end
+        if internal.presentation then
+            local presentation = internal.presentation
+            local recipient_source = presentation.recipient_source
+            presentation.recipient_source = nil
+            TriggerClientEvent('cnr:inventory:document', recipient_source, presentation)
+        end
     end
     TriggerClientEvent('cnr:inventory:response', player_source, action, request_id, result)
 end)
@@ -145,7 +167,7 @@ exports('snapshot_for_source', function(player_source, request_id, correlation_i
     end
     return Service.snapshot(player_source, {
         request_id = request_id,
-        contract_version = 4,
+        contract_version = 5,
     }, correlation_id)
 end)
 exports('workspace_for_source', function(player_source, request_id, correlation_id)
@@ -159,7 +181,7 @@ exports('workspace_for_source', function(player_source, request_id, correlation_
     end
     return Service.workspace(player_source, {
         request_id = request_id,
-        contract_version = 4,
+        contract_version = 5,
     }, correlation_id)
 end)
 exports('transfer_for_source', function(player_source, payload, correlation_id)
@@ -172,4 +194,15 @@ exports('transfer_for_source', function(player_source, payload, correlation_id)
         )
     end
     return Service.transfer(player_source, payload, correlation_id)
+end)
+exports('use_for_source', function(player_source, payload, correlation_id)
+    if status.status ~= 'ready' then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'inventory.error.unavailable',
+            {},
+            correlation_id
+        )
+    end
+    return Service.use_item(player_source, payload, correlation_id)
 end)
