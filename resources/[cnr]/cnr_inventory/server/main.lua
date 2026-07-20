@@ -113,7 +113,11 @@ RegisterNetEvent('cnr:inventory:request', function(action, payload)
     local internal = result.internal
     result.internal = nil
     if result.ok and internal then
-        if internal.effect == 'DRINK_WATER' or internal.effect == 'EAT_FOOD' then
+        if
+            internal.effect == 'DRINK_WATER'
+            or internal.effect == 'EAT_FOOD'
+            or internal.effect == 'OPEN_TABLET'
+        then
             TriggerClientEvent('cnr:inventory:item_effect', player_source, internal.effect)
         end
         if internal.presentation then
@@ -137,7 +141,7 @@ AddEventHandler('cnr:characters:spawned', function(event)
         local correlation_id = event.correlation_id or exports.cnr_core:create_correlation_id()
         local result = Service.provision_for_source(event.source, correlation_id)
         if not result.ok then
-            exports.cnr_logs:log('error', 'cnr_inventory', 'inventory.starter_failed', {
+            exports.cnr_logs:log('error', 'cnr_inventory', 'inventory.provision_failed', {
                 code = result.error and result.error.code or 'INTERNAL_ERROR',
                 correlation_id = correlation_id,
             })

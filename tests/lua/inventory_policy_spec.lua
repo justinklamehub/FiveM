@@ -178,5 +178,16 @@ describe('inventory policy', function()
         assert.are.equal('INSPECT_ID', Policy.use_plan(document, 'INSPECT').action)
         assert.are.equal('SHOW_ID', Policy.use_plan(document, 'SHOW').action)
         assert.are.equal('PRECONDITION_FAILED', select(2, Policy.use_plan(document, 'USE')))
+
+        local tablet = {
+            quantity = 1,
+            has_instance = true,
+            definition = { use_handler = 'open_tablet' },
+        }
+        local open = Policy.use_plan(tablet, 'USE')
+        assert.are.equal('OPEN_TABLET', open.action)
+        assert.are.equal('OPEN_TABLET', open.effect)
+        assert.are.equal(0, open.quantity_consumed)
+        assert.are.equal('PRECONDITION_FAILED', select(2, Policy.use_plan(tablet, 'SHOW')))
     end)
 end)

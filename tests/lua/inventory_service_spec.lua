@@ -530,4 +530,106 @@ describe('inventory service authority', function()
         assert.is_false(result.ok)
         assert.are.equal('CONFLICT', result.error.code)
     end)
+
+    it('opens a unique tablet without consuming or mutating inventory state', function()
+        local captured
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = string.rep('a', 64) }
+            end,
+            transaction = function()
+                return nil
+            end,
+            find_owned = function()
+                return inventory_row(use_item.inventory_uuid, 'CHARACTER')
+            end,
+            entries = function()
+                return {
+                    {
+                        id = 11,
+                        entry_uuid = '0190b7a0-6000-7000-8000-000000000022',
+                        slot_number = 1,
+                        quantity = 1,
+                        version = 1,
+                        definition_id = 4,
+                        item_instance_id = 14,
+                        has_instance = true,
+                        definition_uuid = '0190b7a0-6000-7000-8000-000000000004',
+                        code = 'city_tablet',
+                        category = 'TOOL',
+                        label = 'City Tablet',
+                        description = 'A secure city tablet.',
+                        icon_key = 'city_tablet',
+                        use_handler = 'open_tablet',
+                        is_stackable = false,
+                        is_unique = true,
+                        max_stack = 1,
+                        unit_weight_grams = 650,
+                        definition_version = 1,
+                    },
+                }
+            end,
+            use_item = function(context)
+                captured = context
+                return { ok = true }
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).use_item(12, use_item, 'correlation-tablet')
+        assert.is_true(result.ok)
+        assert.are.equal(0, result.data.quantity_consumed)
+        assert.are.equal(1, result.data.inventory_version)
+        assert.are.equal('OPEN_TABLET', result.data.effect)
+        assert.are.equal('OPEN_TABLET', captured.plan.action)
+    end)
+
+    it('replays the stored Tablet-open effect after a lost response', function()
+        local hash = string.rep('a', 64)
+        local repository = {
+            payload_hash = function()
+                return { payload_sha256 = hash }
+            end,
+            transaction = function()
+                return {
+                    operation_uuid = use_item.operation_uuid,
+                    action = 'USE_ITEM',
+                    account_uuid = 'account-1',
+                    character_uuid = 'character-1',
+                    payload_sha256 = hash,
+                    source_slot = 1,
+                    item_action = 'OPEN_TABLET',
+                    result_target_version = 3,
+                }
+            end,
+            find_owned = function()
+                return inventory_row(use_item.inventory_uuid, 'CHARACTER')
+            end,
+        }
+        local result = load_service(repository, {
+            account_uuid = 'account-1',
+            session_uuid = 'session-1',
+            access_state = 'FULL',
+        }, {
+            ok = true,
+            data = {
+                character_uuid = 'character-1',
+                binding_uuid = 'binding-1',
+                state_document_uuid = 'document-1',
+            },
+        }).use_item(12, use_item, 'correlation-tablet-replay')
+        assert.is_true(result.ok)
+        assert.is_true(result.data.repeated)
+        assert.are.equal('OPEN_TABLET', result.data.effect)
+        assert.are.equal('OPEN_TABLET', result.internal.effect)
+    end)
 end)

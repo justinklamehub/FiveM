@@ -176,6 +176,9 @@ function Policy.use_plan(source_entry, intent)
     if intent == 'USE' and handler == 'consume_food' and not source_entry.has_instance then
         return { action = 'EAT', effect = 'EAT_FOOD', quantity_consumed = 1 }
     end
+    if intent == 'USE' and handler == 'open_tablet' and source_entry.has_instance then
+        return { action = 'OPEN_TABLET', effect = 'OPEN_TABLET', quantity_consumed = 0 }
+    end
     if
         handler == 'state_id_document'
         and source_entry.has_instance

@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Owns personal character inventories and lockers, inventory entries, unique item instances, idempotency records, starter-item provisioning, atomic slot repositioning, inventory-to-inventory transfers, consumable use, and State ID inspection/presentation.
+Owns personal character inventories and lockers, inventory entries, unique item instances, idempotency records, starter-item and character-Tablet provisioning, atomic slot repositioning, inventory-to-inventory transfers, consumable use, State ID inspection/presentation, and the server-confirmed Tablet-open effect.
 
 ## Security boundary
 
@@ -29,7 +29,7 @@ Snapshot, locker workspace, reposition, transfer, and item-use payloads use inve
 
 ## Local events
 
-Consumes `cnr:characters:spawned` to provision the starter package. Repeated event delivery returns the existing transaction.
+Consumes `cnr:characters:spawned` to provision the starter package and one character-bound City Tablet. Repeated event delivery returns the existing transactions.
 
 ## Owned tables
 
@@ -52,8 +52,10 @@ Consumes `cnr:characters:spawned` to provision the starter package. Repeated eve
 
 Exactly one package is provisioned per character: two Water Bottles, two Sandwiches, and the existing State Identification Card as a referenced unique item.
 
+Exactly one separate City Tablet is provisioned per character through `PROVISION_TABLET`. It is a unique, non-tradeable, non-droppable instance. Using it does not consume or mutate the item; the persisted `OPEN_TABLET` result instructs the client to replace inventory focus with the Tablet shell.
+
 Their server-owned image keys resolve to reviewed transparent PNGs in `cnr_ui`. The inventory service never accepts filenames or asset paths from a client, and definitions without packaged artwork use the UI's deterministic fallback.
 
 ## Recovery
 
-Snapshot reads also run the same idempotent provisioning check, so a missed spawn event or resource restart cannot duplicate or permanently omit the starter package. Locker creation uses the owner/type uniqueness constraint and is safe to repeat. Repositioning locks the selected inventory and all entries before applying a guarded empty-slot move or occupied-slot swap. Transfers lock both inventories and their entries in deterministic order and persist replayable placement details. Cross-inventory stack drops may select a partial quantity, but the server still validates the exact available amount and applies only confirmed results. Item use locks the character inventory and source entry, resolves the definition handler server-side, consumes exactly one food or drink item, and stores the effect for replay. State ID inspection and presentation never consume the unique item; presentation resolves the nearest target from server-observed positions and exposes only bounded public document fields.
+Snapshot reads also run the same idempotent provisioning checks, so a missed spawn event or resource restart cannot duplicate or permanently omit the starter package or Tablet. Locker creation uses the owner/type uniqueness constraint and is safe to repeat. Repositioning locks the selected inventory and all entries before applying a guarded empty-slot move or occupied-slot swap. Transfers lock both inventories and their entries in deterministic order and persist replayable placement details. Cross-inventory stack drops may select a partial quantity, but the server still validates the exact available amount and applies only confirmed results. Item use locks the character inventory and source entry, resolves the definition handler server-side, consumes exactly one food or drink item, and stores the effect for replay. State ID and Tablet actions retain their unique instances and inventory versions. State ID presentation resolves the nearest target from server-observed positions and exposes only bounded public document fields.

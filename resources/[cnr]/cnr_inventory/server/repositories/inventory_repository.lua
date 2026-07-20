@@ -125,6 +125,17 @@ function Repository.starter_transaction(character_uuid)
     )
 end
 
+function Repository.tablet_transaction(character_uuid)
+    return single(
+        ([[SELECT %s operation_uuid, result_target_version
+        FROM cnr_item_transactions WHERE action='PROVISION_TABLET'
+        AND character_uuid=UNHEX(REPLACE(?,'-','')) LIMIT 1]]):format(
+            uuid:format('operation_uuid')
+        ),
+        { character_uuid }
+    )
+end
+
 function Repository.transaction(operation_uuid)
     return single(
         ([[SELECT %s operation_uuid, action, %s account_uuid, %s session_uuid,
@@ -369,6 +380,126 @@ function Repository.provision_starter(context)
                 context.inventory.id,
                 context.inventory.version + 1,
             },
+        },
+    })
+end
+
+function Repository.tablet_definition()
+    return single([[SELECT id FROM cnr_item_definitions
+        WHERE code='city_tablet' AND status='ACTIVE' LIMIT 1]])
+end
+
+function Repository.provision_tablet(context)
+    local definition, definition_error = Repository.tablet_definition()
+    if definition_error then
+        return definition_error
+    end
+    if not definition then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'inventory.error.tablet_definition_missing',
+            {},
+            context.correlation_id
+        )
+    end
+    local definition_id = tonumber(definition.id)
+    return exports.cnr_database:transaction({
+        {
+            query = [[SELECT id FROM cnr_inventories WHERE id=? FOR UPDATE]],
+            values = { context.inventory.id },
+        },
+        {
+            query = [[SELECT id FROM cnr_inventory_items WHERE inventory_id=?
+            ORDER BY id FOR UPDATE]],
+            values = { context.inventory.id },
+        },
+        {
+            query = [[INSERT INTO cnr_item_instances
+            (public_uuid, definition_id, reference_type, reference_uuid, status, version,
+            created_at, updated_at)
+            VALUES (UNHEX(REPLACE(?,'-','')),?,'CHARACTER_TABLET',UNHEX(REPLACE(?,'-','')),
+            'ACTIVE',1,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
+            ON DUPLICATE KEY UPDATE public_uuid=cnr_item_instances.public_uuid]],
+            values = {
+                context.tablet_instance_uuid,
+                definition_id,
+                context.character_uuid,
+            },
+        },
+        {
+            query = [[INSERT INTO cnr_item_transactions
+            (operation_uuid, action, account_uuid, session_uuid, character_uuid,
+            source_inventory_id, target_inventory_id, source_entry_uuid, target_entry_uuid,
+            definition_id, item_instance_id, source_slot, target_slot, transfer_mode, item_action,
+            quantity, request_id, correlation_id, contract_version, payload_sha256,
+            result_source_version, result_target_version, result_status, created_at, completed_at)
+            SELECT UNHEX(REPLACE(?,'-','')),'PROVISION_TABLET',UNHEX(REPLACE(?,'-','')),
+            UNHEX(REPLACE(?,'-','')),UNHEX(REPLACE(?,'-','')),NULL,?,NULL,
+            UNHEX(REPLACE(?,'-','')),?,inst.id,NULL,?,NULL,NULL,1,?,?,?,UNHEX(?),
+            COALESCE((SELECT inventory.version+1 FROM cnr_inventories inventory
+                WHERE inventory.id=? AND inventory.version=? AND inventory.status='ACTIVE'
+                AND inventory.inventory_type='CHARACTER'
+                AND inventory.owner_character_uuid=UNHEX(REPLACE(?,'-',''))
+                AND ? BETWEEN 1 AND inventory.slot_capacity
+                AND NOT EXISTS (SELECT 1 FROM cnr_inventory_items occupied
+                    WHERE occupied.inventory_id=inventory.id AND occupied.slot_number=?)
+                AND (SELECT COALESCE(SUM(item.quantity*definition.unit_weight_grams),0)
+                    FROM cnr_inventory_items item
+                    INNER JOIN cnr_item_definitions definition
+                        ON definition.id=item.definition_id
+                    WHERE item.inventory_id=inventory.id)
+                    +(SELECT unit_weight_grams FROM cnr_item_definitions
+                        WHERE id=? AND status='ACTIVE')<=inventory.weight_capacity_grams
+                LIMIT 1),0),?,
+            'COMPLETED',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
+            FROM cnr_item_instances inst WHERE inst.reference_type='CHARACTER_TABLET'
+            AND inst.reference_uuid=UNHEX(REPLACE(?,'-',''))
+            AND inst.definition_id=? AND inst.status='ACTIVE']],
+            values = {
+                context.operation_uuid,
+                context.account_uuid,
+                context.session_uuid,
+                context.character_uuid,
+                context.inventory.id,
+                context.tablet_entry_uuid,
+                definition_id,
+                context.target_slot,
+                context.request_id,
+                context.correlation_id,
+                context.contract_version,
+                context.payload_sha256,
+                context.inventory.id,
+                context.inventory.version,
+                context.character_uuid,
+                context.target_slot,
+                context.target_slot,
+                definition_id,
+                context.inventory.version + 1,
+                context.character_uuid,
+                definition_id,
+            },
+        },
+        {
+            query = [[INSERT INTO cnr_inventory_items
+            (public_uuid, inventory_id, definition_id, item_instance_id, slot_number, quantity,
+            version, created_at, updated_at)
+            SELECT UNHEX(REPLACE(?,'-','')),?,?,inst.id,?,1,1,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
+            FROM cnr_item_instances inst WHERE inst.reference_type='CHARACTER_TABLET'
+            AND inst.reference_uuid=UNHEX(REPLACE(?,'-',''))
+            AND inst.definition_id=? AND inst.status='ACTIVE']],
+            values = {
+                context.tablet_entry_uuid,
+                context.inventory.id,
+                definition_id,
+                context.target_slot,
+                context.character_uuid,
+                definition_id,
+            },
+        },
+        {
+            query = [[UPDATE cnr_inventories SET version=version+1,
+            updated_at=UTC_TIMESTAMP(6) WHERE id=? AND version=?]],
+            values = { context.inventory.id, context.inventory.version },
         },
     })
 end

@@ -24,7 +24,7 @@ Does not own inventories, item locations, instances, transfers, reservations, gr
 
 ## Configuration
 
-The first catalogue is migration-backed. Later configuration publishing must create a new version rather than silently changing live client authority.
+The catalogue is migration-backed and currently includes the starter consumables, State ID, and unique City Tablet. Later configuration publishing must create a new version rather than silently changing live client authority.
 
 ## Recovery
 

@@ -211,7 +211,8 @@ export type InventoryType = 'CHARACTER' | 'PERSONAL_STORAGE';
 export type InventoryOpenView = 'personal' | 'storage';
 export type InventoryItemAction = 'USE' | 'INSPECT' | 'SHOW';
 export type InventoryUseIntent = InventoryItemAction;
-export type InventoryUseEffect = 'DRINK_WATER' | 'EAT_FOOD' | 'INSPECT_STATE_ID' | 'SHOW_STATE_ID';
+export type InventoryUseEffect =
+  'DRINK_WATER' | 'EAT_FOOD' | 'INSPECT_STATE_ID' | 'SHOW_STATE_ID' | 'OPEN_TABLET';
 export interface InventoryItemDefinition {
   definition_uuid: string;
   code: string;
@@ -322,6 +323,8 @@ export interface StateIdentificationPresentation {
   mode: 'INSPECTED' | 'PRESENTED';
   document: StateIdentificationView;
 }
+
+export const tabletContractVersion = 1 as const;
 
 export const bankingContractVersion = 1 as const;
 export type FinancialAccountType = 'CASH_WALLET' | 'PERSONAL_CHECKING';
@@ -483,8 +486,8 @@ export type NuiMessage =
     }
   | {
       version: 1;
-      type: 'ui.banking.open';
-      payload: { contract_version: typeof bankingContractVersion };
+      type: 'ui.tablet.open';
+      payload: { contract_version: typeof tabletContractVersion };
     }
   | {
       version: 1;
@@ -568,11 +571,11 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
       typeof document.issued_at === 'string'
     );
   }
-  if (candidate.type === 'ui.banking.open') {
+  if (candidate.type === 'ui.tablet.open') {
     const payload = candidate.payload as { contract_version?: unknown };
     return (
       Object.keys(candidate.payload).join(',') === 'contract_version' &&
-      payload.contract_version === bankingContractVersion
+      payload.contract_version === tabletContractVersion
     );
   }
   if (candidate.type === 'ui.request.response') {

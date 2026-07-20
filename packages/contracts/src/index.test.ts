@@ -16,6 +16,7 @@ import {
   characterSelectionContractVersion,
   inventoryContractVersion,
   bankingContractVersion,
+  tabletContractVersion,
   type SaveCharacterAppearance,
   type SelectCharacter,
   type CreateCharacterDraft,
@@ -287,15 +288,15 @@ describe('core contracts', () => {
     expect(
       isNuiMessage({
         version: 1,
-        type: 'ui.banking.open',
-        payload: { contract_version: bankingContractVersion },
+        type: 'ui.tablet.open',
+        payload: { contract_version: tabletContractVersion },
       }),
     ).toBe(true);
     expect(
       isNuiMessage({
         version: 1,
-        type: 'ui.banking.open',
-        payload: { contract_version: bankingContractVersion, balance_minor: 999999 },
+        type: 'ui.tablet.open',
+        payload: { contract_version: tabletContractVersion, account_uuid: 'client-claimed' },
       }),
     ).toBe(false);
   });

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const iconDirectory = resolve('packages/ui/public/assets/items');
-const starterIcons = ['water_bottle.png', 'sandwich.png', 'state_id.png'];
+const starterIcons = ['water_bottle.png', 'sandwich.png', 'state_id.png', 'city_tablet.png'];
 
 describe('inventory PNG assets', () => {
   it.each(starterIcons)('packages a compact transparent 256px %s icon', (filename) => {

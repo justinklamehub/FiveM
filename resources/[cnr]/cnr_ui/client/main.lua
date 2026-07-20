@@ -93,11 +93,14 @@ RegisterNUICallback('inventory.actionComplete', function(payload, callback)
         or effect == 'EAT_FOOD'
         or effect == 'INSPECT_STATE_ID'
         or effect == 'SHOW_STATE_ID'
+        or effect == 'OPEN_TABLET'
     if not known_effect then
         callback({ ok = false })
         return
     end
-    if effect ~= 'INSPECT_STATE_ID' or focus_owner ~= 'inventoryDocument' then
+    local keep_document = effect == 'INSPECT_STATE_ID' and focus_owner == 'inventoryDocument'
+    local keep_tablet = effect == 'OPEN_TABLET' and focus_owner == 'tablet'
+    if not keep_document and not keep_tablet then
         set_focus(nil)
     end
     callback({ ok = true })
@@ -331,6 +334,13 @@ RegisterNetEvent('cnr:inventory:item_effect', function(effect)
         play_inventory_animation('mp_player_intdrink', 'loop_bottle')
     elseif effect == 'EAT_FOOD' then
         play_inventory_animation('mp_player_inteat@burger', 'mp_player_int_eat_burger')
+    elseif effect == 'OPEN_TABLET' then
+        set_focus('tablet')
+        SendNUIMessage({
+            version = 1,
+            type = 'ui.tablet.open',
+            payload = { contract_version = 1 },
+        })
     end
 end)
 
@@ -736,18 +746,6 @@ RegisterCommand('cnr_storage_open', function()
     })
 end, false)
 RegisterKeyMapping('cnr_storage_open', 'Open nearby personal locker', 'keyboard', 'F3')
-RegisterCommand('cnr_banking_open', function()
-    if lifecycle_locked then
-        return
-    end
-    set_focus('banking')
-    SendNUIMessage({
-        version = 1,
-        type = 'ui.banking.open',
-        payload = { contract_version = 1 },
-    })
-end, false)
-RegisterKeyMapping('cnr_banking_open', 'Open personal banking', 'keyboard', 'F4')
 AddEventHandler('onClientResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         set_focus(nil)

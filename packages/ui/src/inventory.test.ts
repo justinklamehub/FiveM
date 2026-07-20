@@ -30,6 +30,7 @@ describe('inventory browser mock', () => {
     expect(inventoryIconSource('water_bottle')).toBe('./assets/items/water_bottle.png');
     expect(inventoryIconSource('sandwich')).toBe('./assets/items/sandwich.png');
     expect(inventoryIconSource('state_id')).toBe('./assets/items/state_id.png');
+    expect(inventoryIconSource('city_tablet')).toBe('./assets/items/city_tablet.png');
     expect(inventoryIconSource('future_item')).toBeNull();
   });
 
@@ -82,11 +83,13 @@ describe('inventory browser mock', () => {
       'water_bottle',
       'sandwich',
       'state_id',
+      'city_tablet',
     ]);
     expect(result.data.entries.map((entry) => entry.definition.icon_key)).toEqual([
       'water_bottle',
       'sandwich',
       'state_id',
+      'city_tablet',
     ]);
     expect(result.data.entries.reduce((sum, entry) => sum + entry.total_weight_grams, 0)).toBe(
       result.data.current_weight_grams,
@@ -203,7 +206,7 @@ describe('inventory browser mock', () => {
     const move: InventoryRepositionRequest = {
       inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
       source_slot: 1,
-      target_slot: 4,
+      target_slot: 24,
       request_id: 'inventory-browser-move-1',
       operation_uuid: '0190b7a0-6000-7000-8000-000000000099',
       contract_version: inventoryContractVersion,
@@ -220,6 +223,6 @@ describe('inventory browser mock', () => {
     if (!snapshot.ok) return;
     expect(
       snapshot.data.entries.find((entry) => entry.definition.code === 'water_bottle')?.slot_number,
-    ).toBe(4);
+    ).toBe(24);
   });
 });

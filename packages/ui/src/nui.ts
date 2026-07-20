@@ -97,8 +97,9 @@ const mockInventorySlots = new Map([
   ['water_bottle', 1],
   ['sandwich', 2],
   ['state_id', 3],
+  ['city_tablet', 4],
 ]);
-let mockInventoryVersion = 2;
+let mockInventoryVersion = 3;
 function browserMock(event: string, body: unknown): unknown {
   const request = body as {
     locale?: 'de' | 'en';
@@ -168,7 +169,7 @@ function browserMock(event: string, body: unknown): unknown {
         inventory_type: 'CHARACTER',
         slot_capacity: 24,
         weight_capacity_grams: 30000,
-        current_weight_grams: 1520,
+        current_weight_grams: 2170,
         version: mockInventoryVersion,
         starter_provisioned: true,
         entries: [
@@ -231,6 +232,26 @@ function browserMock(event: string, body: unknown): unknown {
               actions: ['INSPECT', 'SHOW'],
             },
             total_weight_grams: 20,
+          },
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000014',
+            slot_number: mockInventorySlots.get('city_tablet') ?? 4,
+            quantity: 1,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000004',
+              code: 'city_tablet',
+              category: 'TOOL',
+              label: 'City Tablet',
+              description: 'A secure tablet for city services and personal applications.',
+              icon_key: 'city_tablet',
+              is_stackable: false,
+              is_unique: true,
+              max_stack: 1,
+              unit_weight_grams: 650,
+              version: 1,
+              actions: ['USE'],
+            },
+            total_weight_grams: 650,
           },
         ],
       },
@@ -350,10 +371,12 @@ function browserMock(event: string, body: unknown): unknown {
         ? 'INSPECT_STATE_ID'
         : request.intent === 'SHOW'
           ? 'SHOW_STATE_ID'
-          : request.source_slot === (mockInventorySlots.get('water_bottle') ?? 1)
-            ? 'DRINK_WATER'
-            : 'EAT_FOOD';
-    const consumed = request.intent === 'USE' ? 1 : 0;
+          : request.source_slot === (mockInventorySlots.get('city_tablet') ?? 4)
+            ? 'OPEN_TABLET'
+            : request.source_slot === (mockInventorySlots.get('water_bottle') ?? 1)
+              ? 'DRINK_WATER'
+              : 'EAT_FOOD';
+    const consumed = request.intent === 'USE' && effect !== 'OPEN_TABLET' ? 1 : 0;
     mockInventoryVersion += consumed;
     return {
       ok: true,

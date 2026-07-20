@@ -1,7 +1,7 @@
 # cnr_ui
 
 ## Responsibility
-Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration, character, personal-inventory, and read-only banking views, reviewed starter-item PNG artwork, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
+Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration, character, personal-inventory, reusable City Tablet, and read-only Banking app views, reviewed item PNG artwork, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
@@ -48,8 +48,8 @@ Browser scenario query values are `registration`, `access`, `creation`, `selecti
 only when the FiveM NUI API is absent.
 
 Use `?view=inventory` for the English personal-inventory mock, `?view=storage` for the two-panel
-locker workspace, `?view=document` for the State ID presentation, and `?view=banking` for the
-read-only financial account view. In FiveM, F2 or
+locker workspace, `?view=document` for the State ID presentation, `?view=tablet` for the Tablet
+home, and `?view=banking` for the Tablet opened directly to its read-only Banking app. In FiveM, F2 or
 `cnr_inventory_open` opens the character inventory after controlled
 spawn. F3 or `cnr_storage_open` requests the personal locker, which the server exposes only within the
 configured radius. Occupied slots use direct pointer drag-and-drop with a destination highlight and
@@ -60,12 +60,14 @@ action closes the inventory and releases its focus before gameplay resumes. Cons
 server-issued animation after one-unit persistence. State ID inspection hands focus directly to a compact,
 left-docked English document card without reopening or retaining the inventory; closing the card returns to
 gameplay. State ID presentation uses the same bounded card for the server-selected nearby recipient. Reviewed
-transparent PNGs are resolved from an explicit allowlist for the three starter image keys. Unknown keys
+transparent PNGs are resolved from an explicit allowlist for the three starter image keys and City Tablet. Unknown keys
 or failed image loads retain deterministic two-letter fallback tiles.
 
-F4 or `cnr_banking_open` opens personal banking after controlled spawn. The client sends only a
-versioned snapshot request and renders server-derived integer balances and posted history. It has no
-payment, transfer, account-selection, balance, or starter-funding authority.
+The unique City Tablet is used from F2 inventory. Only the persisted server-confirmed `OPEN_TABLET`
+effect transfers focus into the reusable Tablet shell. Banking is its first enabled application; the
+former direct F4 command does not exist. The Banking app sends only a versioned snapshot request and
+renders server-derived integer balances and posted history. It has no payment, transfer,
+account-selection, balance, or starter-funding authority.
 
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
 registration view locally. It does not bypass server-side session, status, ruleset, or submission
@@ -83,4 +85,4 @@ and exposes a correlated recovery view when dependencies remain unavailable. The
 the server to derive a new snapshot and never accepts a destination from the client.
 
 ## Tests
-Focus, English visual text, lifecycle browser mocks, inventory image-key resolution, PNG dimensions and transparency, banking currency formatting, contracts, manifests, and the production build are checked in CI.
+Focus, English visual text, lifecycle and Tablet browser mocks, inventory image-key resolution, PNG dimensions and transparency, banking currency formatting, contracts, manifests, and the production build are checked in CI.

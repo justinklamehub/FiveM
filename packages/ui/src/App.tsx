@@ -20,7 +20,7 @@ import { InventoryPanel } from './InventoryPanel';
 import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase } from './lifecycle';
 import { isBrowserMock, postNui } from './nui';
 import { StateIdentificationCard } from './StateIdentificationCard';
-import { BankingPanel } from './BankingPanel';
+import { TabletPanel, type TabletApp } from './TabletPanel';
 
 const newId = () => crypto.randomUUID();
 
@@ -37,9 +37,14 @@ export function App() {
         : 'personal',
     [],
   );
-  const browserBanking = useMemo(
-    () => mock && new URLSearchParams(currentBrowserSearch()).get('view') === 'banking',
-    [mock],
+  const browserTablet = useMemo(() => {
+    const view = new URLSearchParams(currentBrowserSearch()).get('view');
+    return mock && (view === 'tablet' || view === 'banking');
+  }, [mock]);
+  const browserTabletApp = useMemo<TabletApp>(
+    () =>
+      new URLSearchParams(currentBrowserSearch()).get('view') === 'banking' ? 'banking' : 'home',
+    [],
   );
   const browserIdentification = useMemo<StateIdentificationPresentation | null>(() => {
     if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'document')
@@ -71,7 +76,8 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [inventoryOpen, setInventoryOpen] = useState(browserInventory);
-  const [bankingOpen, setBankingOpen] = useState(browserBanking);
+  const [tabletOpen, setTabletOpen] = useState(browserTablet);
+  const [tabletInitialApp, setTabletInitialApp] = useState<TabletApp>(browserTabletApp);
   const [inventoryView, setInventoryView] = useState<InventoryOpenView>(browserInventoryView);
   const [identification, setIdentification] = useState<StateIdentificationPresentation | null>(
     browserIdentification,
@@ -183,19 +189,20 @@ export function App() {
         setVisible(false);
       } else if (event.data.type === 'ui.lifecycle.open') {
         setInventoryOpen(false);
-        setBankingOpen(false);
+        setTabletOpen(false);
         applySnapshot(event.data.payload);
       } else if (event.data.type === 'ui.inventory.open') {
-        setBankingOpen(false);
+        setTabletOpen(false);
         setInventoryView(event.data.payload.view);
         setInventoryOpen(true);
         setVisible(true);
         setFocus((current) => claimFocus(current, 'inventory'));
-      } else if (event.data.type === 'ui.banking.open') {
+      } else if (event.data.type === 'ui.tablet.open') {
         setInventoryOpen(false);
-        setBankingOpen(true);
+        setTabletInitialApp('home');
+        setTabletOpen(true);
         setVisible(true);
-        setFocus((current) => claimFocus(current, 'banking'));
+        setFocus((current) => claimFocus(current, 'tablet'));
       } else if (event.data.type === 'ui.inventory.document') {
         setIdentification(event.data.payload);
       } else if (event.data.type === 'ui.character.spawn_failed') {
@@ -222,18 +229,29 @@ export function App() {
     void postNui<{ ok: boolean }>('inventory.documentClose', {}).catch(() => undefined);
   };
 
-  const completeInventoryItemAction = useCallback((effect: InventoryUseEffect) => {
-    setInventoryOpen(false);
-    setVisible(false);
-    setFocus(initialFocusState);
-    void postNui<{ ok: boolean }>('inventory.actionComplete', { effect }).catch(() => undefined);
-  }, []);
+  const completeInventoryItemAction = useCallback(
+    (effect: InventoryUseEffect) => {
+      setInventoryOpen(false);
+      if (mock && effect === 'OPEN_TABLET') {
+        setTabletInitialApp('home');
+        setTabletOpen(true);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'tablet'));
+      } else {
+        setVisible(false);
+        setFocus(initialFocusState);
+      }
+      void postNui<{ ok: boolean }>('inventory.actionComplete', { effect }).catch(() => undefined);
+    },
+    [mock],
+  );
 
-  if (bankingOpen) {
+  if (tabletOpen) {
     return (
-      <BankingPanel
+      <TabletPanel
+        initialApp={tabletInitialApp}
         onClose={() => {
-          setBankingOpen(false);
+          setTabletOpen(false);
           setVisible(false);
           setFocus(initialFocusState);
         }}

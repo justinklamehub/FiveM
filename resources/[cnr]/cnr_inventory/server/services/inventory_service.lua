@@ -114,6 +114,9 @@ local function item_actions(use_handler)
     if use_handler == 'state_id_document' then
         return { 'INSPECT', 'SHOW' }
     end
+    if use_handler == 'open_tablet' then
+        return { 'USE' }
+    end
     return {}
 end
 
@@ -363,6 +366,95 @@ local function provision(context, inventory, correlation_id)
     }
 end
 
+local function provision_tablet(context, inventory, correlation_id)
+    local existing, existing_error = Repository.tablet_transaction(context.character_uuid)
+    if existing_error then
+        return nil, existing_error
+    end
+    if existing then
+        return {
+            repeated = true,
+            operation_uuid = existing.operation_uuid,
+            inventory_version = tonumber(existing.result_target_version),
+        }
+    end
+    local entries, entries_error = entries_for(inventory)
+    if not entries then
+        return nil, entries_error
+    end
+    local target_slot = Policy.first_free_slot(entries, inventory.slot_capacity)
+    if not target_slot then
+        return nil,
+            failure('PRECONDITION_FAILED', 'inventory.error.inventory_full', {}, correlation_id)
+    end
+    local hash, hash_error = Repository.payload_hash({
+        'PROVISION_TABLET',
+        context.character_uuid,
+        '1',
+    })
+    if hash_error then
+        return nil, hash_error
+    end
+    local operation_uuid = exports.cnr_core:create_uuid_v7()
+    local committed = Repository.provision_tablet({
+        inventory = inventory,
+        operation_uuid = operation_uuid,
+        account_uuid = context.account_uuid,
+        session_uuid = context.session_uuid,
+        character_uuid = context.character_uuid,
+        tablet_instance_uuid = exports.cnr_core:create_uuid_v7(),
+        tablet_entry_uuid = exports.cnr_core:create_uuid_v7(),
+        target_slot = target_slot,
+        request_id = 'character-tablet-provision',
+        correlation_id = correlation_id,
+        contract_version = 1,
+        payload_sha256 = hash.payload_sha256,
+    })
+    if not committed.ok then
+        local concurrent = Repository.tablet_transaction(context.character_uuid)
+        if concurrent then
+            return {
+                repeated = true,
+                operation_uuid = concurrent.operation_uuid,
+                inventory_version = tonumber(concurrent.result_target_version),
+            }
+        end
+        return nil, committed
+    end
+    exports.cnr_logs:audit('cnr_inventory', 'inventory.tablet_provisioned', {
+        character_uuid = context.character_uuid,
+        inventory_uuid = inventory.inventory_uuid,
+        operation_uuid = operation_uuid,
+        correlation_id = correlation_id,
+    })
+    return {
+        repeated = false,
+        operation_uuid = operation_uuid,
+        inventory_version = inventory.version + 1,
+    }
+end
+
+local function ensure_provisions(context, inventory, correlation_id)
+    local starter, starter_error = provision(context, inventory, correlation_id)
+    if not starter then
+        return nil, starter_error
+    end
+    local refreshed, refresh_error = Repository.find_character_inventory(context.character_uuid)
+    if refresh_error then
+        return nil, refresh_error
+    end
+    inventory = inventory_values(refreshed)
+    local tablet, tablet_error = provision_tablet(context, inventory, correlation_id)
+    if not tablet then
+        return nil, tablet_error
+    end
+    refreshed, refresh_error = Repository.find_character_inventory(context.character_uuid)
+    if refresh_error then
+        return nil, refresh_error
+    end
+    return inventory_values(refreshed), { starter = starter, tablet = tablet }
+end
+
 function Service.provision_for_source(player_source, correlation_id)
     local context, context_error = source_context(player_source, correlation_id)
     if not context then
@@ -372,11 +464,11 @@ function Service.provision_for_source(player_source, correlation_id)
     if not inventory then
         return inventory_error
     end
-    local result, provision_error = provision(context, inventory, correlation_id)
-    if not result then
+    local refreshed, provision_error = ensure_provisions(context, inventory, correlation_id)
+    if not refreshed then
         return provision_error
     end
-    return success(result, correlation_id)
+    return success({ inventory_version = refreshed.version }, correlation_id)
 end
 
 function Service.snapshot(player_source, payload, correlation_id)
@@ -392,15 +484,11 @@ function Service.snapshot(player_source, payload, correlation_id)
     if not inventory then
         return inventory_error
     end
-    local provisioned, provision_error = provision(context, inventory, correlation_id)
-    if not provisioned then
+    local refreshed, provision_error = ensure_provisions(context, inventory, correlation_id)
+    if not refreshed then
         return provision_error
     end
-    local refreshed, refresh_error = Repository.find_character_inventory(context.character_uuid)
-    if refresh_error then
-        return refresh_error
-    end
-    inventory = inventory_values(refreshed)
+    inventory = refreshed
     local entries, entries_error = entries_for(inventory)
     if not entries then
         return entries_error
@@ -425,15 +513,11 @@ function Service.workspace(player_source, payload, correlation_id)
     if not inventory then
         return inventory_error
     end
-    local provisioned, provision_error = provision(context, inventory, correlation_id)
-    if not provisioned then
+    local refreshed, provision_error = ensure_provisions(context, inventory, correlation_id)
+    if not refreshed then
         return provision_error
     end
-    local refreshed, refresh_error = Repository.find_character_inventory(context.character_uuid)
-    if refresh_error then
-        return refresh_error
-    end
-    inventory = inventory_values(refreshed)
+    inventory = refreshed
     local storage, storage_error = ensure_personal_storage(context, correlation_id)
     if not storage then
         return storage_error
@@ -519,6 +603,7 @@ local function repeated_use(operation, context, hash, payload, correlation_id)
         EAT = 'EAT_FOOD',
         INSPECT_ID = 'INSPECT_STATE_ID',
         SHOW_ID = 'SHOW_STATE_ID',
+        OPEN_TABLET = 'OPEN_TABLET',
     }
     local consumed = operation.item_action == 'DRINK' or operation.item_action == 'EAT'
     return success({
@@ -828,6 +913,9 @@ function Service.use_item(player_source, payload, correlation_id)
     local repeated =
         repeated_use(operation, context, hash.payload_sha256, validated, correlation_id)
     if repeated then
+        if repeated.ok and repeated.data.effect == 'OPEN_TABLET' then
+            repeated.internal = { effect = 'OPEN_TABLET' }
+        end
         return repeated
     end
     local entries, entries_error = entries_for(inventory)
@@ -903,6 +991,7 @@ function Service.use_item(player_source, payload, correlation_id)
         return recovered or committed
     end
     local operation_name = plan.quantity_consumed == 1 and 'inventory.item_consumed'
+        or plan.action == 'OPEN_TABLET' and 'inventory.tablet_opened'
         or plan.action == 'SHOW_ID' and 'inventory.document_shown'
         or 'inventory.document_inspected'
     exports.cnr_logs:audit('cnr_inventory', operation_name, {

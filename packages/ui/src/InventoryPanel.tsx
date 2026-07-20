@@ -32,6 +32,7 @@ const inventoryIconSources: Readonly<Record<string, string>> = {
   water_bottle: './assets/items/water_bottle.png',
   sandwich: './assets/items/sandwich.png',
   state_id: './assets/items/state_id.png',
+  city_tablet: './assets/items/city_tablet.png',
 };
 
 export const inventoryIconSource = (iconKey: string) => inventoryIconSources[iconKey] ?? null;

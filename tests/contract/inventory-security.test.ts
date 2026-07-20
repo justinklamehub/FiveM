@@ -127,12 +127,23 @@ describe('inventory security boundary', () => {
     expect(uiApp).toContain("postNui<{ ok: boolean }>('inventory.actionComplete', { effect })");
     expect(uiClient).toContain("RegisterNUICallback('inventory.actionComplete'");
     expect(uiClient).toContain(
-      "effect ~= 'INSPECT_STATE_ID' or focus_owner ~= 'inventoryDocument'",
+      "effect == 'INSPECT_STATE_ID' and focus_owner == 'inventoryDocument'",
     );
     expect(uiClient).toContain(
       "document_previous_focus = presentation.mode == 'PRESENTED' and focus_owner or nil",
     );
     expect(identification).toContain('identity-card__edge');
     expect(identification).toContain('Department of Motor Vehicles');
+  });
+
+  it('opens the tablet only after the server confirms the unique inventory item action', () => {
+    expect(policy).toContain("handler == 'open_tablet' and source_entry.has_instance");
+    expect(service).toContain("OPEN_TABLET = 'OPEN_TABLET'");
+    expect(repository).toContain("action='PROVISION_TABLET'");
+    expect(repository).toContain("'CHARACTER_TABLET'");
+    expect(main).toContain("internal.effect == 'OPEN_TABLET'");
+    expect(uiClient).toContain("RegisterNetEvent('cnr:inventory:item_effect'");
+    expect(uiClient).toContain("type = 'ui.tablet.open'");
+    expect(uiClient).not.toContain("RegisterCommand('cnr_banking_open'");
   });
 });
