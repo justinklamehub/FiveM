@@ -206,6 +206,238 @@ export interface CharacterSpawnInstruction {
   appearance: CharacterAppearance;
 }
 
+export const inventoryContractVersion = 5 as const;
+export type InventoryType = 'CHARACTER' | 'PERSONAL_STORAGE';
+export type InventoryOpenView = 'personal' | 'storage';
+export type InventoryItemAction = 'USE' | 'INSPECT' | 'SHOW';
+export type InventoryUseIntent = InventoryItemAction;
+export type InventoryUseEffect =
+  'DRINK_WATER' | 'EAT_FOOD' | 'INSPECT_STATE_ID' | 'SHOW_STATE_ID' | 'OPEN_TABLET';
+export interface InventoryItemDefinition {
+  definition_uuid: string;
+  code: string;
+  category: 'CONSUMABLE' | 'DOCUMENT' | 'TOOL' | 'CONTAINER' | 'MATERIAL' | 'EVIDENCE';
+  label: string;
+  description: string;
+  icon_key: string;
+  is_stackable: boolean;
+  is_unique: boolean;
+  max_stack: number;
+  unit_weight_grams: number;
+  version: number;
+  actions: readonly InventoryItemAction[];
+}
+export interface InventoryEntry {
+  entry_uuid: string;
+  slot_number: number;
+  quantity: number;
+  definition: InventoryItemDefinition;
+  total_weight_grams: number;
+}
+export interface InventorySnapshot {
+  inventory_uuid: string;
+  inventory_type: InventoryType;
+  slot_capacity: number;
+  weight_capacity_grams: number;
+  current_weight_grams: number;
+  version: number;
+  starter_provisioned: boolean;
+  entries: readonly InventoryEntry[];
+}
+export type PersonalInventorySnapshot = InventorySnapshot & { inventory_type: 'CHARACTER' };
+export interface InventoryWorkspaceSnapshot {
+  character: InventorySnapshot & { inventory_type: 'CHARACTER' };
+  storage: InventorySnapshot & { inventory_type: 'PERSONAL_STORAGE' };
+  access_label: string;
+}
+export interface InventorySnapshotRequest {
+  request_id: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryTransferRequest {
+  source_inventory_uuid: string;
+  target_inventory_uuid: string;
+  source_slot: number;
+  target_slot: number;
+  quantity: number;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryTransferOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  source_inventory_uuid: string;
+  target_inventory_uuid: string;
+  source_slot: number;
+  target_slot: number;
+  target_entry_uuid: string;
+  quantity: number;
+  mode: 'MOVE_INSTANCE' | 'STACK' | 'CREATE_STACK';
+  source_version: number;
+  target_version: number;
+}
+export interface InventoryRepositionRequest {
+  inventory_uuid: string;
+  source_slot: number;
+  target_slot: number;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryRepositionOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  inventory_version: number;
+  source_slot: number;
+  target_slot: number;
+  mode: 'MOVE' | 'SWAP';
+}
+export interface InventoryUseRequest {
+  inventory_uuid: string;
+  source_slot: number;
+  intent: InventoryUseIntent;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof inventoryContractVersion;
+}
+export interface InventoryUseOutcome {
+  repeated: boolean;
+  operation_uuid: string;
+  inventory_uuid: string;
+  source_slot: number;
+  quantity_consumed: 0 | 1;
+  inventory_version: number;
+  effect: InventoryUseEffect;
+}
+export interface StateIdentificationView {
+  document_type: 'STATE_ID';
+  document_number: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  issued_at: string;
+}
+export interface StateIdentificationPresentation {
+  contract_version: typeof inventoryContractVersion;
+  mode: 'INSPECTED' | 'PRESENTED';
+  document: StateIdentificationView;
+}
+
+export const tabletContractVersion = 1 as const;
+
+export const bankingContractVersion = 2 as const;
+export const atmContractVersion = 1 as const;
+export type FinancialAccountType = 'CASH_WALLET' | 'PERSONAL_CHECKING';
+export type FinancialAccountStatus =
+  'ACTIVE' | 'RESTRICTED' | 'FROZEN' | 'BLOCKED' | 'CLOSED' | 'PENDING_CLOSURE';
+export interface BankingSnapshotRequest {
+  request_id: string;
+  contract_version: typeof bankingContractVersion;
+}
+export interface BankingTransferRequest {
+  recipient_account_number: string;
+  amount_minor: number;
+  purpose: string;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof bankingContractVersion;
+}
+export interface FinancialAccountSummary {
+  account_uuid: string;
+  account_number: string;
+  account_type: FinancialAccountType;
+  currency: 'USD';
+  status: FinancialAccountStatus;
+  balance_minor: number;
+  version: number;
+}
+export interface FinancialTransactionSummary {
+  transaction_uuid: string;
+  transaction_number: string;
+  transaction_type: 'STARTER_ALLOCATION' | 'BANK_TRANSFER' | 'ATM_DEPOSIT' | 'ATM_WITHDRAWAL';
+  status: 'POSTED';
+  amount_minor: number;
+  direction: 'CREDIT' | 'DEBIT';
+  currency: 'USD';
+  purpose: string;
+  posted_at: string;
+}
+export interface BankingSnapshot {
+  currency: 'USD';
+  starter_provisioned: true;
+  repeated: boolean;
+  accounts: readonly FinancialAccountSummary[];
+  recent_transactions: readonly FinancialTransactionSummary[];
+}
+export interface BankingTransferReceipt {
+  repeated: boolean;
+  operation_uuid: string;
+  transaction_uuid: string;
+  transaction_number: string;
+  source_account_number: string;
+  recipient_account_number: string;
+  amount_minor: number;
+  currency: 'USD';
+  purpose: string;
+  posted_at: string;
+  snapshot: BankingSnapshot;
+}
+export interface AtmPublicLocation {
+  atm_uuid: string;
+  code: string;
+  label: string;
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  interaction_radius: number;
+  status: 'ACTIVE';
+  version: number;
+}
+export interface AtmDirectoryRequest {
+  request_id: string;
+  contract_version: typeof atmContractVersion;
+}
+export interface AtmDirectory {
+  contract_version: typeof atmContractVersion;
+  atms: readonly AtmPublicLocation[];
+}
+export interface AtmSnapshotRequest {
+  atm_uuid: string;
+  request_id: string;
+  contract_version: typeof atmContractVersion;
+}
+export interface AtmSessionSnapshot {
+  contract_version: typeof atmContractVersion;
+  atm: AtmPublicLocation;
+  banking: BankingSnapshot;
+}
+export type AtmCashDirection = 'DEPOSIT' | 'WITHDRAW';
+export interface AtmCashRequest {
+  atm_uuid: string;
+  direction: AtmCashDirection;
+  amount_minor: number;
+  request_id: string;
+  operation_uuid: string;
+  contract_version: typeof atmContractVersion;
+}
+export interface AtmCashReceipt {
+  repeated: boolean;
+  operation_uuid: string;
+  transaction_uuid: string;
+  transaction_number: string;
+  atm_uuid: string;
+  atm_label: string;
+  direction: AtmCashDirection;
+  source_account_number: string;
+  destination_account_number: string;
+  amount_minor: number;
+  currency: 'USD';
+  posted_at: string;
+  snapshot: BankingSnapshot;
+}
+
 export const playerLifecycleContractVersion = 1 as const;
 export const playerLifecyclePhases = [
   'CONNECTING',
@@ -318,6 +550,29 @@ export type NuiMessage =
   | { version: 1; type: 'ui.lifecycle.phase'; payload: PlayerLifecycleSnapshot }
   | {
       version: 1;
+      type: 'ui.inventory.open';
+      payload: {
+        contract_version: typeof inventoryContractVersion;
+        view: InventoryOpenView;
+      };
+    }
+  | {
+      version: 1;
+      type: 'ui.inventory.document';
+      payload: StateIdentificationPresentation;
+    }
+  | {
+      version: 1;
+      type: 'ui.tablet.open';
+      payload: { contract_version: typeof tabletContractVersion };
+    }
+  | {
+      version: 1;
+      type: 'ui.atm.open';
+      payload: AtmSessionSnapshot;
+    }
+  | {
+      version: 1;
       type: 'ui.character.spawn_failed';
       payload: { correlation_id: string };
     }
@@ -363,6 +618,74 @@ export function isNuiMessage(value: unknown): value is NuiMessage {
   if (candidate.type === 'ui.character.spawn_failed') {
     const payload = candidate.payload as { correlation_id?: unknown };
     return typeof payload.correlation_id === 'string';
+  }
+  if (candidate.type === 'ui.inventory.open') {
+    const payload = candidate.payload as { contract_version?: unknown; view?: unknown };
+    return (
+      Object.keys(candidate.payload).sort().join(',') === 'contract_version,view' &&
+      payload.contract_version === inventoryContractVersion &&
+      (payload.view === 'personal' || payload.view === 'storage')
+    );
+  }
+  if (candidate.type === 'ui.inventory.document') {
+    const payload = candidate.payload as {
+      contract_version?: unknown;
+      mode?: unknown;
+      document?: unknown;
+    };
+    if (
+      Object.keys(candidate.payload).sort().join(',') !== 'contract_version,document,mode' ||
+      payload.contract_version !== inventoryContractVersion ||
+      (payload.mode !== 'INSPECTED' && payload.mode !== 'PRESENTED') ||
+      typeof payload.document !== 'object' ||
+      payload.document === null
+    )
+      return false;
+    const document = payload.document as Record<string, unknown>;
+    return (
+      Object.keys(document).sort().join(',') ===
+        'date_of_birth,document_number,document_type,first_name,issued_at,last_name' &&
+      document.document_type === 'STATE_ID' &&
+      typeof document.document_number === 'string' &&
+      typeof document.first_name === 'string' &&
+      typeof document.last_name === 'string' &&
+      typeof document.date_of_birth === 'string' &&
+      typeof document.issued_at === 'string'
+    );
+  }
+  if (candidate.type === 'ui.tablet.open') {
+    const payload = candidate.payload as { contract_version?: unknown };
+    return (
+      Object.keys(candidate.payload).join(',') === 'contract_version' &&
+      payload.contract_version === tabletContractVersion
+    );
+  }
+  if (candidate.type === 'ui.atm.open') {
+    const payload = candidate.payload as {
+      contract_version?: unknown;
+      atm?: unknown;
+      banking?: unknown;
+    };
+    if (
+      Object.keys(candidate.payload).sort().join(',') !== 'atm,banking,contract_version' ||
+      payload.contract_version !== atmContractVersion ||
+      typeof payload.atm !== 'object' ||
+      payload.atm === null ||
+      typeof payload.banking !== 'object' ||
+      payload.banking === null
+    )
+      return false;
+    const atm = payload.atm as Record<string, unknown>;
+    return (
+      typeof atm.atm_uuid === 'string' &&
+      typeof atm.code === 'string' &&
+      typeof atm.label === 'string' &&
+      typeof atm.x === 'number' &&
+      typeof atm.y === 'number' &&
+      typeof atm.z === 'number' &&
+      typeof atm.interaction_radius === 'number' &&
+      atm.status === 'ACTIVE'
+    );
   }
   if (candidate.type === 'ui.request.response') {
     const payload = candidate.payload as {

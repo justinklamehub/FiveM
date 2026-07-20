@@ -151,6 +151,12 @@ RegisterNetEvent('cnr:characters:spawnAck', function(payload)
             and Service.acknowledge_spawn(player_source, payload, correlation_id)
         or rate_limit
     if result.ok then
+        TriggerEvent('cnr:characters:spawned', {
+            source = player_source,
+            character_uuid = result.data.character_uuid,
+            binding_uuid = result.data.binding_uuid,
+            correlation_id = correlation_id,
+        })
         TriggerClientEvent('cnr:characters:spawnConfirmed', player_source, result.data.spawn_uuid)
     else
         exports.cnr_logs:log('warn', 'cnr_characters', 'character.spawn_ack_rejected', {
@@ -178,4 +184,15 @@ exports('lifecycle_snapshot', function(player_source, correlation_id)
         )
     end
     return Service.lifecycle_snapshot(player_source, correlation_id)
+end)
+exports('active_character_for_source', function(player_source, correlation_id)
+    if status.status ~= 'ready' then
+        return exports.cnr_core:create_error_result(
+            'DEPENDENCY_UNAVAILABLE',
+            'characters.error.unavailable',
+            {},
+            correlation_id
+        )
+    end
+    return Service.active_character_for_source(player_source, correlation_id)
 end)

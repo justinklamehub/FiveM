@@ -1,7 +1,7 @@
 # cnr_ui
 
 ## Responsibility
-Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration and character views, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
+Owns the packaged English loadscreen, server-driven lifecycle handoff, central focus ownership, registration, character, personal-inventory, reusable City Tablet, and Banking app views, reviewed item PNG artwork, limited-access and recovery UX, a separate non-networked appearance preview ped, model-specific curated starter clothing, accessible slider steppers, and execution of server-issued spawn instructions.
 
 ## Non-responsibility
 Does not calculate authoritative prices, rewards, ownership, or permissions.
@@ -9,7 +9,7 @@ Does not calculate authoritative prices, rewards, ownership, or permissions.
 ## Dependencies
 
 The manifest declares only the client-compatible `/onesync` constraint and stock `spawnmanager`. Server-side integrations with
-`cnr_core`, `cnr_registration`, `cnr_sessions`, and `cnr_characters` are ordered by `server.cfg` and
+`cnr_core`, `cnr_registration`, `cnr_sessions`, `cnr_characters`, `cnr_inventory`, and `cnr_banking` are ordered by `server.cfg` and
 guarded by runtime readiness checks; declaring server-only resources as hard dependencies would make
 the FiveM client reject `cnr_ui` because those resources have no client package.
 
@@ -20,7 +20,7 @@ the FiveM client reject `cnr_ui` because those resources have no client package.
 
 `uiReady` and `lifecycleRefresh` (browser-to-Lua NUI callbacks), `cnr:ui:ready` and
 `cnr:ui:refresh` (client-to-server events), `cnr:ui:lifecycle` (server-to-client snapshot),
-registration NUI callbacks, character lifecycle callbacks, and controlled-spawn events. The server
+registration NUI callbacks, character lifecycle callbacks, inventory snapshot/reposition/transfer/use callbacks, banking snapshot/transfer/ATM callbacks, State ID presentation, and controlled-spawn events. The server
 derives the view from the source-owned session; the client cannot select its access state, lifecycle
 phase, or onboarding destination.
 
@@ -47,6 +47,39 @@ Browser scenario query values are `registration`, `access`, `creation`, `selecti
 `spawn`, and `error`. They never bypass runtime server validation because the mock transport exists
 only when the FiveM NUI API is absent.
 
+Use `?view=inventory` for the English personal-inventory mock, `?view=storage` for the two-panel
+locker workspace, `?view=document` for the State ID presentation, `?view=tablet` for the Tablet
+home, `?view=banking` for the Tablet opened directly to its Banking app, and `?view=atm` for the
+proximity terminal mock. In FiveM, F2 or
+`cnr_inventory_open` opens the character inventory after controlled
+spawn. F3 or `cnr_storage_open` requests the personal locker, which the server exposes only within the
+configured radius. Occupied slots use direct pointer drag-and-drop with a destination highlight and
+drop animation; click-selection is not part of movement. Cross-inventory stacks open a bounded quantity
+selector after their direct drop, and the UI applies the server-validated placement only after confirmation.
+Double-click or right-click opens only actions published by the server definition. Every confirmed item
+action closes the inventory and releases its focus before gameplay resumes. Consumables play the
+server-issued animation after one-unit persistence. State ID inspection hands focus directly to a compact,
+left-docked English document card without reopening or retaining the inventory; closing the card returns to
+gameplay. State ID presentation uses the same bounded card for the server-selected nearby recipient. Reviewed
+transparent PNGs are resolved from an explicit allowlist for the three starter image keys and City Tablet. Unknown keys
+or failed image loads retain deterministic two-letter fallback tiles.
+
+The unique City Tablet is used from F2 inventory. Only the persisted server-confirmed `OPEN_TABLET`
+effect transfers focus into the reusable Tablet shell. The world remains visible around its physical
+device frame, and the home surface presents generic mobile-style app icons, lock badges, a dock, and
+reduced-motion-aware app transitions. Banking is its first enabled application; the
+former direct F4 command does not exist. The Banking app sends a versioned snapshot request or a
+bounded recipient/amount/purpose transfer intent. It renders server-derived integer balances and
+signed posted history. It has no sender-account selection, balance, currency, ledger-entry, status,
+or starter-funding authority.
+
+Active ATM positions are refreshed from `cnr_banking`. A marker and English interaction prompt appear
+only inside the client hint radius; pressing the context control sends the ATM UUID to the server. NUI
+focus is granted only after the server re-resolves the source session, active character, persisted ATM,
+and server-observed proximity. The dedicated ATM view offers deposits and withdrawals with quick
+amounts, explicit review, idempotent retry, and refreshed server-ledger balances. It cannot choose
+coordinates, accounts, balance, currency, transaction type, ledger entries, or results.
+
 For manual FXServer smoke testing, the client F8 command `cnr_registration_open` opens the English
 registration view locally. It does not bypass server-side session, status, ruleset, or submission
 validation.
@@ -63,4 +96,6 @@ and exposes a correlated recovery view when dependencies remain unavailable. The
 the server to derive a new snapshot and never accepts a destination from the client.
 
 ## Tests
-Focus, English visual text, lifecycle browser mocks, contracts, manifests, and the production build are checked in CI.
+Focus, English visual text, lifecycle, Tablet, and ATM browser mocks, inventory image-key resolution,
+PNG dimensions and transparency, banking currency formatting, contracts, manifests, and the production
+build are checked in CI.

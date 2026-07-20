@@ -16,6 +16,14 @@ const bridgedEvents = new Set([
   'characters.select',
   'characters.appearanceConfiguration',
   'characters.appearanceSave',
+  'inventory.snapshot',
+  'inventory.workspace',
+  'inventory.reposition',
+  'inventory.transfer',
+  'inventory.use',
+  'banking.snapshot',
+  'banking.transfer',
+  'banking.atmCash',
 ]);
 const responseTimeoutMs = 10_000;
 
@@ -87,8 +95,72 @@ const mockRuleset = {
   content: 'Treat others respectfully. Cheating, exploits, and harassment are prohibited.',
   published_at: '2026-07-16T00:00:00Z',
 };
+const mockInventorySlots = new Map([
+  ['water_bottle', 1],
+  ['sandwich', 2],
+  ['state_id', 3],
+  ['city_tablet', 4],
+]);
+let mockInventoryVersion = 3;
+let mockCashBalance = 5000;
+let mockCheckingBalance = 25000;
+const mockBankingTransfers = new Map<string, { fingerprint: string; receipt: unknown }>();
+const mockAtmOperations = new Map<string, { fingerprint: string; receipt: unknown }>();
+const mockBankingTransactions: Record<string, unknown>[] = [
+  {
+    transaction_uuid: '0190b7a0-7000-7000-8000-000000000020',
+    transaction_number: 'TX-0190B7A0700070008000000000000020',
+    transaction_type: 'STARTER_ALLOCATION',
+    status: 'POSTED',
+    amount_minor: 30000,
+    direction: 'CREDIT',
+    currency: 'USD',
+    purpose: 'Initial character funds',
+    posted_at: '2026-07-20T12:00:00Z',
+  },
+];
+const mockBankingSnapshot = () => ({
+  currency: 'USD',
+  starter_provisioned: true,
+  repeated: true,
+  accounts: [
+    {
+      account_uuid: '0190b7a0-7000-7000-8000-000000000010',
+      account_number: 'CASH-800000000010',
+      account_type: 'CASH_WALLET',
+      currency: 'USD',
+      status: 'ACTIVE',
+      balance_minor: mockCashBalance,
+      version: 1 + mockAtmOperations.size,
+    },
+    {
+      account_uuid: '0190b7a0-7000-7000-8000-000000000011',
+      account_number: 'SA-800000000011',
+      account_type: 'PERSONAL_CHECKING',
+      currency: 'USD',
+      status: 'ACTIVE',
+      balance_minor: mockCheckingBalance,
+      version: 1 + mockBankingTransfers.size + mockAtmOperations.size,
+    },
+  ],
+  recent_transactions: mockBankingTransactions,
+});
 function browserMock(event: string, body: unknown): unknown {
-  const request = body as { locale?: 'de' | 'en'; operation_uuid?: string };
+  const request = body as {
+    locale?: 'de' | 'en';
+    operation_uuid?: string;
+    source_inventory_uuid?: string;
+    target_inventory_uuid?: string;
+    source_slot?: number;
+    target_slot?: number;
+    quantity?: number;
+    intent?: 'USE' | 'INSPECT' | 'SHOW';
+    recipient_account_number?: string;
+    amount_minor?: number;
+    purpose?: string;
+    atm_uuid?: string;
+    direction?: 'DEPOSIT' | 'WITHDRAW';
+  };
   const lifecycle = browserLifecycleSnapshot(currentBrowserSearch());
   if (event === 'lifecycleRefresh') return { ok: true };
   if (event === 'registrationRuleset')
@@ -97,6 +169,371 @@ function browserMock(event: string, body: unknown): unknown {
       data: { ...mockRuleset, locale: 'en' },
       correlation_id: 'mock-ruleset',
     };
+  if (event === 'banking.snapshot')
+    return {
+      ok: true,
+      data: mockBankingSnapshot(),
+      correlation_id: 'mock-banking',
+    };
+  if (event === 'banking.transfer') {
+    const operationUuid = request.operation_uuid ?? '';
+    const fingerprint = JSON.stringify([
+      request.recipient_account_number,
+      request.amount_minor,
+      request.purpose,
+    ]);
+    const replay = mockBankingTransfers.get(operationUuid);
+    if (replay)
+      return replay.fingerprint === fingerprint
+        ? {
+            ok: true,
+            data: {
+              ...(replay.receipt as object),
+              repeated: true,
+              snapshot: mockBankingSnapshot(),
+            },
+            correlation_id: 'mock-transfer-replay',
+          }
+        : {
+            ok: false,
+            error: {
+              code: 'CONFLICT',
+              message_key: 'banking.error.operation_conflict',
+              safe_details: {},
+              correlation_id: 'mock-transfer-conflict',
+            },
+          };
+    if (!request.amount_minor || request.amount_minor > mockCheckingBalance)
+      return {
+        ok: false,
+        error: {
+          code: 'PRECONDITION_FAILED',
+          message_key: 'banking.error.insufficient_funds',
+          safe_details: {},
+          correlation_id: 'mock-transfer-funds',
+        },
+      };
+    mockCheckingBalance -= request.amount_minor;
+    const transactionUuid = crypto.randomUUID();
+    const transaction = {
+      transaction_uuid: transactionUuid,
+      transaction_number: `TX-${transactionUuid.replaceAll('-', '').toUpperCase()}`,
+      transaction_type: 'BANK_TRANSFER',
+      status: 'POSTED',
+      amount_minor: request.amount_minor,
+      direction: 'DEBIT',
+      currency: 'USD',
+      purpose: request.purpose ?? 'Transfer',
+      posted_at: new Date().toISOString(),
+    };
+    mockBankingTransactions.unshift(transaction);
+    const receipt = {
+      repeated: false,
+      operation_uuid: operationUuid,
+      ...transaction,
+      source_account_number: 'SA-800000000011',
+      recipient_account_number: request.recipient_account_number,
+      snapshot: mockBankingSnapshot(),
+    };
+    mockBankingTransfers.set(operationUuid, { fingerprint, receipt });
+    return { ok: true, data: receipt, correlation_id: 'mock-transfer-posted' };
+  }
+  if (event === 'banking.atmCash') {
+    const operationUuid = request.operation_uuid ?? '';
+    const fingerprint = JSON.stringify([request.atm_uuid, request.direction, request.amount_minor]);
+    const replay = mockAtmOperations.get(operationUuid);
+    if (replay)
+      return replay.fingerprint === fingerprint
+        ? {
+            ok: true,
+            data: {
+              ...(replay.receipt as object),
+              repeated: true,
+              snapshot: mockBankingSnapshot(),
+            },
+            correlation_id: 'mock-atm-replay',
+          }
+        : {
+            ok: false,
+            error: {
+              code: 'CONFLICT',
+              message_key: 'banking.error.operation_conflict',
+              safe_details: {},
+              correlation_id: 'mock-atm-conflict',
+            },
+          };
+    const amountMinor = request.amount_minor ?? 0;
+    const sourceBalance = request.direction === 'DEPOSIT' ? mockCashBalance : mockCheckingBalance;
+    if (amountMinor < 1 || amountMinor > sourceBalance)
+      return {
+        ok: false,
+        error: {
+          code: 'PRECONDITION_FAILED',
+          message_key: 'banking.error.insufficient_funds',
+          safe_details: {},
+          correlation_id: 'mock-atm-funds',
+        },
+      };
+    if (request.direction === 'DEPOSIT') {
+      mockCashBalance -= amountMinor;
+      mockCheckingBalance += amountMinor;
+    } else {
+      mockCheckingBalance -= amountMinor;
+      mockCashBalance += amountMinor;
+    }
+    const transactionUuid = crypto.randomUUID();
+    const transactionNumber = `TX-${transactionUuid.replaceAll('-', '').toUpperCase()}`;
+    const receipt = {
+      repeated: false,
+      operation_uuid: operationUuid,
+      transaction_uuid: transactionUuid,
+      transaction_number: transactionNumber,
+      atm_uuid: request.atm_uuid,
+      atm_label: 'Legion Square Parking ATM',
+      direction: request.direction,
+      source_account_number:
+        request.direction === 'DEPOSIT' ? 'CASH-800000000010' : 'SA-800000000011',
+      destination_account_number:
+        request.direction === 'DEPOSIT' ? 'SA-800000000011' : 'CASH-800000000010',
+      amount_minor: amountMinor,
+      currency: 'USD',
+      posted_at: new Date().toISOString(),
+      snapshot: mockBankingSnapshot(),
+    };
+    mockAtmOperations.set(operationUuid, { fingerprint, receipt });
+    return { ok: true, data: receipt, correlation_id: 'mock-atm-posted' };
+  }
+  if (event === 'inventory.snapshot')
+    return {
+      ok: true,
+      data: {
+        inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+        inventory_type: 'CHARACTER',
+        slot_capacity: 24,
+        weight_capacity_grams: 30000,
+        current_weight_grams: 2170,
+        version: mockInventoryVersion,
+        starter_provisioned: true,
+        entries: [
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000011',
+            slot_number: mockInventorySlots.get('water_bottle') ?? 1,
+            quantity: 2,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000001',
+              code: 'water_bottle',
+              category: 'CONSUMABLE',
+              label: 'Water Bottle',
+              description: 'A sealed bottle of drinking water.',
+              icon_key: 'water_bottle',
+              is_stackable: true,
+              is_unique: false,
+              max_stack: 10,
+              unit_weight_grams: 500,
+              version: 1,
+              actions: ['USE'],
+            },
+            total_weight_grams: 1000,
+          },
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000012',
+            slot_number: mockInventorySlots.get('sandwich') ?? 2,
+            quantity: 2,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000002',
+              code: 'sandwich',
+              category: 'CONSUMABLE',
+              label: 'Sandwich',
+              description: 'A simple wrapped sandwich.',
+              icon_key: 'sandwich',
+              is_stackable: true,
+              is_unique: false,
+              max_stack: 10,
+              unit_weight_grams: 250,
+              version: 1,
+              actions: ['USE'],
+            },
+            total_weight_grams: 500,
+          },
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000013',
+            slot_number: mockInventorySlots.get('state_id') ?? 3,
+            quantity: 1,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000003',
+              code: 'state_id',
+              category: 'DOCUMENT',
+              label: 'State Identification Card',
+              description: "The holder's official state identification card.",
+              icon_key: 'state_id',
+              is_stackable: false,
+              is_unique: true,
+              max_stack: 1,
+              unit_weight_grams: 20,
+              version: 1,
+              actions: ['INSPECT', 'SHOW'],
+            },
+            total_weight_grams: 20,
+          },
+          {
+            entry_uuid: '0190b7a0-6000-7000-8000-000000000014',
+            slot_number: mockInventorySlots.get('city_tablet') ?? 4,
+            quantity: 1,
+            definition: {
+              definition_uuid: '0190b7a0-6000-7000-8000-000000000004',
+              code: 'city_tablet',
+              category: 'TOOL',
+              label: 'City Tablet',
+              description: 'A secure tablet for city services and personal applications.',
+              icon_key: 'city_tablet',
+              is_stackable: false,
+              is_unique: true,
+              max_stack: 1,
+              unit_weight_grams: 650,
+              version: 1,
+              actions: ['USE'],
+            },
+            total_weight_grams: 650,
+          },
+        ],
+      },
+      correlation_id: 'mock-inventory',
+    };
+  if (event === 'inventory.workspace') {
+    const character = browserMock('inventory.snapshot', body) as {
+      ok: true;
+      data: Record<string, unknown>;
+    };
+    return {
+      ok: true,
+      data: {
+        character: character.data,
+        storage: {
+          inventory_uuid: '0190b7a0-6000-7000-8000-000000000020',
+          inventory_type: 'PERSONAL_STORAGE',
+          slot_capacity: 48,
+          weight_capacity_grams: 100000,
+          current_weight_grams: 0,
+          version: 1,
+          starter_provisioned: false,
+          entries: [],
+        },
+        access_label: 'Personal Locker',
+      },
+      correlation_id: 'mock-inventory-workspace',
+    };
+  }
+  if (event === 'inventory.reposition') {
+    const source = [...mockInventorySlots.entries()].find(
+      ([, slot]) => slot === request.source_slot,
+    );
+    const target = [...mockInventorySlots.entries()].find(
+      ([, slot]) => slot === request.target_slot,
+    );
+    if (!source || typeof request.target_slot !== 'number')
+      return {
+        ok: false,
+        error: {
+          code: 'PRECONDITION_FAILED',
+          message_key: 'inventory.error.reposition_rejected',
+          safe_details: {},
+          correlation_id: 'mock-inventory-reposition-error',
+        },
+      };
+    mockInventorySlots.set(source[0], request.target_slot);
+    if (target && typeof request.source_slot === 'number')
+      mockInventorySlots.set(target[0], request.source_slot);
+    mockInventoryVersion += 1;
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        inventory_version: mockInventoryVersion,
+        source_slot: request.source_slot,
+        target_slot: request.target_slot,
+        mode: target ? 'SWAP' : 'MOVE',
+      },
+      correlation_id: 'mock-inventory-reposition',
+    };
+  }
+  if (event === 'inventory.transfer') {
+    if (
+      typeof request.source_inventory_uuid !== 'string' ||
+      typeof request.target_inventory_uuid !== 'string' ||
+      typeof request.source_slot !== 'number' ||
+      typeof request.target_slot !== 'number' ||
+      typeof request.quantity !== 'number'
+    )
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message_key: 'inventory.error.invalid_request',
+          safe_details: {},
+          correlation_id: 'mock-inventory-transfer-error',
+        },
+      };
+    mockInventoryVersion += 1;
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        source_inventory_uuid: request.source_inventory_uuid,
+        target_inventory_uuid: request.target_inventory_uuid,
+        source_slot: request.source_slot,
+        target_slot: request.target_slot,
+        target_entry_uuid: request.operation_uuid,
+        quantity: request.quantity,
+        mode: 'CREATE_STACK',
+        source_version: mockInventoryVersion,
+        target_version: 2,
+      },
+      correlation_id: 'mock-inventory-transfer',
+    };
+  }
+  if (event === 'inventory.use') {
+    if (
+      typeof request.source_slot !== 'number' ||
+      typeof request.intent !== 'string' ||
+      typeof request.operation_uuid !== 'string'
+    )
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message_key: 'inventory.error.invalid_request',
+          safe_details: {},
+          correlation_id: 'mock-inventory-use-error',
+        },
+      };
+    const effect =
+      request.intent === 'INSPECT'
+        ? 'INSPECT_STATE_ID'
+        : request.intent === 'SHOW'
+          ? 'SHOW_STATE_ID'
+          : request.source_slot === (mockInventorySlots.get('city_tablet') ?? 4)
+            ? 'OPEN_TABLET'
+            : request.source_slot === (mockInventorySlots.get('water_bottle') ?? 1)
+              ? 'DRINK_WATER'
+              : 'EAT_FOOD';
+    const consumed = request.intent === 'USE' && effect !== 'OPEN_TABLET' ? 1 : 0;
+    mockInventoryVersion += consumed;
+    return {
+      ok: true,
+      data: {
+        repeated: false,
+        operation_uuid: request.operation_uuid,
+        inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+        source_slot: request.source_slot,
+        quantity_consumed: consumed,
+        inventory_version: mockInventoryVersion,
+        effect,
+      },
+      correlation_id: 'mock-inventory-use',
+    };
+  }
   if (event === 'registrationStatus')
     return {
       ok: true,

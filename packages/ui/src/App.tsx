@@ -1,24 +1,114 @@
 /** Renders the interactive server-authoritative Wave 1 player lifecycle. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  atmContractVersion,
+  inventoryContractVersion,
   isNuiMessage,
   playerLifecycleContractVersion,
   registrationContractVersion,
   type CurrentRuleset,
+  type AtmSessionSnapshot,
+  type InventoryOpenView,
+  type InventoryUseEffect,
   type PlayerLifecycleSnapshot,
   type RegistrationOutcome,
   type Result,
+  type StateIdentificationPresentation,
 } from '@cnr/contracts';
 import { CharacterLifecycle } from './CharacterLifecycle';
 import { claimFocus, initialFocusState } from './focus';
 import { translate } from './i18n';
+import { InventoryPanel } from './InventoryPanel';
 import { browserLifecycleSnapshot, currentBrowserSearch, lifecycleViewForPhase } from './lifecycle';
 import { isBrowserMock, postNui } from './nui';
+import { StateIdentificationCard } from './StateIdentificationCard';
+import { TabletPanel, type TabletApp } from './TabletPanel';
+import { AtmPanel } from './AtmPanel';
 
 const newId = () => crypto.randomUUID();
 
 export function App() {
   const mock = useMemo(isBrowserMock, []);
+  const browserInventory = useMemo(() => {
+    const view = new URLSearchParams(currentBrowserSearch()).get('view');
+    return mock && (view === 'inventory' || view === 'storage');
+  }, [mock]);
+  const browserInventoryView = useMemo<InventoryOpenView>(
+    () =>
+      new URLSearchParams(currentBrowserSearch()).get('view') === 'storage'
+        ? 'storage'
+        : 'personal',
+    [],
+  );
+  const browserTablet = useMemo(() => {
+    const view = new URLSearchParams(currentBrowserSearch()).get('view');
+    return mock && (view === 'tablet' || view === 'banking');
+  }, [mock]);
+  const browserTabletApp = useMemo<TabletApp>(
+    () =>
+      new URLSearchParams(currentBrowserSearch()).get('view') === 'banking' ? 'banking' : 'home',
+    [],
+  );
+  const browserAtm = useMemo<AtmSessionSnapshot | null>(() => {
+    if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'atm') return null;
+    return {
+      contract_version: atmContractVersion,
+      atm: {
+        atm_uuid: '0190b7a0-7400-7000-8000-000000000010',
+        code: 'ATM-LEGION-PARKING',
+        label: 'Legion Square Parking ATM',
+        x: 215.76,
+        y: -810.12,
+        z: 30.73,
+        heading: 157,
+        interaction_radius: 3,
+        status: 'ACTIVE',
+        version: 1,
+      },
+      banking: {
+        currency: 'USD',
+        starter_provisioned: true,
+        repeated: true,
+        accounts: [
+          {
+            account_uuid: '0190b7a0-7000-7000-8000-000000000010',
+            account_number: 'CASH-800000000010',
+            account_type: 'CASH_WALLET',
+            currency: 'USD',
+            status: 'ACTIVE',
+            balance_minor: 5000,
+            version: 1,
+          },
+          {
+            account_uuid: '0190b7a0-7000-7000-8000-000000000011',
+            account_number: 'SA-800000000011',
+            account_type: 'PERSONAL_CHECKING',
+            currency: 'USD',
+            status: 'ACTIVE',
+            balance_minor: 25000,
+            version: 1,
+          },
+        ],
+        recent_transactions: [],
+      },
+    };
+  }, [mock]);
+  const browserIdentification = useMemo<StateIdentificationPresentation | null>(() => {
+    if (!mock || new URLSearchParams(currentBrowserSearch()).get('view') !== 'document')
+      return null;
+    return {
+      contract_version: inventoryContractVersion,
+      mode: 'PRESENTED',
+      document: {
+        document_type: 'STATE_ID',
+        document_number: 'SA-000000000001',
+        first_name: 'Alex',
+        last_name: 'Morgan',
+        date_of_birth: '1995-05-20',
+        issued_at: '2026-07-16',
+      },
+    };
+  }, [mock]);
   const operationUuid = useRef(newId());
   const browserReadySent = useRef(false);
   const [snapshot, setSnapshot] = useState<PlayerLifecycleSnapshot | null>(() =>
@@ -32,6 +122,14 @@ export function App() {
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [inventoryOpen, setInventoryOpen] = useState(browserInventory);
+  const [tabletOpen, setTabletOpen] = useState(browserTablet);
+  const [tabletInitialApp, setTabletInitialApp] = useState<TabletApp>(browserTabletApp);
+  const [inventoryView, setInventoryView] = useState<InventoryOpenView>(browserInventoryView);
+  const [identification, setIdentification] = useState<StateIdentificationPresentation | null>(
+    browserIdentification,
+  );
+  const [atmSnapshot, setAtmSnapshot] = useState<AtmSessionSnapshot | null>(browserAtm);
 
   const loadRuleset = useCallback(async () => {
     setLoading(true);
@@ -138,7 +236,30 @@ export function App() {
         setFocus(initialFocusState);
         setVisible(false);
       } else if (event.data.type === 'ui.lifecycle.open') {
+        setInventoryOpen(false);
+        setTabletOpen(false);
+        setAtmSnapshot(null);
         applySnapshot(event.data.payload);
+      } else if (event.data.type === 'ui.inventory.open') {
+        setTabletOpen(false);
+        setInventoryView(event.data.payload.view);
+        setInventoryOpen(true);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'inventory'));
+      } else if (event.data.type === 'ui.tablet.open') {
+        setInventoryOpen(false);
+        setTabletInitialApp('home');
+        setTabletOpen(true);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'tablet'));
+      } else if (event.data.type === 'ui.atm.open') {
+        setInventoryOpen(false);
+        setTabletOpen(false);
+        setAtmSnapshot(event.data.payload);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'atm'));
+      } else if (event.data.type === 'ui.inventory.document') {
+        setIdentification(event.data.payload);
       } else if (event.data.type === 'ui.character.spawn_failed') {
         applySnapshot({
           contract_version: playerLifecycleContractVersion,
@@ -158,6 +279,74 @@ export function App() {
     return () => window.removeEventListener('message', listener);
   }, [applySnapshot, mock]);
 
+  const closeIdentification = () => {
+    setIdentification(null);
+    void postNui<{ ok: boolean }>('inventory.documentClose', {}).catch(() => undefined);
+  };
+
+  const completeInventoryItemAction = useCallback(
+    (effect: InventoryUseEffect) => {
+      setInventoryOpen(false);
+      if (mock && effect === 'OPEN_TABLET') {
+        setTabletInitialApp('home');
+        setTabletOpen(true);
+        setVisible(true);
+        setFocus((current) => claimFocus(current, 'tablet'));
+      } else {
+        setVisible(false);
+        setFocus(initialFocusState);
+      }
+      void postNui<{ ok: boolean }>('inventory.actionComplete', { effect }).catch(() => undefined);
+    },
+    [mock],
+  );
+
+  if (tabletOpen) {
+    return (
+      <TabletPanel
+        initialApp={tabletInitialApp}
+        onClose={() => {
+          setTabletOpen(false);
+          setVisible(false);
+          setFocus(initialFocusState);
+        }}
+      />
+    );
+  }
+
+  if (atmSnapshot) {
+    return (
+      <AtmPanel
+        initialSnapshot={atmSnapshot}
+        onClose={() => {
+          setAtmSnapshot(null);
+          setVisible(false);
+          setFocus(initialFocusState);
+        }}
+      />
+    );
+  }
+
+  if (inventoryOpen) {
+    return (
+      <>
+        <InventoryPanel
+          view={inventoryView}
+          onItemAction={completeInventoryItemAction}
+          onClose={() => {
+            setInventoryOpen(false);
+            setVisible(false);
+            setFocus(initialFocusState);
+          }}
+        />
+        {identification && (
+          <StateIdentificationCard presentation={identification} onClose={closeIdentification} />
+        )}
+      </>
+    );
+  }
+  if (identification)
+    return <StateIdentificationCard presentation={identification} onClose={closeIdentification} />;
   if (!visible) return null;
   const view = snapshot ? lifecycleViewForPhase(snapshot.phase) : 'loading';
   if (refreshing || view === 'loading') {

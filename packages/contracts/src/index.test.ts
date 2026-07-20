@@ -14,10 +14,21 @@ import {
   characterContractVersion,
   characterAppearanceContractVersion,
   characterSelectionContractVersion,
+  inventoryContractVersion,
+  bankingContractVersion,
+  atmContractVersion,
+  tabletContractVersion,
   type SaveCharacterAppearance,
   type SelectCharacter,
   type CreateCharacterDraft,
   type PlayerLifecycleRefresh,
+  type InventorySnapshotRequest,
+  type InventoryRepositionRequest,
+  type InventoryTransferRequest,
+  type InventoryUseRequest,
+  type BankingSnapshotRequest,
+  type BankingTransferRequest,
+  type AtmCashRequest,
   type RegistrationSubmission,
   type TechnicalPermissionDecision,
   type TechnicalPermissionSnapshot,
@@ -122,6 +133,241 @@ describe('core contracts', () => {
       contract_version: playerLifecycleContractVersion,
     };
     expect(Object.keys(refresh)).toEqual(['contract_version']);
+  });
+
+  it('keeps inventory reads and transfers free of character, item, metadata, and capacity authority', () => {
+    const snapshot: InventorySnapshotRequest = {
+      request_id: 'inventory-read-1',
+      contract_version: inventoryContractVersion,
+    };
+    const transfer: InventoryTransferRequest = {
+      source_inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      target_inventory_uuid: '0190b7a0-6000-7000-8000-000000000011',
+      source_slot: 1,
+      target_slot: 4,
+      quantity: 1,
+      request_id: 'inventory-transfer-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000012',
+      contract_version: inventoryContractVersion,
+    };
+    expect(Object.keys(snapshot).sort()).toEqual(['contract_version', 'request_id']);
+    expect(Object.keys(transfer).sort()).toEqual([
+      'contract_version',
+      'operation_uuid',
+      'quantity',
+      'request_id',
+      'source_inventory_uuid',
+      'source_slot',
+      'target_inventory_uuid',
+      'target_slot',
+    ]);
+    expect(Object.keys(transfer)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'definition_uuid',
+        'item_instance_uuid',
+        'metadata',
+        'weight',
+        'inventory_version',
+      ]),
+    );
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.open',
+        payload: { contract_version: inventoryContractVersion, view: 'personal' },
+      }),
+    ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.open',
+        payload: { contract_version: inventoryContractVersion, view: 'storage' },
+      }),
+    ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.open',
+        payload: { contract_version: inventoryContractVersion },
+      }),
+    ).toBe(false);
+
+    const reposition: InventoryRepositionRequest = {
+      inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      source_slot: 1,
+      target_slot: 4,
+      request_id: 'inventory-reposition-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000013',
+      contract_version: inventoryContractVersion,
+    };
+    expect(Object.keys(reposition).sort()).toEqual([
+      'contract_version',
+      'inventory_uuid',
+      'operation_uuid',
+      'request_id',
+      'source_slot',
+      'target_slot',
+    ]);
+    expect(Object.keys(reposition)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'entry_uuid',
+        'definition_uuid',
+        'item_instance_uuid',
+        'inventory_version',
+      ]),
+    );
+
+    const use: InventoryUseRequest = {
+      inventory_uuid: '0190b7a0-6000-7000-8000-000000000010',
+      source_slot: 1,
+      intent: 'USE',
+      request_id: 'inventory-use-1',
+      operation_uuid: '0190b7a0-6000-7000-8000-000000000014',
+      contract_version: inventoryContractVersion,
+    };
+    expect(Object.keys(use).sort()).toEqual([
+      'contract_version',
+      'intent',
+      'inventory_uuid',
+      'operation_uuid',
+      'request_id',
+      'source_slot',
+    ]);
+    expect(Object.keys(use)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'definition_uuid',
+        'item_instance_uuid',
+        'effect',
+        'quantity',
+        'target_source',
+      ]),
+    );
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.inventory.document',
+        payload: {
+          contract_version: inventoryContractVersion,
+          mode: 'PRESENTED',
+          document: {
+            document_type: 'STATE_ID',
+            document_number: 'SA-000000000001',
+            first_name: 'Alex',
+            last_name: 'Morgan',
+            date_of_birth: '1995-05-20',
+            issued_at: '2026-07-16',
+          },
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it('keeps banking reads free of balance, ownership, account, and funding authority', () => {
+    const request: BankingSnapshotRequest = {
+      request_id: 'banking-read-1',
+      contract_version: bankingContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual(['contract_version', 'request_id']);
+    expect(Object.keys(request)).not.toEqual(
+      expect.arrayContaining([
+        'account_uuid',
+        'character_uuid',
+        'session_uuid',
+        'balance_minor',
+        'account_type',
+        'starter_cash_minor',
+        'starter_checking_minor',
+      ]),
+    );
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.tablet.open',
+        payload: { contract_version: tabletContractVersion },
+      }),
+    ).toBe(true);
+    expect(
+      isNuiMessage({
+        version: 1,
+        type: 'ui.tablet.open',
+        payload: { contract_version: tabletContractVersion, account_uuid: 'client-claimed' },
+      }),
+    ).toBe(false);
+  });
+
+  it('limits transfer intent to a recipient, amount, purpose, and correlation fields', () => {
+    const request: BankingTransferRequest = {
+      recipient_account_number: 'SA-800000000012',
+      amount_minor: 1250,
+      purpose: 'Shared fuel cost',
+      request_id: 'banking-transfer-1',
+      operation_uuid: '0190b7a0-7000-7000-8000-000000000099',
+      contract_version: bankingContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual([
+      'amount_minor',
+      'contract_version',
+      'operation_uuid',
+      'purpose',
+      'recipient_account_number',
+      'request_id',
+    ]);
+    expect(Object.keys(request)).not.toEqual(
+      expect.arrayContaining([
+        'source_account_uuid',
+        'source_account_number',
+        'account_uuid',
+        'character_uuid',
+        'session_uuid',
+        'balance_minor',
+        'currency',
+        'status',
+        'ledger_entries',
+      ]),
+    );
+  });
+
+  it('keeps ATM intent free of coordinates, accounts, balances, and ledger authority', () => {
+    const request: AtmCashRequest = {
+      atm_uuid: '0190b7a0-7400-7000-8000-000000000010',
+      direction: 'WITHDRAW',
+      amount_minor: 5000,
+      request_id: 'atm-cash-1',
+      operation_uuid: '0190b7a0-7400-7000-8000-000000000020',
+      contract_version: atmContractVersion,
+    };
+    expect(Object.keys(request).sort()).toEqual([
+      'amount_minor',
+      'atm_uuid',
+      'contract_version',
+      'direction',
+      'operation_uuid',
+      'request_id',
+    ]);
+    expect(Object.keys(request)).not.toEqual(
+      expect.arrayContaining([
+        'x',
+        'y',
+        'z',
+        'interaction_radius',
+        'account_uuid',
+        'session_uuid',
+        'character_uuid',
+        'source_account_uuid',
+        'destination_account_uuid',
+        'balance_minor',
+        'currency',
+      ]),
+    );
   });
 
   it('keeps technical permission contracts role-agnostic', () => {
