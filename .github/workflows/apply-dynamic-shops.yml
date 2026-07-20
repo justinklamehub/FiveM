@@ -33,15 +33,16 @@ jobs:
             exit 0
           fi
 
-          comment_ids=(5024201513 5024231379 5024289059)
-          expected_lengths=(19000 19000 18588)
+          comment_ids=(5024201513 5024231379 5024389278 5024408513)
+          expected_lengths=(19000 19000 9294 9294)
           expected_hashes=(
             3d49518af554e5fe837562955a43dcfb34854c79eade01bafb6d3830a980b4cf
             de3e1431061ed194909cf5e0bf549a126a0268cb9ef8e592c3a5e667036efc48
-            fe3663ccbf0155609d315bfc405c0ea6117bffb8630499030f288672547d662e
+            b6ca36c9ed880ff92f539f01cf7dc64ec69953095c13415fedc4435b8be8d988
+            93ff76e304136b8d121f67220252a4d397f1d040260f6c92c65d1c092bfa46c7
           )
           : > /tmp/dynamic-shops-overlay.b64
-          for index in 0 1 2; do
+          for index in 0 1 2 3; do
             gh api "repos/${{ github.repository }}/issues/comments/${comment_ids[$index]}" --jq .body \
               | tail -n +2 | tr -d '\n\r' > "/tmp/payload-part-${index}.b64"
             actual_length=$(wc -c < "/tmp/payload-part-${index}.b64")
